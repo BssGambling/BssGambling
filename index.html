@@ -507,19 +507,28 @@
     @keyframes flip { 0% { transform: rotateY(0deg); } 100% { transform: rotateY(360deg); } }
 
     /* ── Roulette ── */
-    .r-slider-wrap { position:relative; width:100%; height:80px; background:var(--panel2); border:2px solid var(--border2); overflow:hidden; border-radius:12px; margin-bottom:20px; }
+    .r-slider-wrap { position:relative; width:100%; height:72px; background:#0a0a14; border:2px solid var(--border2); overflow:hidden; border-radius:12px; margin-bottom:16px; }
     .r-slider-inner { display:flex; position:absolute; left:0; align-items:center; height:100%; will-change:transform; }
-    .r-num { min-width:80px; width:80px; height:80px; display:flex; align-items:center; justify-content:center; font-weight:800; border-right:1px solid rgba(0,0,0,0.4); font-size:24px; font-family:'JetBrains Mono',monospace; }
-    .r-pointer { position:absolute; left:50%; top:0; bottom:0; width:3px; background:var(--orange); z-index:10; transform:translateX(-50%); box-shadow:0 0 20px var(--orange), 0 0 40px rgba(15,214,138,0.5); }
-    .r-grid { display:grid; grid-template-columns:80px repeat(12,1fr); gap:4px; }
-    .cell { height:50px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:700; border-radius:6px; border:2px solid transparent; font-size:12px; position:relative; transition:all 0.15s; }
-    .cell:hover { filter: brightness(1.2); transform: scale(1.04); }
-    .cell.nula { background:var(--green); grid-row:span 3; height:160px; font-size:24px; }
-    .cell.red { background:#c0392b; }
-    .cell.black { background:#1a1a2e; border-color:#2a2a4e; }
-    .cell.active { border-color:white !important; box-shadow:0 0 14px rgba(255,255,255,0.4); }
-    .btn-extra { position:relative; }
-    .chip-overlay { position:absolute; width:26px; height:26px; background:var(--orange); border-radius:50%; border:2px dashed rgba(0,0,0,0.5); color:#050810; font-size:9px; display:flex; align-items:center; justify-content:center; font-weight:800; top:50%; left:50%; transform:translate(-50%,-50%); z-index:5; box-shadow:0 2px 8px rgba(0,0,0,0.4); }
+    .r-num { min-width:72px; width:72px; height:72px; display:flex; align-items:center; justify-content:center; font-weight:800; border-right:1px solid rgba(0,0,0,0.4); font-size:22px; font-family:'JetBrains Mono',monospace; }
+    .r-pointer { position:absolute; left:50%; top:0; bottom:0; width:3px; background:var(--orange); z-index:10; transform:translateX(-50%); box-shadow:0 0 16px var(--orange); }
+    .r-pointer::before { content:'▼'; position:absolute; top:-2px; left:50%; transform:translateX(-50%); color:var(--orange); font-size:12px; line-height:1; }
+
+    .roulette-layout { display:flex; gap:20px; align-items:flex-start; }
+    .r-board-wrap { flex:1; min-width:0; }
+    .r-grid { display:grid; grid-template-columns: 52px repeat(12, 1fr); gap:3px; width:100%; }
+    .cell { height:48px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:700; border-radius:5px; border:2px solid transparent; font-size:13px; position:relative; transition:all 0.12s; user-select:none; }
+    .cell:hover { filter:brightness(1.3); transform:scale(1.05); }
+    .cell.nula { background:#1a7a3c; grid-row:span 3; height:152px; font-size:20px; color:white; }
+    .cell.red { background:#c0392b; color:white; }
+    .cell.black { background:#1c1c2e; border-color:#2e2e4a; color:white; }
+    .cell.active { border-color:#fff !important; box-shadow:0 0 12px rgba(255,255,255,0.5); }
+    .btn-extra { position:relative; border-radius:6px; font-weight:700; font-size:12px; cursor:pointer; padding:10px 4px; transition:all 0.12s; user-select:none; }
+    .btn-extra:hover { filter:brightness(1.2); }
+    .btn-extra.active { border-color:#fff !important; box-shadow:0 0 12px rgba(255,255,255,0.4) !important; }
+    .chip-overlay { position:absolute; width:24px; height:24px; background:var(--orange); border-radius:50%; border:2px solid rgba(0,0,0,0.5); color:#050810; font-size:8px; display:flex; align-items:center; justify-content:center; font-weight:900; top:50%; left:50%; transform:translate(-50%,-50%); z-index:5; box-shadow:0 2px 8px rgba(0,0,0,0.5); pointer-events:none; }
+    .r-dozen-row { display:grid; grid-template-columns:52px 1fr 1fr 1fr; gap:3px; margin-top:3px; }
+    .r-outside-row { display:grid; grid-template-columns:52px 1fr 1fr 1fr 1fr 1fr 1fr; gap:3px; margin-top:3px; }
+    .r-spacer { width:52px; }
 
     /* ── Blackjack ── */
     .bj-area { display:flex; flex-direction:column; align-items:center; gap:20px; padding:20px; }
@@ -1378,36 +1387,52 @@
                         </div>
 
                         <div id="game-roulette" class="hidden">
-                            <h2 style="color:#1abc9c; text-align:center;">ROULETTE</h2>
+                            <h2 style="color:#1abc9c; text-align:center; margin-bottom:8px;">ROULETTE</h2>
                             <div class="profit-bar" style="max-width:600px;margin:0 auto 10px;">
                                 <span style="color:#888;">Session Profit</span>
                                 <span class="profit-val zero" id="r-profit">+0 <svg class="ic ic-star" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg></span>
                             </div>
-                            <div id="r-status" style="text-align:center; color:var(--orange); font-weight:bold; margin-bottom:10px; height:20px;">PLACE YOUR BETS</div>
+                            <div id="r-status" style="text-align:center; color:var(--orange); font-weight:bold; margin-bottom:10px; height:24px; font-size:16px;">PLACE YOUR BETS</div>
+
+                            <!-- Spin strip -->
                             <div class="r-slider-wrap" id="r-wrap">
                                 <div class="r-pointer"></div>
                                 <div id="r-slider" class="r-slider-inner"></div>
                             </div>
-                            <div class="r-grid" id="r-board"></div>
-                            <div class="r-dozen-bets" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:5px; margin-top:5px; margin-left:85px;">
-                                <button class="btn-extra" style="background:#222; border:1px solid #444; color:white; padding:10px; cursor:pointer;" onclick="setExtraBet('1st12', this)">1st 12</button>
-                                <button class="btn-extra" style="background:#222; border:1px solid #444; color:white; padding:10px; cursor:pointer;" onclick="setExtraBet('2nd12', this)">2nd 12</button>
-                                <button class="btn-extra" style="background:#222; border:1px solid #444; color:white; padding:10px; cursor:pointer;" onclick="setExtraBet('3rd12', this)">3rd 12</button>
-                            </div>
-                            <div class="r-extra-bets" style="display:grid; grid-template-columns: repeat(6, 1fr); gap:5px; margin-top:10px; margin-left:85px;">
-                                <button class="btn-extra" style="background:#222; border:1px solid #444; color:white; padding:10px; cursor:pointer;" onclick="setExtraBet('1-18', this)">1 - 18</button>
-                                <button class="btn-extra" style="background:#222; border:1px solid #444; color:white; padding:10px; cursor:pointer;" onclick="setExtraBet('even', this)">EVEN</button>
-                                <button class="btn-extra" style="background:var(--red); border:none; color:white; padding:10px; cursor:pointer;" onclick="setExtraBet('red', this)">RED</button>
-                                <button class="btn-extra" style="background:var(--black); border:none; color:white; padding:10px; cursor:pointer;" onclick="setExtraBet('black', this)">BLACK</button>
-                                <button class="btn-extra" style="background:#222; border:1px solid #444; color:white; padding:10px; cursor:pointer;" onclick="setExtraBet('odd', this)">ODD</button>
-                                <button class="btn-extra" style="background:#222; border:1px solid #444; color:white; padding:10px; cursor:pointer;" onclick="setExtraBet('19-36', this)">19 - 36</button>
-                            </div>
-                            <div style="display:flex; gap:10px; margin-top:20px; justify-content:center; align-items:center;">
-                                BET PER CELL: <input type="number" id="r-bet" value="50" min="50" max="1000" style="width:80px;">
+
+                            <!-- Bet controls row -->
+                            <div style="display:flex; gap:8px; margin-bottom:14px; align-items:center; flex-wrap:wrap; justify-content:center;">
+                                <span style="color:#888; font-size:13px;">Chip:</span>
+                                <input type="number" id="r-bet" value="50" min="50" max="1000" style="width:80px;">
                                 <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('r-bet').value=Math.max(50,Math.floor(parseInt(document.getElementById('r-bet').value||50)/2))">½</button>
                                 <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('r-bet').value=Math.min(1000,parseInt(document.getElementById('r-bet').value||50)*2)">2×</button>
                                 <button class="btn-play" id="r-spin" onclick="spinRoulette()">SPIN</button>
-                                <button class="btn-play" style="background:#444; color:white;" onclick="clearRouletteBets()">CLEAR</button>
+                                <button class="btn-play" style="background:#333; color:#aaa;" onclick="clearRouletteBets()">CLEAR</button>
+                            </div>
+
+                            <!-- Full betting board -->
+                            <div class="r-board-wrap">
+                                <!-- Number grid: 0 + rows 3,2,1 top-to-bottom, cols 1-12 left-to-right -->
+                                <div class="r-grid" id="r-board"></div>
+
+                                <!-- Dozen bets -->
+                                <div class="r-dozen-row">
+                                    <div class="r-spacer"></div>
+                                    <button class="btn-extra" style="background:#1e2530;border:1px solid #3a4a5a;color:#ccc;" onclick="setExtraBet('1st12',this)">1st 12</button>
+                                    <button class="btn-extra" style="background:#1e2530;border:1px solid #3a4a5a;color:#ccc;" onclick="setExtraBet('2nd12',this)">2nd 12</button>
+                                    <button class="btn-extra" style="background:#1e2530;border:1px solid #3a4a5a;color:#ccc;" onclick="setExtraBet('3rd12',this)">3rd 12</button>
+                                </div>
+
+                                <!-- Outside bets: 1-18 | EVEN | RED | BLACK | ODD | 19-36 -->
+                                <div class="r-outside-row">
+                                    <div class="r-spacer"></div>
+                                    <button class="btn-extra" style="background:#1e2530;border:1px solid #3a4a5a;color:#ccc;" onclick="setExtraBet('1-18',this)">1–18</button>
+                                    <button class="btn-extra" style="background:#1e2530;border:1px solid #3a4a5a;color:#ccc;" onclick="setExtraBet('even',this)">EVEN</button>
+                                    <button class="btn-extra" style="background:#8b1a1a;border:1px solid #c0392b;color:#fff;" onclick="setExtraBet('red',this)">RED</button>
+                                    <button class="btn-extra" style="background:#111;border:1px solid #444;color:#fff;" onclick="setExtraBet('black',this)">BLACK</button>
+                                    <button class="btn-extra" style="background:#1e2530;border:1px solid #3a4a5a;color:#ccc;" onclick="setExtraBet('odd',this)">ODD</button>
+                                    <button class="btn-extra" style="background:#1e2530;border:1px solid #3a4a5a;color:#ccc;" onclick="setExtraBet('19-36',this)">19–36</button>
+                                </div>
                             </div>
                         </div>
 
@@ -3049,11 +3074,26 @@
     const redNums = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
     let currentBets = {}, isRSpinning = false;
     function buildRoulette() {
-        const slider = document.getElementById('r-slider'); let sH = "";
-        for(let i=0; i<30; i++) rOrder.forEach(n => { let c = n===0?'var(--green)':(redNums.includes(n)?'var(--red)':'var(--black)'); sH += `<div class="r-num" style="background:${c}">${n}</div>`; });
+        // Build spin strip
+        const slider = document.getElementById('r-slider');
+        let sH = '';
+        for(let i=0; i<30; i++) rOrder.forEach(n => {
+            let c = n===0 ? '#1a7a3c' : (redNums.includes(n) ? '#c0392b' : '#1c1c2e');
+            sH += `<div class="r-num" style="background:${c};color:white">${n}</div>`;
+        });
         slider.innerHTML = sH;
-        const b = document.getElementById('r-board'); let bH = `<div class="cell nula" onclick="handleRClick('n0', this)">0</div>`;
-        for(let r=3; r>=1; r--) for(let i=1; i<=12; i++) { let n=(i-1)*3+r; let c=redNums.includes(n)?'red':'black'; bH+=`<div class="cell ${c}" onclick="handleRClick('n${n}', this)">${n}</div>`; }
+
+        // Build betting board: 0 on left spanning 3 rows, then numbers in 3 rows top=3 mid=2 bot=1
+        const b = document.getElementById('r-board');
+        let bH = `<div class="cell nula" onclick="handleRClick('n0',this)">0</div>`;
+        // Row 3 (top), Row 2 (mid), Row 1 (bot)
+        for(let row=3; row>=1; row--) {
+            for(let col=1; col<=12; col++) {
+                let n = (col-1)*3 + row;
+                let cls = redNums.includes(n) ? 'red' : 'black';
+                bH += `<div class="cell ${cls}" onclick="handleRClick('n${n}',this)">${n}</div>`;
+            }
+        }
         b.innerHTML = bH;
     }
     function handleRClick(val, el) { setExtraBet(val, el); }
@@ -3089,7 +3129,7 @@
 
         // Spin many loops + land on correct tile center under pointer
         const loops = 20;
-        const tileWidth = 80;
+        const tileWidth = 72;
         const wrapCenter = wrap.offsetWidth / 2;
         const targetTile = loops * rOrder.length + winIndex;
         const finalX = -(targetTile * tileWidth - wrapCenter + tileWidth / 2);
