@@ -40,7 +40,13 @@
         font-family: 'Sora', sans-serif;
     }
 
-    #auth-screen { position: fixed; inset: 0; z-index: 1000; }
+    #ac-warning { display: none; }
+    #ac-warning.show {
+        display: flex !important;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
 
     #main-app {
         position: fixed;
@@ -4117,7 +4123,7 @@
         _acEnabled = false;
         clearInterval(_acCheckInterval);
         console.warn('[AC]', reason);
-        document.getElementById('ac-warning').style.display = 'flex';
+        document.getElementById('ac-warning').classList.add('show');
         // Reset to snapshot value and save
         if(userData) {
             userData.chips = _acChipsSnapshot;
@@ -4338,7 +4344,7 @@
 <div id="toast-container"></div>
 
 <!-- Anticheat warning -->
-<div id="ac-warning" style="position:fixed; inset:0; z-index:9999; background:#000; color:#fff; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px; display:none;">
+<div id="ac-warning" style="position:fixed; inset:0; z-index:9999; background:#000; color:#fff; text-align:center; padding:40px; display:none;">
     <h1>⚠️ Cheat Detected</h1>
     <p>Unauthorized modification of game data was detected. Your session has been locked.<br><br>If you believe this is a mistake, please reload the page.</p>
     <button onclick="location.reload()" style="margin-top:24px;background:#e74c3c;border:none;color:white;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:900;cursor:pointer;">Reload</button>
