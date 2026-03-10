@@ -1880,6 +1880,14 @@
     }
 
     async function dbSet(table, id, value) {
+        // Keep local cache in sync for instant refresh login
+        // Always serialize the raw underlying object (not a Proxy) to avoid __raw contamination
+        if(table === 'users') {
+            try {
+                const rawVal = (value && value.__raw) ? value.__raw : value;
+                localStorage.setItem('swarm_userdata_' + id, JSON.stringify(rawVal));
+            } catch(e) {}
+        }
         try {
             const col = table === 'users' ? 'data' : 'val';
             const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
@@ -2035,6 +2043,7 @@
             } else { user.displayName = displayName; user.avatarUrl = avatarUrl; user.discord = true; }
             currentUser = discordUsername; userData = user;
             localStorage.setItem('swarm_user', discordUsername);
+            localStorage.setItem('swarm_userdata_' + discordUsername, JSON.stringify(user));
             loginSuccess();
             injectDiscordAvatar(displayName, avatarUrl);
             return true;
@@ -2105,10 +2114,12 @@
         } catch(e) { betHistory = []; }
 
         // Unwrap any existing proxy before re-wrapping (prevents double-proxy on refresh)
-        const _realData = (userData && userData.__raw) ? userData.__raw : userData;
+        const _SYM_RAW = Symbol.for('bss_raw');
+        const _realData = (userData && userData[_SYM_RAW]) ? userData[_SYM_RAW] : userData;
         userData = new Proxy(_realData, {
             get(target, key) {
-                if(key === '__raw') return target;
+                if(key === _SYM_RAW) return target;
+                if(key === '__raw') return target; // legacy compat
                 if(key === 'chips' && fpEnabled) return fpChips;
                 return target[key];
             },
@@ -2138,7 +2149,7 @@
         });
     }
 
-    function logout() { localStorage.removeItem('swarm_user'); clearGameState(null); betHistory = []; location.reload(); }
+    function logout() { localStorage.removeItem('swarm_user'); if(currentUser) localStorage.removeItem('swarm_userdata_' + currentUser); clearGameState(null); betHistory = []; location.reload(); }
 
     // ══════════════════════════════════════════════════════════════════
     // GAME STATE PERSISTENCE  (survive page refresh)
@@ -4321,8 +4332,36 @@
             if(handled) return;
         }
         if(currentUser) {
+            // Try cache first so login is instant on refresh
+            const cached = localStorage.getItem('swarm_userdata_' + currentUser);
+            if(cached) {
+                try {
+                    const parsed = JSON.parse(cached);
+                    // Discard corrupted cache (had __raw serialized into it)
+                    if(parsed && parsed.__raw) throw new Error('corrupted cache');
+                    userData = parsed;
+                    loginSuccess();
+                    if(userData.discord && userData.displayName && userData.avatarUrl) {
+                        injectDiscordAvatar(userData.displayName, userData.avatarUrl);
+                    }
+                    // Refresh from Supabase in background to get latest chips/data
+                    dbGet('users', currentUser).then(fresh => {
+                        if(fresh) {
+                            // Update underlying raw data through the proxy
+                            const sym = Symbol.for('bss_raw');
+                            const raw = (userData && userData[sym]) ? userData[sym] : userData;
+                            Object.assign(raw, fresh);
+                            localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(fresh));
+                            updateUI();
+                        }
+                    });
+                    return;
+                } catch(e) { /* fall through to network fetch */ }
+            }
+            // No cache — fetch from Supabase normally
             userData = await dbGet('users', currentUser);
             if(userData) {
+                localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(userData));
                 loginSuccess();
                 if(userData.discord && userData.displayName && userData.avatarUrl) {
                     injectDiscordAvatar(userData.displayName, userData.avatarUrl);
