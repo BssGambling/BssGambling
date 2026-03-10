@@ -776,7 +776,7 @@
     .bw-sub { font-size:12px; color:var(--muted2); margin-bottom:16px; }
     .bw-log { background:#080c14; border:1px solid var(--border); border-radius:12px; height:200px; overflow-y:auto; padding:12px; font-size:12px; font-family:'JetBrains Mono',monospace; color:var(--muted2); }
 
-    /* ── Tower ── */
+    /* ── Keno ── */
     .tw-tile { background:linear-gradient(145deg, #111828, #0d1220); border:1px solid var(--border); border-radius:10px; cursor:pointer; padding:10px; font-size:13px; font-weight:700; text-align:center; transition:all 0.15s; font-family:'JetBrains Mono',monospace; color:var(--muted2); }
     .tw-tile:hover { background:rgba(15,214,138,0.08); border-color:rgba(15,214,138,0.3); color:var(--orange); }
     .tw-tile.tw-safe { background:rgba(15,214,138,0.08); border-color:var(--green); color:var(--green); }
@@ -1198,18 +1198,22 @@
                             <p>cash out in time</p>
                             <button class="btn-card-play">Play</button>
                         </div>
-                        <div class="game-card" onclick="selectGame('tower')">
-                            <div class="icon-box" style="background:linear-gradient(135deg,#1a1500,#3d3200);">
+                        <div class="game-card" onclick="selectGame('keno')">
+                            <div class="icon-box" style="background:linear-gradient(135deg,#0a1a2e,#0d2a3d);">
                                 <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                                    <rect x="16" y="36" width="16" height="6" rx="2" fill="#0fd68a" opacity="0.9"/>
-                                    <rect x="13" y="28" width="22" height="7" rx="2" fill="#0fd68a" opacity="0.75"/>
-                                    <rect x="10" y="20" width="28" height="7" rx="2" fill="#0fd68a" opacity="0.6"/>
-                                    <rect x="7" y="12" width="34" height="7" rx="2" fill="#0fd68a" opacity="0.4"/>
-                                    <polygon points="24,4 30,12 18,12" fill="#0fd68a"/>
+                                    <rect x="6" y="6" width="10" height="10" rx="2" fill="#0fd68a" opacity="0.9"/>
+                                    <rect x="19" y="6" width="10" height="10" rx="2" fill="#0fd68a" opacity="0.6"/>
+                                    <rect x="32" y="6" width="10" height="10" rx="2" fill="#0fd68a" opacity="0.9"/>
+                                    <rect x="6" y="19" width="10" height="10" rx="2" fill="#0fd68a" opacity="0.6"/>
+                                    <rect x="19" y="19" width="10" height="10" rx="2" fill="#0fd68a" opacity="0.3"/>
+                                    <rect x="32" y="19" width="10" height="10" rx="2" fill="#0fd68a" opacity="0.6"/>
+                                    <rect x="6" y="32" width="10" height="10" rx="2" fill="#0fd68a" opacity="0.9"/>
+                                    <rect x="19" y="32" width="10" height="10" rx="2" fill="#0fd68a" opacity="0.6"/>
+                                    <rect x="32" y="32" width="10" height="10" rx="2" fill="#0fd68a" opacity="0.3"/>
                                 </svg>
                             </div>
-                            <h3>Tower</h3>
-                            <p>climb to top</p>
+                            <h3>Keno</h3>
+                            <p>pick your numbers</p>
                             <button class="btn-card-play">Play</button>
                         </div>
 
@@ -1443,152 +1447,89 @@
                             <div id="crash-history" style="display:flex; justify-content:center; gap:10px; color:#555; margin-top:20px;"></div>
                         </div>
 
-                        <div id="game-tower" class="hidden">
+                        <div id="game-keno" class="hidden">
                             <style>
-                                /* ===== TOWER LAYOUT ===== */
-                                /* ===== TOWER - SWARMBET ORANGE/BLACK THEME ===== */
-                                .tw-wrap { display:flex; height:calc(100vh - 130px); min-height:560px; overflow:hidden; }
-
-                                /* Left panel */
-                                .tw-panel { width:300px; flex-shrink:0; background:#111; border-right:1px solid #222; padding:24px 20px; display:flex; flex-direction:column; gap:16px; overflow-y:auto; }
-                                .tw-panel-title { font-size:18px; font-weight:800; color:var(--orange); display:flex; align-items:center; gap:8px; margin-bottom:4px; }
-                                .tw-label { font-size:11px; color:#666; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; font-weight:600; }
-
-                                /* Bet row */
-                                .tw-bet-row { display:flex; align-items:center; background:#000; border:1px solid #333; border-radius:8px; overflow:hidden; }
-                                .tw-bet-row input { border:none; background:transparent; color:var(--orange); padding:11px 14px; font-size:15px; font-weight:600; flex:1; width:0; outline:none; }
-                                .tw-bet-half-2x { display:flex; border-left:1px solid #333; }
-                                .tw-bet-half-2x button { background:#1a1a1a; border:none; color:#888; padding:11px 14px; cursor:pointer; font-size:13px; font-weight:700; border-right:1px solid #222; transition:0.15s; }
-                                .tw-bet-half-2x button:last-child { border-right:none; }
-                                .tw-bet-half-2x button:hover { background:#2a2a2a; color:var(--orange); }
-
-                                /* Risk dropdown */
-                                .tw-risk-wrap { position:relative; }
-                                .tw-risk-wrap::after { content:'▼'; position:absolute; right:14px; top:50%; transform:translateY(-50%); color:var(--orange); font-size:10px; pointer-events:none; }
-                                .tw-risk-dropdown { position:absolute; top:100%; left:0; right:0; background:#1a1a1a; border:1px solid var(--orange); border-radius:8px; z-index:200; overflow:hidden; display:none; margin-top:4px; box-shadow:0 8px 32px rgba(0,0,0,0.8),0 0 20px rgba(15,214,138,0.1); }
-                                .tw-risk-dropdown.open { display:block; }
-                                .tw-risk-option { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; cursor:pointer; font-size:14px; font-weight:700; color:white; transition:background 0.15s; }
-                                .tw-risk-option:hover, .tw-risk-option.selected { background:rgba(15,214,138,0.15); color:var(--orange); }
-                                .tw-risk-icons { display:flex; gap:4px; align-items:center; }
-                                .tw-icon-gem { width:14px; height:14px; background:#27ae60; clip-path:polygon(50% 0%,100% 40%,50% 100%,0% 40%); flex-shrink:0; }
-                                .tw-icon-bomb { width:13px; height:13px; background:#e74c3c; clip-path:polygon(50% 0%,100% 40%,50% 100%,0% 40%); flex-shrink:0; }
-
-                                /* Buttons */
-                                .tw-start-btn { width:100%; background:var(--orange); border:none; color:black; padding:14px; border-radius:8px; font-size:15px; font-weight:900; cursor:pointer; transition:0.2s; letter-spacing:0.5px; }
-                                .tw-start-btn:hover { background:#0fd68a; }
-                                .tw-start-btn:disabled { background:#333; color:#666; cursor:default; }
-                                .tw-cash-btn { width:100%; background:linear-gradient(135deg,#0fd68a,#cc7700); border:none; color:black; padding:14px; border-radius:8px; font-size:15px; font-weight:900; cursor:pointer; letter-spacing:0.5px; transition:0.2s; }
-                                .tw-cash-btn:hover { background:linear-gradient(135deg,#0fd68a,#0fd68a); }
-
-                                /* Profit box */
-                                .tw-profit-box { background:#000; border:1px solid #333; border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; font-size:13px; }
-                                .tw-mult-big { font-size:32px; font-weight:900; color:var(--orange); text-align:center; line-height:1; }
-                                .tw-sub-status { text-align:center; font-size:12px; color:#666; margin-top:4px; }
-
-                                /* Arena */
-                                .tw-arena { flex:1; background:radial-gradient(ellipse at center,#1a0d00 0%,#0a0500 60%,#000 100%); display:flex; align-items:center; justify-content:center; padding:20px; overflow:hidden; position:relative; }
-                                .tw-arena::before, .tw-arena::after { content:''; position:absolute; top:0; bottom:0; width:55px; background:linear-gradient(180deg,#1a0d00 0%,#120900 40%,#0a0500 100%); border:2px solid #3a2000; border-top:none; border-bottom:none; box-shadow:inset 0 0 20px rgba(15,214,138,0.05); }
-                                .tw-arena::before { left:30px; border-radius:6px 6px 0 0; }
-                                .tw-arena::after  { right:30px; border-radius:6px 6px 0 0; }
-
-                                /* Board */
-                                .tw-board-outer { position:relative; z-index:2; background:#0d0800; border:2px solid #3a2000; border-radius:6px; padding:6px; box-shadow:0 0 60px rgba(0,0,0,0.9),0 0 30px rgba(15,214,138,0.05); width:min(500px,calc(100% - 140px)); height:min(590px,calc(100% - 20px)); display:flex; flex-direction:column; gap:4px; box-sizing:border-box; }
-
-                                /* Rows */
-                                .tw-row { display:flex; gap:4px; flex:1; min-height:0; }
-
-                                /* Tiles */
-                                .tw-tile { flex:1; min-width:0; min-height:0; border-radius:5px; display:flex; align-items:flex-end; justify-content:center; padding-bottom:5px; font-size:20px; cursor:default; position:relative; overflow:hidden; transition:transform 0.12s,border-color 0.12s,box-shadow 0.12s,opacity 0.2s; border:1.5px solid #3a2000; }
-                                .tw-tile::before { content:''; position:absolute; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 18px,rgba(0,0,0,0.35) 18px,rgba(0,0,0,0.35) 19px),repeating-linear-gradient(90deg,transparent,transparent 28px,rgba(0,0,0,0.25) 28px,rgba(0,0,0,0.25) 29px); pointer-events:none; border-radius:4px; }
-                                .tw-tile-badge { position:relative; z-index:2; font-size:10px; font-weight:800; color:var(--orange); background:rgba(20,10,0,0.85); border:1px solid rgba(15,214,138,0.35); border-radius:20px; padding:2px 8px; letter-spacing:0.2px; pointer-events:none; white-space:nowrap; }
-                                .tw-tile.tw-inactive { background:linear-gradient(160deg,#1a0e00 0%,#110900 100%); border-color:#2a1500; opacity:0.6; }
-                                .tw-tile.tw-active { background:linear-gradient(160deg,#231200 0%,#1a0d00 100%); border-color:#4a2800; opacity:1; cursor:pointer; }
-                                .tw-tile.tw-active .tw-tile-badge { color:#ffcc44; background:rgba(30,15,0,0.9); border-color:rgba(15,214,138,0.7); box-shadow:0 0 8px rgba(15,214,138,0.3); }
-                                .tw-tile.tw-active:hover { background:linear-gradient(160deg,#3a2000 0%,#2a1500 100%); border-color:var(--orange); box-shadow:0 0 16px rgba(15,214,138,0.4); transform:scale(1.03); }
-                                .tw-tile.tw-gem { background:linear-gradient(160deg,#0d3a20 0%,#0a2818 100%); border-color:#27ae60; box-shadow:0 0 14px rgba(39,174,96,0.4); cursor:default; animation:twReveal 0.25s ease; }
-                                .tw-tile.tw-gem .tw-tile-badge { color:#4ade80; background:rgba(5,30,15,0.85); border-color:rgba(39,174,96,0.5); }
-                                .tw-tile.tw-bomb { background:linear-gradient(160deg,#3a0d0d 0%,#280808 100%); border-color:#e74c3c; box-shadow:0 0 14px rgba(231,76,60,0.4); cursor:default; animation:twReveal 0.25s ease; }
-                                .tw-tile.tw-safe { background:linear-gradient(160deg,#110900 0%,#0a0500 100%); border-color:#1a0a00; opacity:0.25; cursor:default; }
-                                @keyframes twReveal { from { transform:scale(0.85); opacity:0; } to { transform:scale(1); opacity:1; } }
+                                .keno-wrap { display:flex; gap:24px; padding:28px 32px; flex-wrap:wrap; align-items:flex-start; }
+                                .keno-board-area { flex:1; min-width:320px; }
+                                .keno-title { font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:900; color:var(--orange); letter-spacing:1px; margin-bottom:4px; display:flex; align-items:center; gap:10px; }
+                                .keno-sub { font-size:13px; color:var(--muted2); margin-bottom:20px; }
+                                .keno-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+                                .keno-num { background:var(--panel2); border:1px solid var(--border2); border-radius:10px; aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700; color:var(--muted2); cursor:pointer; transition:all 0.15s; user-select:none; position:relative; overflow:hidden; }
+                                .keno-num:hover:not(.keno-drawn):not(.keno-hit):not(.keno-miss) { border-color:rgba(15,214,138,0.4); color:var(--text); background:rgba(15,214,138,0.06); }
+                                .keno-num.keno-selected { background:rgba(15,214,138,0.12); border-color:var(--orange); color:var(--orange); box-shadow:0 0 10px rgba(15,214,138,0.2); }
+                                .keno-num.keno-hit { background:rgba(15,214,138,0.2); border-color:var(--green); color:var(--green); box-shadow:0 0 14px rgba(15,214,138,0.3); animation:kenoHit 0.35s ease; }
+                                .keno-num.keno-miss { background:rgba(255,77,109,0.08); border-color:rgba(255,77,109,0.3); color:var(--red); }
+                                .keno-num.keno-drawn { background:rgba(255,255,255,0.04); border-color:var(--border2); color:var(--muted); }
+                                @keyframes kenoHit { 0%{transform:scale(1);} 50%{transform:scale(1.15);} 100%{transform:scale(1);} }
+                                .keno-panel { width:240px; flex-shrink:0; display:flex; flex-direction:column; gap:14px; }
+                                .keno-panel-box { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:18px; }
+                                .keno-label { font-size:10px; font-weight:700; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; margin-bottom:8px; font-family:'Barlow Condensed',sans-serif; }
+                                .keno-bet-row { display:flex; align-items:center; background:var(--dark); border:1px solid var(--border2); border-radius:10px; overflow:hidden; }
+                                .keno-bet-row input { border:none; background:transparent; color:var(--orange); padding:10px 12px; font-size:14px; font-weight:700; flex:1; width:0; outline:none; font-family:'JetBrains Mono',monospace; }
+                                .keno-half-2x { display:flex; }
+                                .keno-half-2x button { background:var(--panel2); border:none; border-left:1px solid var(--border2); color:var(--muted2); padding:10px 12px; cursor:pointer; font-size:11px; font-weight:700; transition:0.15s; font-family:'Sora',sans-serif; }
+                                .keno-half-2x button:hover { background:var(--border2); color:var(--text); }
+                                .keno-selected-count { text-align:center; }
+                                .keno-count-big { font-family:'JetBrains Mono',monospace; font-size:32px; font-weight:900; color:var(--orange); line-height:1; }
+                                .keno-count-label { font-size:11px; color:var(--muted); margin-top:4px; }
+                                .keno-bet-btn { width:100%; background:var(--orange); border:none; color:#050810; padding:14px; border-radius:999px; font-size:14px; font-weight:800; cursor:pointer; font-family:'Sora',sans-serif; transition:0.2s; box-shadow:0 4px 16px rgba(15,214,138,0.25); position:relative; overflow:hidden; }
+                                .keno-bet-btn::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(255,255,255,0.12),transparent 60%); border-radius:inherit; }
+                                .keno-bet-btn:hover { transform:translateY(-1px); box-shadow:0 6px 22px rgba(15,214,138,0.35); filter:brightness(1.06); }
+                                .keno-bet-btn:disabled { background:#333; color:#666; cursor:default; transform:none; box-shadow:none; filter:none; }
+                                .keno-clear-btn { width:100%; background:transparent; border:1px solid var(--border2); color:var(--muted2); padding:9px; border-radius:999px; font-size:12px; font-weight:600; cursor:pointer; font-family:'Sora',sans-serif; transition:0.15s; margin-top:6px; }
+                                .keno-clear-btn:hover { color:var(--text); border-color:var(--border2); background:rgba(255,255,255,0.03); }
+                                .keno-result-row { display:flex; justify-content:space-between; font-size:13px; padding:4px 0; }
+                                .keno-result-row span:first-child { color:var(--muted); }
+                                .keno-result-row span:last-child { font-family:'JetBrains Mono',monospace; font-weight:700; }
+                                .keno-payout-table { width:100%; border-collapse:collapse; margin-top:8px; font-size:11px; }
+                                .keno-payout-table td { padding:4px 6px; color:var(--muted2); font-family:'JetBrains Mono',monospace; }
+                                .keno-payout-table tr:first-child td { color:var(--muted); font-size:9px; letter-spacing:1px; text-transform:uppercase; font-family:'Barlow Condensed',sans-serif; }
+                                .keno-payout-table .keno-pt-highlight { color:var(--orange); font-weight:700; }
                             </style>
-
-                            <div class="tw-wrap">
-                                <!-- ── Left panel ── -->
-                                <div class="tw-panel">
-                                    <div class="tw-panel-title">🏰 Tower</div>
-
-                                    <div class="tw-profit-box">
-                                        <span style="color:#888; font-size:12px;">Session Profit</span>
-                                        <span class="profit-val zero" id="t-profit" style="font-weight:700;">+0 <svg class="ic ic-star" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg></span>
+                            <div class="keno-wrap">
+                                <div class="keno-board-area">
+                                    <div class="keno-title">
+                                        <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="1" y="1" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.9"/><rect x="10.5" y="1" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.6"/><rect x="20" y="1" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.9"/><rect x="1" y="10.5" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.6"/><rect x="10.5" y="10.5" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.3"/><rect x="20" y="10.5" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.6"/><rect x="1" y="20" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.9"/><rect x="10.5" y="20" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.6"/><rect x="20" y="20" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.3"/></svg>
+                                        Keno
                                     </div>
-
-                                    <div>
-                                        <div class="tw-label">Bet Amount</div>
-                                        <div class="tw-bet-row">
-                                            <input type="number" id="t-bet" value="50" min="50" max="1000">
-                                            <div class="tw-bet-half-2x">
-                                                <button onclick="document.getElementById('t-bet').value=Math.max(50,Math.floor(parseInt(document.getElementById('t-bet').value||50)/2))">½</button>
-                                                <button onclick="document.getElementById('t-bet').value=Math.min(1000,parseInt(document.getElementById('t-bet').value||50)*2)">2×</button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <div class="tw-label">Risk</div>
-                                        <div class="tw-risk-wrap" id="tw-risk-wrap">
-                                            <div id="tw-risk-display" onclick="toggleRiskDropdown()" style="display:flex;align-items:center;justify-content:space-between;background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:11px 14px;cursor:pointer;font-weight:700;color:white;font-size:14px;">
-                                                <span id="tw-risk-label">Medium</span>
-                                                <span style="color:#0fd68a;font-size:10px;" id="tw-risk-arrow">▼</span>
-                                            </div>
-                                            <div class="tw-risk-dropdown" id="tw-risk-dropdown">
-                                                <div class="tw-risk-option" onclick="selectRisk('easy','Easy')">
-                                                    <span>Easy</span>
-                                                    <span class="tw-risk-icons"><div class="tw-icon-gem"></div><div class="tw-icon-gem"></div><div class="tw-icon-gem"></div><div class="tw-icon-bomb"></div></span>
-                                                </div>
-                                                <div class="tw-risk-option selected" id="tw-opt-medium" onclick="selectRisk('medium','Medium')">
-                                                    <span>Medium</span>
-                                                    <span class="tw-risk-icons"><div class="tw-icon-gem"></div><div class="tw-icon-gem"></div><div class="tw-icon-bomb"></div></span>
-                                                </div>
-                                                <div class="tw-risk-option" onclick="selectRisk('hard','Hard')">
-                                                    <span>Hard</span>
-                                                    <span class="tw-risk-icons"><div class="tw-icon-gem"></div><div class="tw-icon-bomb"></div></span>
-                                                </div>
-                                                <div class="tw-risk-option" onclick="selectRisk('expert','Expert')">
-                                                    <span>Expert</span>
-                                                    <span class="tw-risk-icons"><div class="tw-icon-gem"></div><div class="tw-icon-bomb"></div><div class="tw-icon-bomb"></div></span>
-                                                </div>
-                                                <div class="tw-risk-option" onclick="selectRisk('master','Master')">
-                                                    <span>Master</span>
-                                                    <span class="tw-risk-icons"><div class="tw-icon-gem"></div><div class="tw-icon-bomb"></div><div class="tw-icon-bomb"></div><div class="tw-icon-bomb"></div></span>
-                                                </div>
-                                            </div>
-                                            <!-- hidden select for compatibility -->
-                                            <select id="t-risk" style="display:none;">
-                                                <option value="easy">Easy</option>
-                                                <option value="medium" selected>Medium</option>
-                                                <option value="hard">Hard</option>
-                                                <option value="expert">Expert</option>
-                                                <option value="master">Master</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <button class="tw-start-btn" id="t-start" onclick="startTower()">▶ Bet</button>
-                                    <button id="t-cash" class="tw-cash-btn hidden" onclick="cashoutTower()"><svg class="ic ic-money" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><ellipse cx="8" cy="13" rx="5.5" ry="2.5" fill="#0aac6e"/><rect x="2.5" y="7" width="11" height="6" rx="2" fill="#0aac6e"/><ellipse cx="8" cy="7" rx="5.5" ry="2.5" fill="#12c97a"/><text x="8" y="9.5" text-anchor="middle" fill="#c9a800" font-size="4.5" font-weight="900" font-family="Arial">$</text></svg> Cash Out</button>
-
-                                    <div>
-                                        <div class="tw-label">Total Profit (<span id="t-mult-disp">1.00×</span>)</div>
-                                        <div class="tw-bet-row" style="pointer-events:none;">
-                                            <input type="text" id="t-profit-disp" value="0.00 ★" style="color:var(--orange);" readonly>
-                                        </div>
-                                    </div>
-
-                                    <div class="tw-sub-status" id="tower-status">Place your bet and start</div>
+                                    <div class="keno-sub">Pick 1–10 numbers (1–20). Draw 5.</div>
+                                    <div class="keno-grid" id="keno-grid"></div>
                                 </div>
-
-                                <!-- ── Arena ── -->
-                                <div class="tw-arena">
-                                    <div class="tw-board-outer" id="tower-board"></div>
+                                <div class="keno-panel">
+                                    <div class="keno-panel-box">
+                                        <div class="keno-label">Bet Amount</div>
+                                        <div class="keno-bet-row">
+                                            <input type="number" id="keno-bet" value="100" min="50" max="1000">
+                                            <div class="keno-half-2x">
+                                                <button onclick="document.getElementById('keno-bet').value=Math.max(50,Math.floor(parseInt(document.getElementById('keno-bet').value||100)/2))">½</button>
+                                                <button onclick="document.getElementById('keno-bet').value=Math.min(1000,parseInt(document.getElementById('keno-bet').value||100)*2)">2×</button>
+                                            </div>
+                                        </div>
+                                        <div style="margin-top:14px;" class="keno-selected-count">
+                                            <div class="keno-count-big"><span id="keno-sel-count">0</span>/10</div>
+                                            <div class="keno-count-label">numbers selected</div>
+                                        </div>
+                                        <button class="keno-bet-btn" id="keno-bet-btn" onclick="startKeno()" style="margin-top:14px;">BET</button>
+                                        <button class="keno-clear-btn" onclick="clearKeno()">Clear Selection</button>
+                                    </div>
+                                    <div class="keno-panel-box" id="keno-result-box" style="display:none;">
+                                        <div class="keno-label">Last Result</div>
+                                        <div class="keno-result-row"><span>Matches</span><span id="keno-res-matches" style="color:var(--orange);">—</span></div>
+                                        <div class="keno-result-row"><span>Multiplier</span><span id="keno-res-mult" style="color:var(--orange);">—</span></div>
+                                        <div class="keno-result-row"><span>Payout</span><span id="keno-res-payout">—</span></div>
+                                    </div>
+                                    <div class="keno-panel-box">
+                                        <div class="keno-label">Payout Table</div>
+                                        <table class="keno-payout-table">
+                                            <tr><td>Matches</td><td>Mult</td></tr>
+                                            <tr><td>0</td><td>0×</td></tr>
+                                            <tr><td>1</td><td>0.5×</td></tr>
+                                            <tr><td>2</td><td>1.5×</td></tr>
+                                            <tr><td>3</td><td>3×</td></tr>
+                                            <tr><td>4</td><td>6×</td></tr>
+                                            <tr><td>5</td><td class="keno-pt-highlight">20×</td></tr>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2235,35 +2176,7 @@
                 }, 600);
             }
 
-            // ── Tower ──
-            if(state.tower?.active) {
-                const tw = state.tower;
-                tBet = tw.bet; tLevel = tw.level; tCurrentRisk = tw.risk;
-                tBombs = tw.bombs.map(arr => new Set(arr));  // Array → Set
-                tActive = true;
-                setTimeout(() => {
-                    showPage('games');
-                    selectGame('tower');
-                    document.getElementById('t-risk').value = tw.risk;
-                    document.getElementById('t-risk').disabled = true;
-                    document.getElementById('t-bet').disabled = true;
-                    document.getElementById('t-start').disabled = true;
-                    buildTowerBoard();
-                    // Mark already-cleared rows as gems/safe
-                    for(let row = 0; row < tw.level; row++) {
-                        for(let j = 0; j < tGetCols(); j++) {
-                            const tile = document.getElementById(`t-tile-${row}-${j}`);
-                            if(tile) { tile.className = tBombs[row]?.has(j) ? 'tw-tile tw-bomb' : 'tw-tile tw-safe'; tile.onclick = null; }
-                        }
-                    }
-                    const mults = tGetMults();
-                    const m = tw.level > 0 ? mults[tw.level - 1] : 1;
-                    document.getElementById('t-mult-disp').textContent = m.toFixed(2) + '×';
-                    document.getElementById('t-profit-disp').value = '+' + Math.floor(tBet * m) + ' ★';
-                    document.getElementById('tower-status').textContent = `Floor ${tw.level}/${TOWER_ROWS} — keep climbing!`;
-                    document.getElementById('t-cash').classList.remove('hidden');
-                    tActivateRow(tw.level);
-                    toast('🗼 Tower restored! Floor ' + tw.level + '/' + TOWER_ROWS + ' at ' + m.toFixed(2) + '×', 'success');
+            // Tower removed
                 }, 600);
             }
 
@@ -2364,11 +2277,11 @@
     }
 
     // Profit trackers per game session
-    const sessionProfit = { mines:0, dice:0, coinflip:0, roulette:0, blackjack:0, baccarat:0, crash:0, tower:0 };
+    const sessionProfit = { mines:0, dice:0, coinflip:0, roulette:0, blackjack:0, baccarat:0, crash:0, keno:0 };
     function addProfit(game, amount) {
         if(!sessionProfit.hasOwnProperty(game)) return;
         sessionProfit[game] += amount;
-        const map = { mines:'m-profit', dice:'d-profit', coinflip:'cf-profit', roulette:'r-profit', blackjack:'bj-profit', baccarat:'bac-profit', crash:'c-profit', tower:'t-profit' };
+        const map = { mines:'m-profit', dice:'d-profit', coinflip:'cf-profit', roulette:'r-profit', blackjack:'bj-profit', baccarat:'bac-profit', crash:'c-profit', keno:'keno-profit' };
         const el = document.getElementById(map[game]);
         if(!el) return;
         const v = sessionProfit[game];
@@ -2435,12 +2348,12 @@
     function selectGame(g) {
         document.getElementById('selection-menu').classList.add('hidden');
         document.getElementById('game-active-page').classList.remove('hidden');
-        ['mines','dice','roulette','blackjack','coinflip','crash','limbo','baccarat','tower'].forEach(id => {
+        ['mines','dice','roulette','blackjack','coinflip','crash','limbo','baccarat','keno'].forEach(id => {
             const el = document.getElementById('game-'+id);
             if(el) el.classList.add('hidden');
         });
         document.getElementById('game-'+g).classList.remove('hidden');
-        if(g==='tower') buildTowerBoard();
+        if(g==='keno') initKenoGrid();
     }
 
     function backToMenu() {
@@ -2474,7 +2387,7 @@
     function isFPGameActive() {
         if(mActive)       return 'Mines is active — cashout first';
         if(crashActive)   return 'Crash is active — cashout first';
-        if(tActive)       return 'Tower is active — cashout first';
+        
         if(bjActive)      return 'Blackjack hand in progress — finish first';
         if(isRSpinning)   return 'Roulette wheel is spinning — wait for result';
         if(typeof currentBets !== 'undefined' && Object.keys(currentBets).length > 0)
@@ -3144,199 +3057,126 @@
         }, 5200);
     }
 
-    // TOWER
-    // TOWER
-    function toggleRiskDropdown() {
-        if(tActive) return;
-        const dd = document.getElementById('tw-risk-dropdown');
-        const arrow = document.getElementById('tw-risk-arrow');
-        const open = dd.classList.toggle('open');
-        arrow.textContent = open ? '▲' : '▼';
-    }
-    function selectRisk(value, label) {
-        if(tActive) return;
-        document.getElementById('t-risk').value = value;
-        document.getElementById('tw-risk-label').textContent = label;
-        document.querySelectorAll('.tw-risk-option').forEach(o => o.classList.remove('selected'));
-        document.getElementById('tw-risk-dropdown').classList.remove('open');
-        document.getElementById('tw-risk-arrow').textContent = '▼';
-        tCurrentRisk = value;
-        buildTowerBoard();
-    }
-    document.addEventListener('click', function(e) {
-        const wrap = document.getElementById('tw-risk-wrap');
-        if(wrap && !wrap.contains(e.target)) {
-            const dd = document.getElementById('tw-risk-dropdown');
-            if(dd) { dd.classList.remove('open'); document.getElementById('tw-risk-arrow').textContent = '▼'; }
-        }
-    });
-    const tRiskConfig = {
-        easy:   { bombs:1, cols:4, mults:[1.28,1.70,2.27,3.03,4.04,5.39,7.19,9.58,12.77] },
-        medium: { bombs:1, cols:3, mults:[1.35,1.95,2.80,4.00,5.80,8.40,12.20,17.70,25.70] },
-        hard:   { bombs:1, cols:2, mults:[1.70,3.00,5.50,10.00,18.50,34.00,63.00,118.00,220.00] },
-        expert: { bombs:2, cols:3, mults:[2.88,8.64,25.92,77.76,233.28,699.84,2099.52,6298.56,18895.68] },
-        master: { bombs:3, cols:4, mults:[2.50,8.50,28.00,95.00,320.00,1080.00,3600.00,12000.00,40000.00] }
-    };
-    let tActive = false, tLevel = 0, tBet = 0, tCurrentRisk = 'medium';
-    const TOWER_ROWS = 9;
-    let tBombs = [];
-    let mRevealTimeout = null;
+    // KENO
+    // KENO
+    let kenoSelected = new Set();
+    let kenoPlaying = false;
 
-    function tGetCols() { return tRiskConfig[tCurrentRisk].cols; }
+    const KENO_PAYOUTS = [0, 0.5, 1.5, 3, 6, 20]; // index = matches (0-5)
 
-    function tGetMults() { return tRiskConfig[tCurrentRisk].mults; }
-    function tGetBombs() { return tRiskConfig[tCurrentRisk].bombs; }
-
-    function buildTowerBoard() {
-        const board = document.getElementById('tower-board');
-        board.innerHTML = '';
-        const mults = tGetMults();
-        for(let i = TOWER_ROWS - 1; i >= 0; i--) {
-            const row = document.createElement('div');
-            row.className = 'tw-row';
-            row.id = `t-row-${i}`;
-            for(let j = 0; j < tGetCols(); j++) {
-                const tile = document.createElement('div');
-                tile.className = 'tw-tile tw-inactive';
-                tile.id = `t-tile-${i}-${j}`;
-                // Badge inside the first tile of each row
-                // mults[i] where i=0 is floor 1 (bottom, lowest mult), i=8 is top (highest mult)
-                // Visual order: i=8 renders first (top of board), i=0 renders last (bottom)
-                // So badge should show mults[i] — floor i reached = mult mults[i]
-                // multiplier badges hidden
-                row.appendChild(tile);
-            }
-            board.appendChild(row);
+    function initKenoGrid() {
+        const grid = document.getElementById('keno-grid');
+        if(!grid || grid.children.length > 0) return;
+        grid.innerHTML = '';
+        for(let i = 1; i <= 20; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'keno-num';
+            cell.id = `keno-num-${i}`;
+            cell.textContent = i;
+            cell.onclick = () => toggleKenoNum(i);
+            grid.appendChild(cell);
         }
     }
 
-    function startTower() {
-        if(!acquireBetLock()) return;
-        tBet = clampBet(document.getElementById('t-bet').value);
-        document.getElementById('t-bet').value = tBet;
-        if(tBet > userData.chips || tBet < MIN_BET) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
-        tCurrentRisk = document.getElementById('t-risk').value;
-        countGame(); userData.chips -= tBet; addProfit('tower', -tBet); updateUI();
-        releaseBetLock();
-        tActive = true; tLevel = 0;
-        document.getElementById('t-start').disabled = true;
-        document.getElementById('t-risk').disabled = true;
-        document.getElementById('t-bet').disabled = true;
-        document.getElementById('t-cash').classList.add('hidden');
-        document.getElementById('t-mult-disp').textContent = '1.00×';
-        document.getElementById('t-profit-disp').value = '0.00 ★';
-        document.getElementById('tower-status').textContent = 'Choose a tile!';
-
-        buildTowerBoard();
-
-        tBombs = [];
-        const bombCount = tGetBombs();
-        for(let i = 0; i < TOWER_ROWS; i++) {
-            let bombs = new Set();
-            while(bombs.size < bombCount) bombs.add(Math.floor(Math.random() * tGetCols()));
-            tBombs.push(bombs);
-        }
-        tActivateRow(0);
-    }
-
-    function tActivateRow(rowIdx) {
-        for(let j = 0; j < tGetCols(); j++) {
-            const tile = document.getElementById(`t-tile-${rowIdx}-${j}`);
-            if(!tile) return;
-            tile.className = 'tw-tile tw-active';
-            tile.onclick = () => tClickTile(rowIdx, j);
-        }
-    }
-
-    function tClickTile(rowIdx, colIdx) {
-        if(!tActive || rowIdx !== tLevel) return;
-        const tile = document.getElementById(`t-tile-${rowIdx}-${colIdx}`);
-        const mults = tGetMults();
-
-        if(tBombs[rowIdx].has(colIdx)) {
-            tile.innerHTML = '💥';
-            tile.className = 'tw-tile tw-bomb';
-            tile.onclick = null;
-            for(let j = 0; j < tGetCols(); j++) {
-                if(j !== colIdx) {
-                    const t2 = document.getElementById(`t-tile-${rowIdx}-${j}`);
-                    if(tBombs[rowIdx].has(j)) { t2.innerHTML = '💥'; t2.className = 'tw-tile tw-bomb'; }
-                    else { t2.className = 'tw-tile tw-safe'; }
-                    t2.onclick = null;
-                }
-            }
-            play('boom'); tActive = false;
-            document.getElementById('tower-status').textContent = '💥 Boom! You lost!';
-            document.getElementById('t-mult-disp').textContent = '0×';
-            document.getElementById('t-profit-disp').value = `-${tBet} ★`;
-            document.getElementById('t-start').disabled = false;
-            document.getElementById('t-risk').disabled = false;
-            document.getElementById('t-bet').disabled = false;
-            document.getElementById('t-cash').classList.add('hidden');
-            addHistory("Tower", tBet, 0, -tBet); clearGameState('tower');
+    function toggleKenoNum(n) {
+        if(kenoPlaying) return;
+        const el = document.getElementById(`keno-num-${n}`);
+        if(kenoSelected.has(n)) {
+            kenoSelected.delete(n);
+            el.classList.remove('keno-selected');
         } else {
-            // House edge: on every 10th game, secretly trigger a bomb on a "safe" tile
-            if(houseEdge()) {
-                tile.innerHTML = '💥';
-                tile.className = 'tw-tile tw-bomb';
-                tile.onclick = null;
-                for(let j = 0; j < tGetCols(); j++) {
-                    if(j !== colIdx) {
-                        const t2 = document.getElementById(`t-tile-${rowIdx}-${j}`);
-                        t2.className = 'tw-tile tw-safe';
-                        t2.onclick = null;
-                    }
-                }
-                play('boom'); tActive = false;
-                document.getElementById('tower-status').textContent = '💥 Boom! You lost!';
-                document.getElementById('t-mult-disp').textContent = '0×';
-                document.getElementById('t-profit-disp').value = `-${tBet} ★`;
-                document.getElementById('t-start').disabled = false;
-                document.getElementById('t-risk').disabled = false;
-                document.getElementById('t-bet').disabled = false;
-                document.getElementById('t-cash').classList.add('hidden');
-                addHistory("Tower", tBet, 0, -tBet); clearGameState('tower');
-                return;
-            }
-            tile.innerHTML = '<svg class=\"ic ic-gem\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 14.5,5.5 8,15 1.5,5.5\" fill=\"#1abc9c\" stroke=\"#16a085\" stroke-width=\"0.4\"/><polygon points=\"8,1 14.5,5.5 8,7.5 1.5,5.5\" fill=\"#2ecc71\" opacity=\"0.55\"/></svg>';
-            tile.className = 'tw-tile tw-gem';
-            tile.onclick = null;
-            for(let j = 0; j < tGetCols(); j++) {
-                if(j !== colIdx) {
-                    const t2 = document.getElementById(`t-tile-${rowIdx}-${j}`);
-                    t2.className = 'tw-tile tw-safe';
-                    t2.onclick = null;
-                }
-            }
-            play('star'); tLevel++;
-            const m = mults[rowIdx];
-            const potentialWin = Math.floor(tBet * m);
-            document.getElementById('t-mult-disp').textContent = m.toFixed(2) + '×';
-            document.getElementById('t-profit-disp').value = `+${potentialWin} ★`;
-            if(tLevel === TOWER_ROWS) {
-                cashoutTower();
-            } else {
-                document.getElementById('tower-status').textContent = `Floor ${tLevel}/${TOWER_ROWS} — keep climbing!`;
-                document.getElementById('t-cash').classList.remove('hidden');
-                tActivateRow(tLevel);
-            }
+            if(kenoSelected.size >= 10) return toast('Max 10 numbers!', 'error');
+            kenoSelected.add(n);
+            el.classList.add('keno-selected');
         }
+        document.getElementById('keno-sel-count').textContent = kenoSelected.size;
     }
 
-    function cashoutTower() {
-        if(!tActive) return;
-        const m = tGetMults()[tLevel - 1];
-        const win = Math.floor(tBet * m);
-        userData.chips += win; play('win');
-        showWinOverlay(m, win);
-        addHistory("Tower", tBet, m, win); clearGameState('tower');
-        addProfit('tower', win);
-        tActive = false; updateUI();
-        document.getElementById('t-start').disabled = false;
-        document.getElementById('t-risk').disabled = false;
-        document.getElementById('t-bet').disabled = false;
-        document.getElementById('t-cash').classList.add('hidden');
-        document.getElementById('tower-status').textContent = `✅ Cashed out at ${m.toFixed(2)}×!`;
+    function clearKeno() {
+        if(kenoPlaying) return;
+        kenoSelected.clear();
+        for(let i = 1; i <= 20; i++) {
+            const el = document.getElementById(`keno-num-${i}`);
+            if(el) el.className = 'keno-num';
+        }
+        document.getElementById('keno-sel-count').textContent = 0;
+        document.getElementById('keno-result-box').style.display = 'none';
+    }
+
+    async function startKeno() {
+        if(kenoPlaying) return;
+        if(kenoSelected.size === 0) return toast('Pick at least 1 number!', 'error');
+        const bet = clampBet(document.getElementById('keno-bet').value);
+        document.getElementById('keno-bet').value = bet;
+        if(bet > userData.chips) return toast('Not enough ★!', 'error');
+
+        kenoPlaying = true;
+        document.getElementById('keno-bet-btn').disabled = true;
+
+        // Reset board to selected only
+        for(let i = 1; i <= 20; i++) {
+            const el = document.getElementById(`keno-num-${i}`);
+            if(el) el.className = kenoSelected.has(i) ? 'keno-num keno-selected' : 'keno-num';
+        }
+        document.getElementById('keno-result-box').style.display = 'none';
+
+        countGame(); userData.chips -= bet; addProfit('keno', -bet); updateUI();
+
+        // Draw 5 unique numbers
+        const pool = Array.from({length:20}, (_,i) => i+1);
+        const drawn = [];
+        while(drawn.length < 5) {
+            const idx = Math.floor(Math.random() * pool.length);
+            drawn.push(pool.splice(idx, 1)[0]);
+        }
+
+        // Reveal drawn numbers one by one
+        let matches = 0;
+        for(let d = 0; d < drawn.length; d++) {
+            await new Promise(r => setTimeout(r, 280));
+            const n = drawn[d];
+            const el = document.getElementById(`keno-num-${n}`);
+            if(kenoSelected.has(n)) {
+                el.className = 'keno-num keno-hit'; matches++;
+                play('star');
+            } else {
+                el.className = 'keno-num keno-drawn';
+            }
+        }
+
+        // Mark selected-but-not-drawn as miss
+        kenoSelected.forEach(n => {
+            if(!drawn.includes(n)) {
+                const el = document.getElementById(`keno-num-${n}`);
+                if(el) el.className = 'keno-num keno-miss';
+            }
+        });
+
+        const clampedMatches = Math.min(matches, KENO_PAYOUTS.length - 1);
+        const mult = KENO_PAYOUTS[clampedMatches];
+        const win = Math.floor(bet * mult);
+
+        if(win > 0) {
+            userData.chips += win;
+            addProfit('keno', win);
+            showWinOverlay(mult, win);
+            play('win');
+        } else {
+            play('boom');
+        }
+
+        addHistory('Keno', bet, mult, win - bet);
+        updateUI();
+
+        document.getElementById('keno-res-matches').textContent = matches + '/5';
+        document.getElementById('keno-res-mult').textContent = mult + '×';
+        const payoutEl = document.getElementById('keno-res-payout');
+        payoutEl.textContent = win > 0 ? `+${win} ★` : `-${bet} ★`;
+        payoutEl.style.color = win > 0 ? 'var(--green)' : 'var(--red)';
+        document.getElementById('keno-result-box').style.display = 'block';
+
+        kenoPlaying = false;
+        document.getElementById('keno-bet-btn').disabled = false;
     }
 
     // BLACKJACK & BACCARAT (Simplified helper)
