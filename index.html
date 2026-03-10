@@ -819,7 +819,6 @@
             </a>
         </div>
         <div id="discord-status" style="margin-top:10px; font-size:12px; color:#666;"></div>
-        <!-- hidden inputs kept for legacy login compatibility -->
         <input type="text" id="user" style="display:none;">
         <input type="password" id="pass" style="display:none;">
     </div>
@@ -2312,10 +2311,6 @@
                     document.getElementById('m-risk').disabled = true;
                     document.querySelectorAll('.m-grid-btn').forEach(b => b.style.opacity = '0.5');
                     toast('Mines restored! ' + m.gemsFound + ' gems found at ' + mMult.toFixed(2) + '×', 'success');
-                }, 600);
-            }
-
-            // Tower removed
                 }, 600);
             }
 
