@@ -2104,11 +2104,11 @@
             betHistory = saved ? JSON.parse(saved) : [];
         } catch(e) { betHistory = []; }
 
-        // ── Free Play Proxy: transparently route .chips reads/writes ──
-        // Store the real underlying data object so we can still save it
-        const _realData = userData;
+        // Unwrap any existing proxy before re-wrapping (prevents double-proxy on refresh)
+        const _realData = (userData && userData.__raw) ? userData.__raw : userData;
         userData = new Proxy(_realData, {
             get(target, key) {
+                if(key === '__raw') return target;
                 if(key === 'chips' && fpEnabled) return fpChips;
                 return target[key];
             },
@@ -3104,9 +3104,9 @@
     }
     function handleRClick(val, el) { setExtraBet(val, el); }
     function setExtraBet(type, el) {
-        if(isRSpinning) return; const amt = clampBet(document.getElementById('r-bet').value);
+        if(isRSpinning || !userData) return; const amt = clampBet(document.getElementById('r-bet').value);
         document.getElementById('r-bet').value = amt;
-        if(amt > userData.chips) return; if(!currentBets[type]) currentBets[type] = 0;
+        if(amt > userData.chips) { toast('Not enough ★!', 'error'); return; } if(!currentBets[type]) currentBets[type] = 0;
         currentBets[type] += amt; userData.chips -= amt; updateUI(); saveGameState();
         let chip = el.querySelector('.chip-overlay'); if(!chip) { chip = document.createElement('div'); chip.className = 'chip-overlay'; el.appendChild(chip); }
         chip.innerText = currentBets[type]; el.classList.add('active');
