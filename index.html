@@ -43,11 +43,13 @@
     #auth-screen { position: fixed; inset: 0; z-index: 1000; }
 
     #main-app {
-        position: fixed !important;
-        inset: 0 !important;
-        display: flex !important;
-        width: 100vw !important;
-        height: 100vh !important;
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: row;
+        overflow: hidden;
     }
 
     /* ── Sidebar ── */
@@ -157,8 +159,9 @@
 
     /* ── Main ── */
     .main-wrapper {
-        flex: 1;
+        flex: 1 1 0;
         min-width: 0;
+        width: 0; /* force flex to control width */
         display: flex;
         flex-direction: column;
         overflow-y: auto;
@@ -208,8 +211,6 @@
     /* ── Container & Cards ── */
     .container {
         padding: 32px 36px;
-        max-width: 1600px;
-        margin: 0 auto;
         width: 100%;
         box-sizing: border-box;
     }
@@ -223,6 +224,7 @@
 
     /* ── UI Elements ── */
     .hidden { display: none !important; }
+    #main-app.hidden { display: none !important; }
 
     /* Primary play button — capsule pill shape */
     .btn-play {
@@ -313,7 +315,7 @@
     .section-title.bee-section { color: var(--orange); margin-top: 36px; }
     .bee-section + .games-grid .game-card:hover { border-color: var(--orange); box-shadow: 0 0 30px rgba(15,214,138,0.1), 0 8px 24px rgba(0,0,0,0.4); }
 
-    .games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
+    .games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; width: 100%; }
     .game-card {
         background: var(--panel);
         border-radius: 14px;
