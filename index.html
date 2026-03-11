@@ -633,129 +633,162 @@
 
     /* ── Home Page ── */
     .home-fadein { animation: fadein 0.4s ease; }
-    @keyframes fadein { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+    @keyframes fadein { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
 
+    /* ── HERO BANNER ── */
     .home-hero {
-        background: linear-gradient(135deg, var(--panel2) 0%, #0a0e1a 60%, #060810 100%);
-        border: 1px solid var(--border);
-        border-radius: 20px;
-        padding: 36px 36px;
-        margin-bottom: 32px;
+        background: linear-gradient(120deg, #070b14 0%, #0b1220 50%, #06090f 100%);
+        border: 1px solid rgba(15,214,138,0.15);
+        border-radius: 24px;
+        padding: 40px 44px;
+        margin-bottom: 24px;
         position: relative;
         overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
     }
     .home-hero::before {
         content: '';
         position: absolute;
-        top: -40px; right: -40px;
-        width: 200px; height: 200px;
-        background: radial-gradient(circle, rgba(15,214,138,0.1) 0%, transparent 70%);
-        border-radius: 50%;
+        inset: 0;
+        background: radial-gradient(ellipse at 80% 50%, rgba(15,214,138,0.07) 0%, transparent 65%);
+        pointer-events: none;
     }
-    .home-hero::after {
-        content: '⬡';
-        position: absolute;
-        bottom: -20px; right: 30px;
-        font-size: 180px;
-        color: rgba(15,214,138,0.03);
-        line-height: 1;
+    .home-hero-left { position: relative; z-index: 1; }
+    .home-hero-tag {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(15,214,138,0.1); border: 1px solid rgba(15,214,138,0.2);
+        color: var(--orange); font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+        text-transform: uppercase; padding: 4px 10px; border-radius: 999px;
+        font-family: 'Barlow Condensed', sans-serif; margin-bottom: 14px;
     }
-    .home-hero-greeting { font-size:13px; color:var(--muted2); font-weight:500; letter-spacing:0.5px; margin-bottom:4px; }
+    .home-hero-tag-dot { width:6px; height:6px; border-radius:50%; background:var(--orange); box-shadow:0 0 6px rgba(15,214,138,0.8); animation: fpDotPulse 2s infinite; }
+    .home-hero-greeting { font-size:12px; color:var(--muted2); font-weight:500; letter-spacing:0.5px; margin-bottom:2px; }
     .home-hero-name {
         font-family: 'Barlow Condensed', sans-serif;
-        font-size: 42px;
-        font-weight: 900;
-        color: white;
-        line-height: 1;
-        letter-spacing: 1px;
-        margin-bottom: 8px;
+        font-size: 48px; font-weight: 900; color: white;
+        line-height: 1; letter-spacing: 1px; margin-bottom: 10px;
     }
-    .home-hero-sub { font-size:14px; color:var(--muted2); margin-bottom:20px; }
+    .home-hero-sub { font-size:13px; color:var(--muted2); margin-bottom:24px; }
     .home-hero-balance {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        background: rgba(15,214,138,0.08);
-        border: 1px solid rgba(15,214,138,0.2);
-        border-radius: 999px;
-        padding: 10px 20px;
+        display: inline-flex; align-items: center; gap: 10px;
+        background: rgba(15,214,138,0.08); border: 1px solid rgba(15,214,138,0.22);
+        border-radius: 999px; padding: 10px 22px;
         font-family: 'JetBrains Mono', monospace;
-        font-size: 22px;
-        font-weight: 700;
-        color: var(--orange);
+        font-size: 24px; font-weight: 700; color: var(--orange);
     }
-
-    .home-section-title {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 14px;
-        font-weight: 800;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        color: var(--muted);
-        margin: 28px 0 14px;
+    .home-hero-right {
+        position: relative; z-index: 1;
+        display: flex; flex-direction: column; gap: 10px; min-width: 200px;
     }
+    .home-hero-action-btn {
+        background: var(--orange); color: #050810;
+        border: none; border-radius: 12px; padding: 13px 22px;
+        font-size: 14px; font-weight: 800; font-family: 'Barlow Condensed', sans-serif;
+        letter-spacing: 0.5px; cursor: pointer; transition: 0.2s; text-align: center;
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .home-hero-action-btn:hover { filter: brightness(1.1); box-shadow: 0 4px 20px rgba(15,214,138,0.3); transform: translateY(-1px); }
+    .home-hero-action-btn.secondary {
+        background: rgba(255,255,255,0.04); color: var(--muted2);
+        border: 1px solid var(--border2);
+    }
+    .home-hero-action-btn.secondary:hover { color: var(--text); border-color: rgba(15,214,138,0.25); background: rgba(15,214,138,0.06); box-shadow: none; }
 
-    .home-stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:8px; }
+    /* ── STATS ROW ── */
+    .home-stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px; }
     .home-stat-box {
         background: var(--panel);
         border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 20px 22px;
-        text-align: center;
+        border-radius: 16px;
+        padding: 20px 24px;
+        display: flex; align-items: center; gap: 16px;
         transition: all 0.18s;
     }
-    .home-stat-box:hover { border-color:var(--border2); transform:translateY(-2px); }
+    .home-stat-box:hover { border-color: rgba(15,214,138,0.2); transform:translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+    .home-stat-icon {
+        width: 42px; height: 42px; border-radius: 12px;
+        background: rgba(15,214,138,0.08); border: 1px solid rgba(15,214,138,0.15);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 18px; flex-shrink: 0;
+    }
+    .home-stat-info { flex: 1; min-width: 0; }
     .home-stat-val {
         font-family: 'JetBrains Mono', monospace;
-        font-size: 28px;
-        font-weight: 700;
-        color: var(--orange);
-        line-height: 1;
-        margin-bottom: 6px;
+        font-size: 26px; font-weight: 700; color: var(--orange);
+        line-height: 1; margin-bottom: 4px;
     }
     .home-stat-label { font-size:11px; color:var(--muted); font-weight:600; letter-spacing:0.5px; text-transform:uppercase; font-family:'Barlow Condensed',sans-serif; }
 
-    .home-cards-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
-    .home-card {
+    /* ── SECTION TITLE ── */
+    .home-section-title {
+        display: flex; align-items: center; gap: 10px;
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 13px; font-weight: 800; letter-spacing: 2px;
+        text-transform: uppercase; color: var(--muted);
+        margin: 0 0 14px;
+    }
+    .home-section-title::after {
+        content: ''; flex: 1; height: 1px;
+        background: linear-gradient(to right, var(--border), transparent);
+    }
+
+    /* ── GAME TILES ── */
+    .home-games-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
+    .home-game-tile {
         background: var(--panel);
         border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 24px 20px;
+        border-radius: 18px;
+        padding: 22px 16px 18px;
         cursor: pointer;
         transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
-        position: relative;
-        overflow: hidden;
+        position: relative; overflow: hidden; text-align: center;
     }
-    .home-card:hover {
-        transform: translateY(-5px);
-        border-color: rgba(15,214,138,0.35);
-        box-shadow: 0 12px 36px rgba(0,0,0,0.4), 0 0 24px rgba(15,214,138,0.08);
+    .home-game-tile::before {
+        content: ''; position: absolute; inset: 0;
+        background: radial-gradient(ellipse at 50% 0%, rgba(15,214,138,0.06) 0%, transparent 65%);
+        opacity: 0; transition: opacity 0.22s;
     }
-    .home-card-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        background: rgba(15,214,138,0.12);
-        color: var(--orange);
-        font-size: 10px;
-        font-weight: 700;
-        padding: 3px 8px;
-        border-radius: 999px;
-        margin-bottom: 14px;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        font-family: 'Barlow Condensed', sans-serif;
+    .home-game-tile:hover { transform: translateY(-6px); border-color: rgba(15,214,138,0.3); box-shadow: 0 14px 40px rgba(0,0,0,0.5), 0 0 20px rgba(15,214,138,0.06); }
+    .home-game-tile:hover::before { opacity: 1; }
+    .home-game-tile-icon { font-size: 36px; margin-bottom: 10px; display: block; }
+    .home-game-tile-name {
+        font-family: 'Barlow Condensed', sans-serif; font-size: 16px;
+        font-weight: 800; color: var(--text); margin-bottom: 3px; letter-spacing: 0.3px;
     }
-    .home-card-icon { display:block; margin-bottom:14px; opacity:0.9; }
-    .home-card-title {
-        font-family: 'Barlow Condensed', sans-serif;
-        font-size: 20px;
-        font-weight: 800;
-        letter-spacing: 0.5px;
-        color: var(--text);
-        margin-bottom: 6px;
+    .home-game-tile-tag {
+        font-size: 10px; color: var(--muted2); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
     }
-    .home-card-desc { font-size:12px; color:var(--muted2); line-height:1.6; }
+    .home-game-tile-hot {
+        position: absolute; top: 10px; right: 10px;
+        background: rgba(255,80,80,0.15); border: 1px solid rgba(255,80,80,0.3);
+        color: #ff5050; font-size: 9px; font-weight: 800;
+        padding: 2px 6px; border-radius: 999px; letter-spacing: 0.5px;
+        font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase;
+    }
+    .home-game-tile-new {
+        position: absolute; top: 10px; right: 10px;
+        background: rgba(15,214,138,0.12); border: 1px solid rgba(15,214,138,0.25);
+        color: var(--orange); font-size: 9px; font-weight: 800;
+        padding: 2px 6px; border-radius: 999px; letter-spacing: 0.5px;
+        font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase;
+    }
+
+    /* ── RECENT ACTIVITY ── */
+    .home-activity-box {
+        background: var(--panel); border: 1px solid var(--border);
+        border-radius: 16px; overflow: hidden;
+    }
+    .home-activity-empty {
+        padding: 36px; text-align: center; color: var(--muted2); font-size: 13px;
+    }
+
+    /* (legacy kept for compat) */
+    .home-cards-grid { display:none; }
+    .home-card { display:none; }
+    .home-card-badge,.home-card-icon,.home-card-title,.home-card-desc { display:none; }
 
     /* ── Free Play Modal ── */
     .fp-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.82); z-index:5000; justify-content:center; align-items:center; }
@@ -944,28 +977,7 @@
   <circle cx="34" cy="36" r="6" fill="#0fd68a"/>
   <text x="34" y="40" text-anchor="middle" font-size="8" font-weight="bold" fill="#1a1a1a">$</text>
 </svg> Bet History</div>
-        <div class="nav-item" id="nav-rakeback" onclick="showPage('rakeback')"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="22" height="22">
-  <rect x="8" y="22" width="32" height="20" rx="2" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
-  <rect x="6" y="16" width="36" height="8" rx="2" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
-  <rect x="22" y="22" width="4" height="20" fill="#0fd68a" opacity="0.8"/>
-  <rect x="6" y="18.5" width="36" height="3" fill="#0fd68a" opacity="0.8"/>
-  <path d="M24 16 C18 10 10 10 14 16" stroke="#0fd68a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-  <path d="M24 16 C30 10 38 10 34 16" stroke="#0fd68a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-  <circle cx="24" cy="16" r="2.5" fill="#0fd68a"/>
-</svg> Promo Codes</div>
-        <div id="link-admin" class="nav-item hidden" onclick="showPage('admin')"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="22" height="22">
-  <path d="M24 4L8 12V24C8 33 16 40 24 44C32 40 40 33 40 24V12L24 4Z" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5" stroke-linejoin="round"/>
-  <circle cx="24" cy="25" r="5" fill="none" stroke="#0fd68a" stroke-width="2.5"/>
-  <circle cx="24" cy="25" r="2" fill="#0fd68a"/>
-  <rect x="22.5" y="16" width="3" height="4" rx="1" fill="#0fd68a"/>
-  <rect x="22.5" y="31" width="3" height="4" rx="1" fill="#0fd68a"/>
-  <rect x="15" y="23.5" width="4" height="3" rx="1" fill="#0fd68a"/>
-  <rect x="29" y="23.5" width="4" height="3" rx="1" fill="#0fd68a"/>
-  <rect x="17.3" y="18.3" width="3" height="4" rx="1" fill="#0fd68a" transform="rotate(45 18.8 20.3)"/>
-  <rect x="27.7" y="23.7" width="3" height="4" rx="1" fill="#0fd68a" transform="rotate(45 29.2 25.7)"/>
-  <rect x="17.3" y="23.7" width="3" height="4" rx="1" fill="#0fd68a" transform="rotate(-45 18.8 25.7)"/>
-  <rect x="27.7" y="18.3" width="3" height="4" rx="1" fill="#0fd68a" transform="rotate(-45 29.2 20.3)"/>
-</svg> Admin Panel</div>
+
         <div style="margin-top: auto;">
             <div class="nav-item" onclick="logout()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="22" height="22">
   <rect x="6" y="8" width="22" height="32" rx="3" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
@@ -1051,96 +1063,112 @@
             <!-- ═══════════════ HOME PAGE ═══════════════ -->
             <div id="page-home" class="home-fadein hidden">
 
-                <!-- Hero welcome banner -->
+                <!-- ── HERO ── -->
                 <div class="home-hero">
-                    <div class="home-hero-greeting">Welcome back</div>
-                    <div class="home-hero-name" id="home-display-name">---</div>
-                    <div class="home-hero-sub">Ready to play? Your luck starts here.</div>
-                    <div class="home-hero-balance">
-                        <span><svg class="ic ic-star" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg></span>
-                        <span id="home-display-chips">0</span>
-                        <span style="font-size:13px; color:#888; font-weight:400;">stars</span>
+                    <div class="home-hero-left">
+                        <div class="home-hero-tag"><span class="home-hero-tag-dot"></span>BSS Gambling</div>
+                        <div class="home-hero-greeting">Welcome back,</div>
+                        <div class="home-hero-name" id="home-display-name">---</div>
+                        <div class="home-hero-sub">Good luck on the tables today. 🍀</div>
+                        <div class="home-hero-balance">
+                            <svg class="ic ic-star" viewBox="0 0 16 16" width="18" height="18" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg>
+                            <span id="home-display-chips">0</span>
+                            <span style="font-size:13px; color:#888; font-weight:400;">stars</span>
+                        </div>
+                    </div>
+                    <div class="home-hero-right">
+                        <button class="home-hero-action-btn" onclick="showPage('games')">
+                            🎮 Play Now
+                        </button>
+                        <button class="home-hero-action-btn secondary" onclick="showPage('history')">
+                            📋 Bet History
+                        </button>
+                        <button class="home-hero-action-btn secondary" onclick="showPage('get-coins')">
+                            ⭐ Get Stars
+                        </button>
                     </div>
                 </div>
 
-                <!-- Quick Stats -->
-                <div class="home-section-title">📊 Your Stats</div>
+                <!-- ── STATS ── -->
+                <div class="home-section-title">Your Stats</div>
                 <div class="home-stats-row">
                     <div class="home-stat-box">
-                        <div class="home-stat-val" id="home-stat-bets">0</div>
-                        <div class="home-stat-label">Total Bets</div>
+                        <div class="home-stat-icon">🎯</div>
+                        <div class="home-stat-info">
+                            <div class="home-stat-val" id="home-stat-bets">0</div>
+                            <div class="home-stat-label">Total Bets</div>
+                        </div>
                     </div>
                     <div class="home-stat-box">
-                        <div class="home-stat-val" id="home-stat-wins">0</div>
-                        <div class="home-stat-label">Wins</div>
+                        <div class="home-stat-icon">🏆</div>
+                        <div class="home-stat-info">
+                            <div class="home-stat-val" id="home-stat-wins">0</div>
+                            <div class="home-stat-label">Wins</div>
+                        </div>
                     </div>
                     <div class="home-stat-box">
-                        <div class="home-stat-val" id="home-stat-biggest">—</div>
-                        <div class="home-stat-label">Biggest Win</div>
+                        <div class="home-stat-icon">💥</div>
+                        <div class="home-stat-info">
+                            <div class="home-stat-val" id="home-stat-biggest">—</div>
+                            <div class="home-stat-label">Biggest Win</div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Section cards -->
-                <div class="home-section-title">🚀 Quick Access</div>
-                <div class="home-cards-grid">
-
-                    <!-- Games -->
-                    <div class="home-card" onclick="showPage('games')">
-                        <div class="home-card-badge">10+ Games</div>
-                        <span class="home-card-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="40" height="40">
-  <path d="M8 20C8 16 11 14 14 14H34C37 14 40 16 40 20L38 32C37.5 35 35 36 33 36H15C13 36 10.5 35 10 32L8 20Z" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
-  <rect x="14" y="20" width="3.5" height="10" rx="1" fill="#0fd68a"/>
-  <rect x="11" y="23" width="9.5" height="3.5" rx="1" fill="#0fd68a"/>
-  <circle cx="32" cy="22" r="2.2" fill="#0fd68a" opacity="0.5"/>
-  <circle cx="37" cy="26" r="2.2" fill="#0fd68a" opacity="0.5"/>
-  <circle cx="32" cy="30" r="2.2" fill="#0fd68a" opacity="0.5"/>
-  <circle cx="27" cy="26" r="2.2" fill="#0fd68a" opacity="0.5"/>
-  <ellipse cx="13" cy="34" rx="5" ry="3" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2"/>
-  <ellipse cx="35" cy="34" rx="5" ry="3" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2"/>
-</svg></span>
-                        <div class="home-card-title">Play Games</div>
-                        <div class="home-card-desc">Mines, Crash, Dice, Roulette, Blackjack & more Bee Swarm games.</div>
+                <!-- ── GAMES ── -->
+                <div class="home-section-title">Games</div>
+                <div class="home-games-grid">
+                    <div class="home-game-tile" onclick="showPage('games')">
+                        <span class="home-game-tile-hot">HOT</span>
+                        <span class="home-game-tile-icon">💣</span>
+                        <div class="home-game-tile-name">Mines</div>
+                        <div class="home-game-tile-tag">Strategy</div>
                     </div>
-
-                    <!-- Bet History -->
-                    <div class="home-card" onclick="showPage('history')">
-                        <span class="home-card-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="40" height="40">
-  <rect x="10" y="8" width="28" height="34" rx="3" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
-  <line x1="16" y1="16" x2="32" y2="16" stroke="#0fd68a" stroke-width="2" stroke-linecap="round"/>
-  <line x1="16" y1="22" x2="32" y2="22" stroke="#0fd68a" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
-  <line x1="16" y1="28" x2="26" y2="28" stroke="#0fd68a" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
-  <circle cx="14" cy="16" r="2" fill="#2ECC71"/>
-  <circle cx="14" cy="22" r="2" fill="#E74C3C"/>
-  <circle cx="14" cy="28" r="2" fill="#2ECC71"/>
-  <circle cx="34" cy="36" r="6" fill="#0fd68a"/>
-  <text x="34" y="40" text-anchor="middle" font-size="8" font-weight="bold" fill="#1a1a1a">$</text>
-</svg></span>
-                        <div class="home-card-title">Bet History</div>
-                        <div class="home-card-desc">Review all your past bets, wins, and losses in one place.</div>
+                    <div class="home-game-tile" onclick="showPage('games')">
+                        <span class="home-game-tile-hot">HOT</span>
+                        <span class="home-game-tile-icon">🚀</span>
+                        <div class="home-game-tile-name">Crash</div>
+                        <div class="home-game-tile-tag">Multiplier</div>
                     </div>
-
-                    <!-- Promo Codes -->
-                    <div class="home-card" onclick="showPage('rakeback')">
-                        <div class="home-card-badge" style="background:#22c55e; color:#fff;">Free <svg class="ic ic-star" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg></div>
-                        <span class="home-card-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="40" height="40">
-  <rect x="8" y="22" width="32" height="20" rx="2" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
-  <rect x="6" y="16" width="36" height="8" rx="2" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
-  <rect x="22" y="22" width="4" height="20" fill="#0fd68a" opacity="0.8"/>
-  <rect x="6" y="18.5" width="36" height="3" fill="#0fd68a" opacity="0.8"/>
-  <path d="M24 16 C18 10 10 10 14 16" stroke="#0fd68a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-  <path d="M24 16 C30 10 38 10 34 16" stroke="#0fd68a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-  <circle cx="24" cy="16" r="2.5" fill="#0fd68a"/>
-</svg></span>
-                        <div class="home-card-title">Promo Codes</div>
-                        <div class="home-card-desc">Redeem exclusive promo codes and rakeback rewards for free stars.</div>
+                    <div class="home-game-tile" onclick="showPage('games')">
+                        <span class="home-game-tile-icon">🎲</span>
+                        <div class="home-game-tile-name">Dice</div>
+                        <div class="home-game-tile-tag">Classic</div>
                     </div>
-
+                    <div class="home-game-tile" onclick="showPage('games')">
+                        <span class="home-game-tile-icon">🪙</span>
+                        <div class="home-game-tile-name">Coin Flip</div>
+                        <div class="home-game-tile-tag">50/50</div>
+                    </div>
+                    <div class="home-game-tile" onclick="showPage('games')">
+                        <span class="home-game-tile-icon">🎡</span>
+                        <div class="home-game-tile-name">Roulette</div>
+                        <div class="home-game-tile-tag">Spin</div>
+                    </div>
+                    <div class="home-game-tile" onclick="showPage('games')">
+                        <span class="home-game-tile-icon">🃏</span>
+                        <div class="home-game-tile-name">Blackjack</div>
+                        <div class="home-game-tile-tag">Cards</div>
+                    </div>
+                    <div class="home-game-tile" onclick="showPage('games')">
+                        <span class="home-game-tile-new">NEW</span>
+                        <span class="home-game-tile-icon">🐝</span>
+                        <div class="home-game-tile-name">Hive</div>
+                        <div class="home-game-tile-tag">BSS Special</div>
+                    </div>
+                    <div class="home-game-tile" onclick="showPage('games')">
+                        <span class="home-game-tile-icon">🎰</span>
+                        <div class="home-game-tile-name">More</div>
+                        <div class="home-game-tile-tag">View All</div>
+                    </div>
                 </div>
 
-                <!-- Recent bets preview -->
-                <div class="home-section-title">🕐 Recent Activity</div>
-                <div id="home-recent-bets" style="background:#0d0f12; border:1px solid #1a1a1a; border-radius:12px; padding:16px; min-height:60px; color:#555; font-size:13px; text-align:center; line-height:2.5;">
-                    No recent bets yet. Start playing!
+                <!-- ── RECENT ACTIVITY ── -->
+                <div class="home-section-title">Recent Activity</div>
+                <div class="home-activity-box">
+                    <div id="home-recent-bets" class="home-activity-empty">
+                        No recent bets yet — start playing!
+                    </div>
                 </div>
 
             </div>
