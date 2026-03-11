@@ -1449,7 +1449,7 @@
 
     </style>
 </head>
-<body onclick="initAudio()">
+<body onclick="typeof initAudio === 'function' && initAudio()">
 
 <div id="auth-screen" style="display:flex; justify-content:center; align-items:center; width: 100vw; height: 100vh; background: var(--dark); position:fixed; z-index: 1000;">
     <div class="card" style="width: 360px; text-align: center; border: 2px solid var(--orange);">
@@ -2854,7 +2854,7 @@
     // DISCORD OAUTH2 SYSTEM
     // ═══════════════════════════════════════════════
     let DISCORD_CLIENT_ID = '1481014769539481711';
-    let DISCORD_REDIRECT   = 'https://bssgambling.github.io/BssGambling/';
+    let DISCORD_REDIRECT   = window.location.origin + window.location.pathname;
 
     document.addEventListener('DOMContentLoaded', () => {
         const autoEl = document.getElementById('dc-auto-redirect');
@@ -4654,7 +4654,7 @@
     let tActive = false, tLevel = 0, tBet = 0, tCurrentRisk = 'medium';
     const TOWER_ROWS = 9;
     let tBombs = [];
-    let mRevealTimeout = null;
+    let tRevealTimeout = null;
 
     function tGetCols() { return tRiskConfig[tCurrentRisk].cols; }
 
