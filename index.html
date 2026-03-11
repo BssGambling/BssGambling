@@ -1967,18 +1967,48 @@
                                 <span style="color:#888;">Session Profit</span>
                                 <span class="profit-val zero" id="cf-profit">+0 <svg class="ic ic-star" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg></span>
                             </div>
-                            <div id="coin-obj" class="coin"><svg viewBox="0 0 80 80" width="60" height="60" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="40" cy="40" r="36" fill="#c9a800" stroke="#0fd68a" stroke-width="3"/>
-  <circle cx="40" cy="40" r="28" fill="none" stroke="#0fd68a" stroke-width="1.5" opacity="0.5"/>
-  <!-- Crown -->
-  <polygon points="22,52 22,38 31,46 40,28 49,46 58,38 58,52" fill="#0fd68a" stroke="#c9a800" stroke-width="1"/>
-  <!-- Crown base -->
-  <rect x="22" y="50" width="36" height="6" rx="2" fill="#0fd68a"/>
-  <!-- Crown gems -->
-  <circle cx="40" cy="30" r="3" fill="#fff" opacity="0.9"/>
-  <circle cx="26" cy="42" r="2.5" fill="#fff" opacity="0.9"/>
-  <circle cx="54" cy="42" r="2.5" fill="#fff" opacity="0.9"/>
-</svg></div>
+                            <style>
+                                .cf-coin-wrap { perspective: 600px; width: 120px; height: 120px; margin: 0 auto 20px; }
+                                .cf-coin-inner { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.15s; }
+                                .cf-coin-inner.cf-spinning { animation: cfSpin 0.6s linear infinite; }
+                                @keyframes cfSpin { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
+                                .cf-face { position: absolute; width: 120px; height: 120px; border-radius: 50%; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; }
+                                .cf-heads { background: radial-gradient(circle at 38% 38%, #ffe066, #c9a800); border: 4px solid #e8c000; box-shadow: 0 0 24px rgba(201,168,0,0.5), inset 0 2px 6px rgba(255,255,255,0.3); }
+                                .cf-tails { background: radial-gradient(circle at 38% 38%, #c8e6c9, #388e3c); border: 4px solid #0fd68a; box-shadow: 0 0 24px rgba(15,214,138,0.45), inset 0 2px 6px rgba(255,255,255,0.2); transform: rotateY(180deg); }
+                            </style>
+                            <div class="cf-coin-wrap">
+                                <div class="cf-coin-inner" id="coin-obj">
+                                    <!-- HEADS face -->
+                                    <div class="cf-face cf-heads">
+                                        <svg viewBox="0 0 80 80" width="72" height="72" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+                                            <!-- Crown shape -->
+                                            <polygon points="20,54 20,36 30,44 40,24 50,44 60,36 60,54" fill="#7a5200" opacity="0.9"/>
+                                            <rect x="20" y="52" width="40" height="7" rx="3" fill="#7a5200" opacity="0.9"/>
+                                            <!-- Crown highlight -->
+                                            <polygon points="20,54 20,36 30,44 40,24 50,44 60,36 60,54" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linejoin="round"/>
+                                            <!-- Gems -->
+                                            <circle cx="40" cy="26" r="3.5" fill="#fff" opacity="0.85"/>
+                                            <circle cx="24" cy="40" r="2.5" fill="#fff" opacity="0.7"/>
+                                            <circle cx="56" cy="40" r="2.5" fill="#fff" opacity="0.7"/>
+                                            <!-- H label -->
+                                            <text x="40" y="46" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="8" font-weight="900" font-family="Arial" dy="0">H</text>
+                                        </svg>
+                                    </div>
+                                    <!-- TAILS face -->
+                                    <div class="cf-face cf-tails">
+                                        <svg viewBox="0 0 80 80" width="72" height="72" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+                                            <!-- Star -->
+                                            <polygon points="40,18 45.5,33 62,33 49,42 54,57 40,48 26,57 31,42 18,33 34.5,33" fill="#1a5c30" stroke="rgba(255,255,255,0.35)" stroke-width="1.2"/>
+                                            <!-- Inner star highlight -->
+                                            <polygon points="40,22 44.5,34 58,34 47.5,41.5 51.5,54 40,47 28.5,54 32.5,41.5 22,34 35.5,34" fill="rgba(255,255,255,0.12)"/>
+                                            <!-- T label -->
+                                            <text x="40" y="44" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="8" font-weight="900" font-family="Arial">T</text>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
                             Side: <select id="cf-choice">
                                 <option value="H">HEADS (👑)</option>
                                 <option value="T">TAILS (★)</option>
@@ -3953,25 +3983,14 @@
         document.getElementById('cf-bet').value = b;
         let btn = document.getElementById('cf-btn'), coin = document.getElementById('coin-obj');
         if(b > userData.chips || b < MIN_BET) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
-        countGame(); userData.chips -= b; addProfit('coinflip', -b); updateUI(); btn.disabled = true; coin.classList.add('flipping');
+        countGame(); userData.chips -= b; addProfit('coinflip', -b); updateUI(); btn.disabled = true;
+        coin.classList.add('cf-spinning');
         setTimeout(() => {
-            coin.classList.remove('flipping');
-            let res = houseEdge() ? (choice === 'H' ? 'T' : 'H') : (Math.random() < 0.5 ? choice : (choice === 'H' ? 'T' : 'H')); coin.innerHTML = (res === 'H') ? `<svg viewBox="0 0 80 80" width="60" height="60" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="40" cy="40" r="36" fill="#c9a800" stroke="#0fd68a" stroke-width="3"/>
-  <circle cx="40" cy="40" r="28" fill="none" stroke="#0fd68a" stroke-width="1.5" opacity="0.5"/>
-  <!-- Crown -->
-  <polygon points="22,52 22,38 31,46 40,28 49,46 58,38 58,52" fill="#0fd68a" stroke="#c9a800" stroke-width="1"/>
-  <!-- Crown base -->
-  <rect x="22" y="50" width="36" height="6" rx="2" fill="#0fd68a"/>
-  <!-- Crown gems -->
-  <circle cx="40" cy="30" r="3" fill="#fff" opacity="0.9"/>
-  <circle cx="26" cy="42" r="2.5" fill="#fff" opacity="0.9"/>
-  <circle cx="54" cy="42" r="2.5" fill="#fff" opacity="0.9"/>
-</svg>` : `<svg viewBox="0 0 80 80" width="60" height="60" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="40" cy="40" r="36" fill="#c9a800" stroke="#0fd68a" stroke-width="3"/>
-  <circle cx="40" cy="40" r="28" fill="none" stroke="#0fd68a" stroke-width="1.5" opacity="0.5"/>
-  <polygon points="40,18 45,30 57,30.5 48,38.5 51,51 40,44 29,51 32,38.5 23,30.5 35,30" fill="#0fd68a"/>
-</svg>`;
+            coin.classList.remove('cf-spinning');
+            let res = houseEdge() ? (choice === 'H' ? 'T' : 'H') : (Math.random() < 0.5 ? choice : (choice === 'H' ? 'T' : 'H'));
+            // Show heads (0deg) or tails (180deg)
+            coin.style.transition = 'transform 0.3s ease';
+            coin.style.transform = res === 'H' ? 'rotateY(0deg)' : 'rotateY(180deg)';
             if(res === choice) {
                 let win = b*2; userData.chips += win; play('win');
                 showWinOverlay(2.0, win); addHistory("CoinFlip", b, 2, win); addProfit('coinflip', win);
