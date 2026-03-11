@@ -2854,17 +2854,15 @@
         if(!hash) return false;
         const params = new URLSearchParams(hash);
         const accessToken = params.get('access_token');
-        const returnedState = params.get('state');
-        const savedState = localStorage.getItem('swarm_oauth_state');
         if(!accessToken) return false;
+        // Clear the hash from the URL immediately
         history.replaceState(null, '', window.location.pathname + window.location.search);
-        if(returnedState && savedState && returnedState !== savedState) { alert('❌ OAuth state mismatch!'); return false; }
         localStorage.removeItem('swarm_oauth_state');
         const statusEl = document.getElementById('discord-status');
         if(statusEl) statusEl.textContent = '⏳ Fetching Discord profile...';
         try {
             const userRes = await fetch('https://discord.com/api/users/@me', { headers: { 'Authorization': 'Bearer ' + accessToken } });
-            if(!userRes.ok) throw new Error('Discord API ' + userRes.status);
+            if(!userRes.ok) throw new Error('Discord API error ' + userRes.status);
             const dcUser = await userRes.json();
             const discordUsername = 'discord_' + dcUser.id;
             const displayName = dcUser.username + (dcUser.discriminator && dcUser.discriminator !== '0' ? '#' + dcUser.discriminator : '');
@@ -2873,7 +2871,10 @@
             if(!user) {
                 user = { chips: 0, discord: true, displayName, avatarUrl };
                 await dbSet('users', discordUsername, user);
-            } else { user.displayName = displayName; user.avatarUrl = avatarUrl; user.discord = true; }
+            } else {
+                user.displayName = displayName; user.avatarUrl = avatarUrl; user.discord = true;
+                await dbSet('users', discordUsername, user);
+            }
             currentUser = discordUsername; userData = user;
             localStorage.setItem('swarm_user', discordUsername);
             localStorage.setItem('swarm_userdata_' + discordUsername, JSON.stringify(user));
@@ -2882,7 +2883,9 @@
             return true;
         } catch(e) {
             console.error('Discord OAuth error:', e);
-            if(statusEl) statusEl.textContent = '❌ Error: ' + e.message;
+            const msg = '❌ Login failed: ' + e.message + ' — check console (F12) for details';
+            if(statusEl) statusEl.textContent = msg;
+            alert(msg);
             return false;
         }
     }
