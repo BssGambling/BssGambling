@@ -459,51 +459,126 @@
     @keyframes winPop { 0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } 15% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; } 100% { transform: translate(-50%, -70%) scale(0.8); opacity: 0; } }
 
     /* ── Mines ── */
-    .m-grid { display: grid; gap: 8px; justify-content: center; margin-top: 16px; }
-    .m-grid.g25 { grid-template-columns: repeat(5, 54px); }
-    .m-grid.g36 { grid-template-columns: repeat(6, 50px); }
-    .m-grid.g49 { grid-template-columns: repeat(7, 46px); }
-    .m-grid.g64 { grid-template-columns: repeat(8, 42px); }
+    #game-mines {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 24px 24px 40px;
+        box-sizing: border-box;
+    }
+    .m-header { text-align: center; margin-bottom: 18px; }
+    .m-title {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 40px; font-weight: 900; color: #c9a800;
+        display: flex; align-items: center; gap: 10px; justify-content: center;
+    }
+    .m-subtitle { color: #777; font-size: 14px; margin-top: 3px; }
+    .m-limits { display: flex; gap: 20px; justify-content: center; font-size: 12px; color: #555; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+    .m-limits .mlim-win { color: #0fd68a; font-weight: 700; }
+    .m-layout { display: flex; gap: 20px; align-items: flex-start; width: 100%; max-width: 980px; }
+    /* Board */
+    .m-board-wrap {
+        flex: 1;
+        background: #101a10;
+        border: 1.5px solid #1c2c1c;
+        border-radius: 16px;
+        padding: 18px;
+    }
+    .m-grid { display: grid; gap: 10px; }
+    .m-grid.g25 { grid-template-columns: repeat(5, 1fr); }
+    .m-grid.g36 { grid-template-columns: repeat(6, 1fr); }
+    .m-grid.g49 { grid-template-columns: repeat(7, 1fr); }
+    .m-grid.g64 { grid-template-columns: repeat(8, 1fr); }
     .tile {
-        background: linear-gradient(145deg, #131a28, #0e141e);
-        border: 1px solid #1e2d42;
+        background: #1c2e1c;
+        border: none;
         border-radius: 10px;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 22px;
-        transition: all 0.14s;
+        font-size: 28px;
         aspect-ratio: 1;
+        transition: background 0.1s, transform 0.1s;
+        min-width: 0;
+        user-select: none;
     }
-    .tile:hover {
-        background: linear-gradient(145deg, #1a2638, #162032);
-        border-color: rgba(15,214,138,0.4);
-        transform: scale(1.06);
-        box-shadow: 0 0 14px rgba(15,214,138,0.15);
+    .tile:hover:not(.gem):not(.bomb) { background: #253e25; transform: scale(1.04); }
+    .tile.gem { background: #0c2e14; box-shadow: 0 0 10px rgba(15,214,138,0.15); }
+    .tile.bomb { background: #2e0e0e; box-shadow: 0 0 10px rgba(220,50,50,0.2); }
+    /* Controls */
+    .m-controls {
+        width: 260px; flex-shrink: 0;
+        background: #101a10;
+        border: 1.5px solid #1c2c1c;
+        border-radius: 16px;
+        padding: 22px 20px;
+        display: flex; flex-direction: column;
     }
-    .tile.gem { background: linear-gradient(145deg, #0a2e1f, #071e15); border-color: var(--green); box-shadow: 0 0 10px rgba(15,214,138,0.15); }
-    .tile.bomb { background: linear-gradient(145deg, #2e0a14, #1e0710); border-color: var(--red); box-shadow: 0 0 10px rgba(255,77,109,0.15); }
-    .m-panel { display:flex; gap:20px; padding:20px; flex-wrap:wrap; }
-    .m-controls { width:220px; flex-shrink:0; background:#080c14; border:1px solid var(--border); border-radius:14px; padding:18px; }
-    .m-board-wrap { flex:1; display:flex; flex-direction:column; align-items:center; }
-    .m-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:6px; margin-top:14px; font-weight:700; font-family:'Barlow Condensed',sans-serif; }
-    .m-bet-row { display:flex; align-items:center; background:var(--dark); border:1px solid var(--border2); border-radius:10px; overflow:hidden; }
-    .m-bet-row input { border:none; background:transparent; color:var(--text); padding:10px 12px; font-size:14px; font-weight:600; flex:1; width:0; text-align:left; }
-    .m-bet-btn { background:var(--panel2); border:none; color:var(--muted2); padding:8px 12px; cursor:pointer; font-size:11px; font-weight:700; transition:0.15s; }
-    .m-bet-btn:hover { background:var(--border2); color:var(--text); }
-    .m-grid-btns { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
-    .m-grid-btn { background:var(--panel2); border:1px solid var(--border); border-radius:8px; color:var(--muted2); padding:8px 4px; font-size:13px; font-weight:700; cursor:pointer; text-align:center; transition:0.15s; font-family:'JetBrains Mono',monospace; }
-    .m-grid-btn.active, .m-grid-btn:hover { background:rgba(15,214,138,0.1); border-color:rgba(15,214,138,0.3); color:var(--orange); }
-    .m-risk-select { width:100%; background:var(--dark); border:1px solid var(--border2); border-radius:10px; color:var(--text); padding:10px 12px; font-size:13px; cursor:pointer; appearance:none; font-family:'Sora',sans-serif; }
-    .m-risk-wrap { position:relative; }
-    .m-risk-wrap::after { content:'▾'; position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:12px; pointer-events:none; }
-    .m-start-btn { width:100%; background:var(--green); border:none; color:#030f08; padding:14px; border-radius:999px; font-size:14px; font-weight:800; cursor:pointer; margin-top:16px; letter-spacing:0.5px; transition:0.2s; font-family:'Sora',sans-serif; box-shadow:0 4px 16px rgba(15,214,138,0.25); position:relative; overflow:hidden; }
-    .m-start-btn::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%); border-radius:inherit; }
-    .m-start-btn:hover { transform:translateY(-1px); box-shadow:0 6px 22px rgba(15,214,138,0.35); filter:brightness(1.06); }
-    .m-cash-btn { width:100%; background:var(--orange); border:none; color:#050810; padding:14px; border-radius:999px; font-size:14px; font-weight:800; cursor:pointer; margin-top:8px; letter-spacing:0.5px; font-family:'Sora',sans-serif; box-shadow:0 4px 16px rgba(15,214,138,0.25); }
-    .m-mult-disp { text-align:center; font-size:30px; font-weight:900; color:var(--orange); margin-bottom:8px; font-family:'JetBrains Mono',monospace; }
-    .m-info { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:8px; }
+    .m-label { font-size: 13px; color: #888; margin-bottom: 8px; font-weight: 500; }
+    .m-bet-row {
+        background: #182018; border: 1.5px solid #243024;
+        border-radius: 8px; margin-bottom: 10px;
+    }
+    .m-bet-row input {
+        width: 100%; border: none; background: transparent; color: #fff;
+        padding: 12px 14px; font-size: 20px; font-weight: 600; box-sizing: border-box;
+        font-family: 'JetBrains Mono', monospace;
+    }
+    .m-halfdouble { display: flex; gap: 8px; margin-bottom: 22px; }
+    .m-bet-btn {
+        flex: 1; background: #182018; border: 1.5px solid #c9a800;
+        color: #c9a800; padding: 10px 0; cursor: pointer;
+        font-size: 15px; font-weight: 800; border-radius: 8px;
+        transition: 0.15s; font-family: 'Barlow Condensed', sans-serif; letter-spacing: 0.5px;
+    }
+    .m-bet-btn:hover { background: #202a18; }
+    .m-slider-label { font-size: 13px; color: #888; margin-bottom: 10px; font-weight: 500; }
+    .m-slider {
+        -webkit-appearance: none; appearance: none;
+        width: 100%; height: 5px; background: #243024; border-radius: 999px;
+        outline: none; cursor: pointer; display: block;
+    }
+    .m-slider::-webkit-slider-thumb {
+        -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+        background: #e53e3e; cursor: pointer; box-shadow: 0 0 10px rgba(229,62,62,0.6);
+    }
+    .m-slider::-moz-range-thumb {
+        width: 22px; height: 22px; border-radius: 50%;
+        background: #e53e3e; cursor: pointer; border: none;
+    }
+    .m-mine-lbl {
+        text-align: center; font-size: 20px; font-weight: 800;
+        color: #e53e3e; font-family: 'Barlow Condensed', sans-serif;
+        margin-top: 8px; margin-bottom: 18px;
+    }
+    .m-start-btn {
+        width: 100%; background: #e53e3e; border: none; color: #fff;
+        padding: 17px; border-radius: 8px; font-size: 20px; font-weight: 900;
+        cursor: pointer; letter-spacing: 2.5px; transition: 0.18s;
+        font-family: 'Barlow Condensed', sans-serif;
+        box-shadow: 0 0 28px rgba(229,62,62,0.45);
+    }
+    .m-start-btn:hover:not(:disabled) { background: #c53030; box-shadow: 0 0 40px rgba(229,62,62,0.65); }
+    .m-start-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .m-cash-btn {
+        width: 100%; background: #0fd68a; border: none; color: #050810;
+        padding: 17px; border-radius: 8px; font-size: 20px; font-weight: 900;
+        cursor: pointer; margin-top: 10px; letter-spacing: 2px;
+        font-family: 'Barlow Condensed', sans-serif;
+        box-shadow: 0 0 24px rgba(15,214,138,0.35); transition: 0.18s;
+    }
+    .m-cash-btn:hover { filter: brightness(1.1); }
+    .m-mult-live {
+        text-align: center; font-size: 24px; font-weight: 900;
+        color: #0fd68a; font-family: 'JetBrains Mono', monospace;
+        margin-top: 12px; display: none;
+    }
+    /* hide legacy elements */
+    .m-panel { display: none; }
+    .m-mult-disp { display: none; }
+    .m-info { display: none; }
     .profit-bar { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:8px 16px; display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; font-size:13px; }
     .profit-val.pos { color:var(--green); font-weight:800; font-family:'JetBrains Mono',monospace; }
     .profit-val.neg { color:var(--red); font-weight:800; font-family:'JetBrains Mono',monospace; }
@@ -913,7 +988,16 @@
         <div class="sidebar-top">
         <div class="logo">BSS<span>GAMBLING</span></div>
         </div>
-        <div class="nav-item active" id="nav-games" onclick="showPage('games')"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="22" height="22">
+        <div class="nav-item active" id="nav-home" onclick="showPage('home')"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="22" height="22">
+  <path d="M6 22L24 6L42 22" stroke="#0fd68a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="10" y="22" width="28" height="20" rx="2" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
+  <rect x="19" y="30" width="10" height="12" rx="2" fill="#0fd68a" opacity="0.85"/>
+  <circle cx="27" cy="37" r="1.2" fill="#1a1a1a"/>
+  <rect x="12" y="25" width="7" height="6" rx="1.5" fill="#0fd68a" opacity="0.4"/>
+  <rect x="29" y="25" width="7" height="6" rx="1.5" fill="#0fd68a" opacity="0.4"/>
+  <rect x="30" y="10" width="5" height="10" rx="1" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2"/>
+</svg> Home</div>
+        <div class="nav-item" id="nav-games" onclick="showPage('games')"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="22" height="22">
   <path d="M8 20C8 16 11 14 14 14H34C37 14 40 16 40 20L38 32C37.5 35 35 36 33 36H15C13 36 10.5 35 10 32L8 20Z" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
   <rect x="14" y="20" width="3.5" height="10" rx="1" fill="#0fd68a"/>
   <rect x="11" y="23" width="9.5" height="3.5" rx="1" fill="#0fd68a"/>
@@ -1040,7 +1124,102 @@
         <div class="container">
 
             <!-- ═══════════════ HOME PAGE ═══════════════ -->
+            <div id="page-home" class="home-fadein hidden">
 
+                <!-- Hero welcome banner -->
+                <div class="home-hero">
+                    <div class="home-hero-greeting">Welcome back</div>
+                    <div class="home-hero-name" id="home-display-name">---</div>
+                    <div class="home-hero-sub">Ready to play? Your luck starts here.</div>
+                    <div class="home-hero-balance">
+                        <span><svg class="ic ic-star" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg></span>
+                        <span id="home-display-chips">0</span>
+                        <span style="font-size:13px; color:#888; font-weight:400;">stars</span>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="home-section-title">📊 Your Stats</div>
+                <div class="home-stats-row">
+                    <div class="home-stat-box">
+                        <div class="home-stat-val" id="home-stat-bets">0</div>
+                        <div class="home-stat-label">Total Bets</div>
+                    </div>
+                    <div class="home-stat-box">
+                        <div class="home-stat-val" id="home-stat-wins">0</div>
+                        <div class="home-stat-label">Wins</div>
+                    </div>
+                    <div class="home-stat-box">
+                        <div class="home-stat-val" id="home-stat-biggest">—</div>
+                        <div class="home-stat-label">Biggest Win</div>
+                    </div>
+                </div>
+
+                <!-- Section cards -->
+                <div class="home-section-title">🚀 Quick Access</div>
+                <div class="home-cards-grid">
+
+                    <!-- Games -->
+                    <div class="home-card" onclick="showPage('games')">
+                        <div class="home-card-badge">10+ Games</div>
+                        <span class="home-card-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="40" height="40">
+  <path d="M8 20C8 16 11 14 14 14H34C37 14 40 16 40 20L38 32C37.5 35 35 36 33 36H15C13 36 10.5 35 10 32L8 20Z" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
+  <rect x="14" y="20" width="3.5" height="10" rx="1" fill="#0fd68a"/>
+  <rect x="11" y="23" width="9.5" height="3.5" rx="1" fill="#0fd68a"/>
+  <circle cx="32" cy="22" r="2.2" fill="#0fd68a" opacity="0.5"/>
+  <circle cx="37" cy="26" r="2.2" fill="#0fd68a" opacity="0.5"/>
+  <circle cx="32" cy="30" r="2.2" fill="#0fd68a" opacity="0.5"/>
+  <circle cx="27" cy="26" r="2.2" fill="#0fd68a" opacity="0.5"/>
+  <ellipse cx="13" cy="34" rx="5" ry="3" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2"/>
+  <ellipse cx="35" cy="34" rx="5" ry="3" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2"/>
+</svg></span>
+                        <div class="home-card-title">Play Games</div>
+                        <div class="home-card-desc">Mines, Crash, Dice, Roulette, Blackjack & more Bee Swarm games.</div>
+                    </div>
+
+                    <!-- Bet History -->
+                    <div class="home-card" onclick="showPage('history')">
+                        <span class="home-card-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="40" height="40">
+  <rect x="10" y="8" width="28" height="34" rx="3" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
+  <line x1="16" y1="16" x2="32" y2="16" stroke="#0fd68a" stroke-width="2" stroke-linecap="round"/>
+  <line x1="16" y1="22" x2="32" y2="22" stroke="#0fd68a" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+  <line x1="16" y1="28" x2="26" y2="28" stroke="#0fd68a" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+  <circle cx="14" cy="16" r="2" fill="#2ECC71"/>
+  <circle cx="14" cy="22" r="2" fill="#E74C3C"/>
+  <circle cx="14" cy="28" r="2" fill="#2ECC71"/>
+  <circle cx="34" cy="36" r="6" fill="#0fd68a"/>
+  <text x="34" y="40" text-anchor="middle" font-size="8" font-weight="bold" fill="#1a1a1a">$</text>
+</svg></span>
+                        <div class="home-card-title">Bet History</div>
+                        <div class="home-card-desc">Review all your past bets, wins, and losses in one place.</div>
+                    </div>
+
+                    <!-- Promo Codes -->
+                    <div class="home-card" onclick="showPage('rakeback')">
+                        <div class="home-card-badge" style="background:#22c55e; color:#fff;">Free <svg class="ic ic-star" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg></div>
+                        <span class="home-card-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="40" height="40">
+  <rect x="8" y="22" width="32" height="20" rx="2" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
+  <rect x="6" y="16" width="36" height="8" rx="2" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
+  <rect x="22" y="22" width="4" height="20" fill="#0fd68a" opacity="0.8"/>
+  <rect x="6" y="18.5" width="36" height="3" fill="#0fd68a" opacity="0.8"/>
+  <path d="M24 16 C18 10 10 10 14 16" stroke="#0fd68a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M24 16 C30 10 38 10 34 16" stroke="#0fd68a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <circle cx="24" cy="16" r="2.5" fill="#0fd68a"/>
+</svg></span>
+                        <div class="home-card-title">Promo Codes</div>
+                        <div class="home-card-desc">Redeem exclusive promo codes and rakeback rewards for free stars.</div>
+                    </div>
+
+                </div>
+
+                <!-- Recent bets preview -->
+                <div class="home-section-title">🕐 Recent Activity</div>
+                <div id="home-recent-bets" style="background:#0d0f12; border:1px solid #1a1a1a; border-radius:12px; padding:16px; min-height:60px; color:#555; font-size:13px; text-align:center; line-height:2.5;">
+                    No recent bets yet. Start playing!
+                </div>
+
+            </div>
+            <!-- ═══════════════ END HOME PAGE ═══════════════ -->
 
             <div id="page-games" class="hidden">
                 <div id="selection-menu">
@@ -1195,46 +1374,49 @@
                     <button class="btn-back" onclick="backToMenu()">← BACK TO MENU</button>
                     <div class="card" style="background:#0c0c0c;">
                         <div id="game-mines" class="hidden">
-                            <div class="m-panel">
-                                <div class="m-controls">
-                                    <div class="m-label">Bet Amount</div>
-                                    <div class="m-bet-row">
-                                        <span style="color:#888;padding:0 8px;"><svg class="ic ic-star" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg></span>
-                                        <input type="number" id="m-bet" value="50" min="50" max="1000">
-                                        <button class="m-bet-btn" onclick="document.getElementById('m-bet').value=Math.max(50,Math.floor(parseInt(document.getElementById('m-bet').value)/2))">½</button>
-                                        <button class="m-bet-btn" onclick="document.getElementById('m-bet').value=Math.min(1000,parseInt(document.getElementById('m-bet').value)*2)">2×</button>
-                                    </div>
-                                    <div class="m-label">Grid Size</div>
-                                    <div class="m-grid-btns">
-                                        <div class="m-grid-btn active" id="mg-25" onclick="setMGrid(25)">25</div>
-                                        <div class="m-grid-btn" id="mg-36" onclick="setMGrid(36)">36</div>
-                                        <div class="m-grid-btn" id="mg-49" onclick="setMGrid(49)">49</div>
-                                        <div class="m-grid-btn" id="mg-64" onclick="setMGrid(64)">64</div>
-                                    </div>
-                                    <div class="m-label">Risk Level</div>
-                                    <div class="m-risk-wrap">
-                                        <select class="m-risk-select" id="m-risk">
-                                            <option value="easy">Easy</option>
-                                            <option value="medium">Medium</option>
-                                            <option value="hard">Hard</option>
-                                            <option value="expert">Expert</option>
-                                            <option value="master">Master</option>
-                                        </select>
-                                    </div>
-                                    <div class="m-info" id="m-mine-info">
-                                        <span><svg class="ic ic-gem" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 14.5,5.5 8,15 1.5,5.5" fill="#1abc9c" stroke="#16a085" stroke-width="0.4"/><polygon points="8,1 14.5,5.5 8,7.5 1.5,5.5" fill="#2ecc71" opacity="0.55"/><line x1="8" y1="1" x2="8" y2="15" stroke="#16a085" stroke-width="0.5" opacity="0.5"/></svg> <span id="m-gem-count">22</span> Gems</span>
-                                        <span><svg class="ic ic-bomb" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="9.5" r="5.5" fill="#cc1f4a" stroke="#ff4d7a" stroke-width="0.6"/><rect x="7" y="3" width="2" height="3.5" rx="1" fill="#ff4d7a"/><circle cx="8" cy="9.5" r="2" fill="#ff4d7a" opacity="0.35"/><circle cx="9.5" cy="3.2" r="1.2" fill="#12c97a"/></svg> <span id="m-bomb-count">3</span> Mines</span>
-                                    </div>
-                                    <button class="m-start-btn" id="m-start" onclick="startMines()">▶ START GAME</button>
-                                    <button id="m-cash" class="m-cash-btn hidden" onclick="cashoutMines()"><svg class="ic ic-money" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><ellipse cx="8" cy="13" rx="5.5" ry="2.5" fill="#0aac6e"/><rect x="2.5" y="7" width="11" height="6" rx="2" fill="#0aac6e"/><ellipse cx="8" cy="7" rx="5.5" ry="2.5" fill="#12c97a"/><text x="8" y="9.5" text-anchor="middle" fill="#c9a800" font-size="4.5" font-weight="900" font-family="Arial">$</text></svg> CASH OUT</button>
-                                    <div class="profit-bar" style="margin-top:12px;margin-bottom:0;">
-                                        <span style="color:#888;">Session Profit</span>
-                                        <span class="profit-val zero" id="m-profit">+0 <svg class="ic ic-star" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg></span>
-                                    </div>
+                            <!-- Header -->
+                            <div class="m-header">
+                                <div class="m-title">
+                                    <svg viewBox="0 0 28 28" width="34" height="34" fill="none">
+                                        <circle cx="14" cy="17" r="9" fill="#c9a800" stroke="#ddb800" stroke-width="1"/>
+                                        <rect x="12.5" y="5.5" width="3" height="6" rx="1.5" fill="#c9a800"/>
+                                        <circle cx="17.5" cy="6" r="2.2" fill="#0fd68a"/>
+                                        <circle cx="14" cy="17" r="3.5" fill="#a07800" opacity="0.55"/>
+                                    </svg>
+                                    Mines
                                 </div>
+                                <div class="m-subtitle">Avoid the vicious bee!</div>
+                                <div class="m-limits">
+                                    <span>Min Bet: 50</span>
+                                    <span>Max Bet: 600</span>
+                                    <span class="mlim-win">Max Win: 8,000</span>
+                                </div>
+                            </div>
+                            <!-- Layout -->
+                            <div class="m-layout">
                                 <div class="m-board-wrap">
-                                    <div class="m-mult-disp" id="m-mult-disp">1.00×</div>
+                                    <div id="m-mult-disp"></div>
                                     <div class="m-grid g25" id="m-board"></div>
+                                </div>
+                                <div class="m-controls">
+                                    <div class="m-label">Bet Amount (50-600)</div>
+                                    <div class="m-bet-row">
+                                        <input type="number" id="m-bet" value="50" min="50" max="600">
+                                    </div>
+                                    <div class="m-halfdouble">
+                                        <button class="m-bet-btn" onclick="(function(){var el=document.getElementById('m-bet');el.value=Math.max(50,Math.floor((parseInt(el.value)||50)/2));})()">1/2</button>
+                                        <button class="m-bet-btn" onclick="(function(){var el=document.getElementById('m-bet');el.value=Math.min(600,(parseInt(el.value)||50)*2);})()">2x</button>
+                                    </div>
+                                    <div class="m-slider-label">Mines (1-24)</div>
+                                    <input type="range" class="m-slider" id="m-mine-slider" min="1" max="24" value="3" oninput="mSliderUpdate(this.value)">
+                                    <div class="m-mine-lbl" id="m-mine-lbl">3 Mines</div>
+                                    <button class="m-start-btn" id="m-start" onclick="startMines()">PLAY</button>
+                                    <button id="m-cash" class="m-cash-btn hidden" onclick="cashoutMines()">CASH OUT</button>
+                                    <div class="m-mult-live" id="m-mult-live">1.00×</div>
+                                    <div class="profit-bar" style="margin-top:14px;margin-bottom:0;background:#182018;border-color:#243024;">
+                                        <span style="color:#666;font-size:12px;">Session Profit</span>
+                                        <span class="profit-val zero" id="m-profit">+0 ⭐</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2034,7 +2216,7 @@
         buildRoulette(); updateUI();
         document.getElementById('pf-float-btn').classList.remove('hidden');
         // Show home page on login
-        showPage('games');
+        showPage('home');
         // Restore any active game session that was interrupted
         restoreGameState();
         // Start anticheat after a brief delay (let updateUI settle)
@@ -2072,7 +2254,7 @@
                 bet: mBet, mult: mMult, bombs: mBombs,
                 gridSize: mGridSize, gemsFound: mGemsFound,
                 revealed: revealedIdx,
-                risk: document.getElementById('m-risk')?.value || 'medium'
+                bombCount: getMines()
             };
         }
 
@@ -2138,57 +2320,39 @@
             if(state.mines?.active) {
                 const m = state.mines;
                 mBet = m.bet; mMult = m.mult; mBombs = m.bombs;
-                mGridSize = m.gridSize; mGemsFound = m.gemsFound;
-                mActive = true;
-                setTimeout(() => {
-                    showPage('games');
-                    selectGame('mines');
-                    const riskEl = document.getElementById('m-risk');
-                    if(riskEl) riskEl.value = m.risk;
-                    // Rebuild grid with saved state
+                mGridSize = m.gridSize; mGemsFound = m.gemsFound; mActive = true;
+                const rBC = m.bombCount || m.bombs.length;
+                const rStep = mMultStep(rBC);
+                setTimeout(function() {
+                    showPage('games'); selectGame('mines');
+                    var sl = document.getElementById('m-mine-slider');
+                    if(sl) { sl.value = rBC; sl.disabled = true; }
+                    document.getElementById('m-mine-lbl').innerText = rBC + ' Mines';
                     const board = document.getElementById('m-board');
-                    board.innerHTML = '';
-                    board.className = 'm-grid g' + mGridSize;
-                    const risk = m.risk;
+                    board.innerHTML = ''; board.className = 'm-grid g' + mGridSize;
                     for(let i = 0; i < mGridSize; i++) {
-                        const t = document.createElement('div');
-                        t.className = 'tile';
+                        const t = document.createElement('div'); t.className = 'tile';
                         if(m.revealed.includes(i)) {
                             t.dataset.revealed = '1';
-                            t.innerHTML = mBombs.includes(i) ? '<svg class=\"ic ic-bomb\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"8\" cy=\"9.5\" r=\"5.5\" fill=\"#cc1f4a\" stroke=\"#ff4d7a\" stroke-width=\"0.6\"/><rect x=\"7\" y=\"3\" width=\"2\" height=\"3.5\" rx=\"1\" fill=\"#ff4d7a\"/><circle cx=\"8\" cy=\"9.5\" r=\"2\" fill=\"#ff4d7a\" opacity=\"0.35\"/><circle cx=\"9.5\" cy=\"3.2\" r=\"1.2\" fill=\"#12c97a\"/></svg>' : '<svg class=\"ic ic-gem\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 14.5,5.5 8,15 1.5,5.5\" fill=\"#1abc9c\" stroke=\"#16a085\" stroke-width=\"0.4\"/><polygon points=\"8,1 14.5,5.5 8,7.5 1.5,5.5\" fill=\"#2ecc71\" opacity=\"0.55\"/></svg>';
+                            t.innerHTML = mBombs.includes(i) ? '💣' : '💎';
                             t.classList.add(mBombs.includes(i) ? 'bomb' : 'gem');
                         } else {
-                            t.onclick = () => {
+                            t.onclick = function() {
                                 if(!mActive || t.dataset.revealed) return;
                                 t.dataset.revealed = '1';
                                 if(mBombs.includes(i)) {
-                                    t.innerHTML='<svg class=\"ic ic-bomb\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"8\" cy=\"9.5\" r=\"5.5\" fill=\"#cc1f4a\" stroke=\"#ff4d7a\" stroke-width=\"0.6\"/><rect x=\"7\" y=\"3\" width=\"2\" height=\"3.5\" rx=\"1\" fill=\"#ff4d7a\"/><circle cx=\"8\" cy=\"9.5\" r=\"2\" fill=\"#ff4d7a\" opacity=\"0.35\"/><circle cx=\"9.5\" cy=\"3.2\" r=\"1.2\" fill=\"#12c97a\"/></svg>'; t.classList.add('bomb'); play('boom'); mActive=false;
-                                    document.querySelectorAll('#m-board .tile').forEach((tile,idx) => { if(mBombs.includes(idx) && !tile.dataset.revealed) { tile.innerHTML='<svg class=\"ic ic-bomb\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"8\" cy=\"9.5\" r=\"5.5\" fill=\"#cc1f4a\" stroke=\"#ff4d7a\" stroke-width=\"0.6\"/><rect x=\"7\" y=\"3\" width=\"2\" height=\"3.5\" rx=\"1\" fill=\"#ff4d7a\"/><circle cx=\"8\" cy=\"9.5\" r=\"2\" fill=\"#ff4d7a\" opacity=\"0.35\"/><circle cx=\"9.5\" cy=\"3.2\" r=\"1.2\" fill=\"#12c97a\"/></svg>'; tile.classList.add('bomb'); tile.dataset.revealed='1'; }});
-                                    document.getElementById('m-cash').classList.add('hidden');
-                                    document.getElementById('m-start').disabled=false;
-                                    document.getElementById('m-bet').disabled=false;
-                                    document.getElementById('m-risk').disabled=false;
-                                    document.querySelectorAll('.m-grid-btn').forEach(b=>b.style.opacity='1');
-                                    addHistory("Mines", mBet, 0, -mBet);
-                                    clearGameState('mines');
+                                    t.innerHTML='💣'; t.classList.add('bomb'); play('boom'); mActive=false;
+                                    document.querySelectorAll('#m-board .tile').forEach(function(tile,idx){ if(mBombs.includes(idx)&&!tile.dataset.revealed){tile.innerHTML='💣';tile.classList.add('bomb');tile.dataset.revealed='1';}});
+                                    mSetUI(false); addHistory('Mines',mBet,0,-mBet); clearGameState('mines');
                                 } else {
-                                    t.innerHTML='<svg class=\"ic ic-gem\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 14.5,5.5 8,15 1.5,5.5\" fill=\"#1abc9c\" stroke=\"#16a085\" stroke-width=\"0.4\"/><polygon points=\"8,1 14.5,5.5 8,7.5 1.5,5.5\" fill=\"#2ecc71\" opacity=\"0.55\"/></svg>'; t.classList.add('gem');
-                                    play('star'); mGemsFound++;
-                                    mMult *= mMultStep[risk];
-                                    document.getElementById('m-mult-disp').innerText = mMult.toFixed(2) + '×';
-                                    document.getElementById('m-cash').classList.remove('hidden');
-                                    saveGameState();
+                                    t.innerHTML='💎'; t.classList.add('gem'); play('star'); mGemsFound++;
+                                    mMult=parseFloat((mMult*rStep).toFixed(3)); mUpdateMult(); saveGameState();
                                 }
                             };
                         }
                         board.appendChild(t);
                     }
-                    document.getElementById('m-mult-disp').innerText = mMult.toFixed(2) + '×';
-                    document.getElementById('m-cash').classList.remove('hidden');
-                    document.getElementById('m-start').disabled = true;
-                    document.getElementById('m-bet').disabled = true;
-                    document.getElementById('m-risk').disabled = true;
-                    document.querySelectorAll('.m-grid-btn').forEach(b => b.style.opacity = '0.5');
+                    mUpdateMult(); mSetUI(true);
                     toast('Mines restored! ' + m.gemsFound + ' gems found at ' + mMult.toFixed(2) + '×', 'success');
                 }, 600);
             }
@@ -2361,7 +2525,7 @@
     function selectGame(g) {
         document.getElementById('selection-menu').classList.add('hidden');
         document.getElementById('game-active-page').classList.remove('hidden');
-        ['mines','dice','roulette','blackjack','coinflip','crash','limbo','baccarat','keno','home'].forEach(id => {
+        ['mines','dice','roulette','blackjack','coinflip','crash','limbo','baccarat','keno'].forEach(id => {
             const el = document.getElementById('game-'+id);
             if(el) el.classList.add('hidden');
         });
@@ -2754,121 +2918,94 @@
 
     // MINES
     // MINES
+    // ── MINES ───────────────────────────────────────────────────────────────────
     let mActive = false, mMult = 1, mBet = 0, mBombs = [], mGridSize = 25, mGemsFound = 0;
-    const mRiskMines = {
-        easy:   { 25:3,  36:5,  49:7,  64:9  },
-        medium: { 25:5,  36:8,  49:12, 64:15 },
-        hard:   { 25:8,  36:12, 49:17, 64:22 },
-        expert: { 25:11, 36:16, 49:22, 64:28 },
-        master: { 25:13, 36:19, 64:27, 49:35 }
-    };
-    const mMultStep = { easy:1.05, medium:1.10, hard:1.18, expert:1.28, master:1.45 };
+    let mRevealTimeout = null;
 
-    function setMGrid(n) {
-        if(mActive) return; // block during active game
-        mGridSize = n;
-        [25,36,49,64].forEach(s => document.getElementById('mg-'+s)?.classList.remove('active'));
-        document.getElementById('mg-'+n)?.classList.add('active');
-        const board = document.getElementById('m-board');
-        board.className = 'm-grid g'+n;
-        updateMineInfo();
+    function mSliderUpdate(v) {
+        v = parseInt(v);
+        if(mActive) { document.getElementById('m-mine-slider').value = mBombs.length; return; }
+        document.getElementById('m-mine-lbl').innerText = v + ' Mines';
     }
-    function updateMineInfo() {
-        const risk = document.getElementById('m-risk').value;
-        const bombs = mRiskMines[risk][mGridSize];
-        document.getElementById('m-bomb-count').innerText = bombs;
-        document.getElementById('m-gem-count').innerText = mGridSize - bombs;
+    function getMines() { return parseInt(document.getElementById('m-mine-slider')?.value || 3); }
+    function mMultStep(bombs) { return 1 + (bombs / Math.max(1, mGridSize - bombs)) * 0.9; }
+
+    function mSetUI(playing) {
+        document.getElementById('m-start').disabled = playing;
+        document.getElementById('m-bet').disabled = playing;
+        var sl = document.getElementById('m-mine-slider'); if(sl) sl.disabled = playing;
+        document.getElementById('m-cash').classList.toggle('hidden', !playing);
+        var lv = document.getElementById('m-mult-live');
+        if(lv) lv.style.display = playing ? 'block' : 'none';
     }
-    document.getElementById('m-risk')?.addEventListener('change', () => {
-        if(mActive) { // revert to previous value silently - we just prevent change visually
-            updateMineInfo();
-        } else {
-            updateMineInfo();
-        }
-    });
-    // Override risk select to block changes during game
-    document.getElementById('m-risk')?.addEventListener('mousedown', function(e) {
-        if(mActive) { e.preventDefault(); }
-    });
+    function mUpdateMult() {
+        var lv = document.getElementById('m-mult-live');
+        if(lv) lv.innerText = mMult.toFixed(2) + '×';
+    }
 
     function startMines() {
         if(!acquireBetLock()) return;
-        mBet = clampBet(document.getElementById('m-bet').value);
+        mBet = Math.max(50, Math.min(600, parseInt(document.getElementById('m-bet').value) || 50));
         document.getElementById('m-bet').value = mBet;
-        if(mBet > userData.chips || mBet < MIN_BET) { toast('Not enough ★! Min bet: ' + MIN_BET, 'error'); releaseBetLock(); return; }
-        const risk = document.getElementById('m-risk').value;
-        const bombCount = mRiskMines[risk][mGridSize];
-        countGame(); userData.chips -= mBet; mActive = true; mMult = 1; mBombs = []; mGemsFound = 0; updateUI();
+        if(mBet > userData.chips) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
+        const bombs = getMines();
+        if(bombs >= mGridSize) { toast('Too many mines!', 'error'); releaseBetLock(); return; }
+
+        countGame();
+        userData.chips -= mBet; mActive = true; mMult = 1; mBombs = []; mGemsFound = 0;
+        updateUI(); addProfit('mines', -mBet);
         if(mRevealTimeout) { clearTimeout(mRevealTimeout); mRevealTimeout = null; }
-        addProfit('mines', -mBet);
         releaseBetLock();
-        document.getElementById('m-start').disabled = true;
-        document.getElementById('m-bet').disabled = true;
-        document.getElementById('m-risk').disabled = true;
-        document.querySelectorAll('.m-grid-btn').forEach(b => b.style.opacity = '0.4');
-        document.getElementById('m-mult-disp').innerText = '1.00×';
+        mSetUI(true); mUpdateMult();
+
+        const step = mMultStep(bombs);
         const board = document.getElementById('m-board');
-        board.innerHTML = '';
-        board.className = 'm-grid g' + mGridSize;
-        while(mBombs.length < bombCount) { let r = Math.floor(Math.random()*mGridSize); if(!mBombs.includes(r)) mBombs.push(r); }
-        for(let i=0; i<mGridSize; i++) {
-            let t = document.createElement('div'); t.className = 'tile';
-            t.onclick = () => {
+        board.innerHTML = ''; board.className = 'm-grid g' + mGridSize;
+        while(mBombs.length < bombs) { let r = Math.floor(Math.random()*mGridSize); if(!mBombs.includes(r)) mBombs.push(r); }
+
+        for(let i = 0; i < mGridSize; i++) {
+            const t = document.createElement('div'); t.className = 'tile';
+            t.onclick = function() {
                 if(!mActive || t.dataset.revealed) return;
                 t.dataset.revealed = '1';
                 if(mBombs.includes(i)) {
-                    t.innerHTML='<svg class=\"ic ic-bomb\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"8\" cy=\"9.5\" r=\"5.5\" fill=\"#cc1f4a\" stroke=\"#ff4d7a\" stroke-width=\"0.6\"/><rect x=\"7\" y=\"3\" width=\"2\" height=\"3.5\" rx=\"1\" fill=\"#ff4d7a\"/><circle cx=\"8\" cy=\"9.5\" r=\"2\" fill=\"#ff4d7a\" opacity=\"0.35\"/><circle cx=\"9.5\" cy=\"3.2\" r=\"1.2\" fill=\"#12c97a\"/></svg>'; t.classList.add('bomb'); play('boom'); mActive=false;
-                    // Reveal all bombs
-                    document.querySelectorAll('#m-board .tile').forEach((tile,idx) => { if(mBombs.includes(idx) && !tile.dataset.revealed) { tile.innerHTML='<svg class=\"ic ic-bomb\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"8\" cy=\"9.5\" r=\"5.5\" fill=\"#cc1f4a\" stroke=\"#ff4d7a\" stroke-width=\"0.6\"/><rect x=\"7\" y=\"3\" width=\"2\" height=\"3.5\" rx=\"1\" fill=\"#ff4d7a\"/><circle cx=\"8\" cy=\"9.5\" r=\"2\" fill=\"#ff4d7a\" opacity=\"0.35\"/><circle cx=\"9.5\" cy=\"3.2\" r=\"1.2\" fill=\"#12c97a\"/></svg>'; tile.classList.add('bomb'); tile.dataset.revealed='1'; }});
-                    document.getElementById('m-cash').classList.add('hidden');
-                    document.getElementById('m-start').disabled=false;
-                    document.getElementById('m-bet').disabled=false;
-                    document.getElementById('m-risk').disabled=false;
-                    document.querySelectorAll('.m-grid-btn').forEach(b => b.style.opacity = '1');
-                    addHistory("Mines", mBet, 0, -mBet);
+                    t.innerHTML = '💣'; t.classList.add('bomb'); play('boom'); mActive = false;
+                    document.querySelectorAll('#m-board .tile').forEach(function(tile, idx) {
+                        if(mBombs.includes(idx) && !tile.dataset.revealed) { tile.innerHTML='💣'; tile.classList.add('bomb'); tile.dataset.revealed='1'; }
+                    });
+                    mSetUI(false); addHistory('Mines', mBet, 0, -mBet); clearGameState('mines');
                 } else {
-                    t.innerHTML='<svg class=\"ic ic-gem\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 14.5,5.5 8,15 1.5,5.5\" fill=\"#1abc9c\" stroke=\"#16a085\" stroke-width=\"0.4\"/><polygon points=\"8,1 14.5,5.5 8,7.5 1.5,5.5\" fill=\"#2ecc71\" opacity=\"0.55\"/></svg>'; t.classList.add('gem');
+                    t.innerHTML = '💎'; t.classList.add('gem');
                     play('star'); mGemsFound++;
-                    mMult *= mMultStep[risk];
-                    document.getElementById('m-mult-disp').innerText = mMult.toFixed(2) + '×';
-                    document.getElementById('m-cash').classList.remove('hidden');
-                                saveGameState();
+                    mMult = parseFloat((mMult * step).toFixed(3));
+                    mUpdateMult(); saveGameState();
                 }
             };
             board.appendChild(t);
         }
     }
+
     function cashoutMines() {
         if(!mActive) return;
-        let win = Math.floor(mBet * mMult);
+        const win = Math.floor(mBet * mMult);
         userData.chips += win; play('win');
         showWinOverlay(mMult, win);
-        addHistory("Mines", mBet, mMult, win); clearGameState('mines');
+        addHistory('Mines', mBet, mMult, win); clearGameState('mines');
         addProfit('mines', win);
         mActive = false; updateUI();
-        document.getElementById('m-cash').classList.add('hidden');
-        document.getElementById('m-start').disabled = false;
-        document.getElementById('m-bet').disabled = false;
-        document.getElementById('m-risk').disabled = false;
-        document.querySelectorAll('.m-grid-btn').forEach(b => b.style.opacity = '1');
-        document.getElementById('m-mult-disp').innerText = mMult.toFixed(2) + '× ✓';
-
-        // Reveal all bombs and unclicked gems, then hide after 3s
+        mSetUI(false);
         const tiles = document.querySelectorAll('#m-board .tile');
-        tiles.forEach((tile, idx) => {
+        tiles.forEach(function(tile, idx) {
             if(tile.dataset.revealed) return;
-            if(mBombs.includes(idx)) {
-                tile.innerHTML = '<svg class=\"ic ic-bomb\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"8\" cy=\"9.5\" r=\"5.5\" fill=\"#cc1f4a\" stroke=\"#ff4d7a\" stroke-width=\"0.6\"/><rect x=\"7\" y=\"3\" width=\"2\" height=\"3.5\" rx=\"1\" fill=\"#ff4d7a\"/><circle cx=\"8\" cy=\"9.5\" r=\"2\" fill=\"#ff4d7a\" opacity=\"0.35\"/><circle cx=\"9.5\" cy=\"3.2\" r=\"1.2\" fill=\"#12c97a\"/></svg>'; tile.classList.add('bomb');
-            } else {
-                tile.innerHTML = '<svg class=\"ic ic-gem\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 14.5,5.5 8,15 1.5,5.5\" fill=\"#1abc9c\" stroke=\"#16a085\" stroke-width=\"0.4\"/><polygon points=\"8,1 14.5,5.5 8,7.5 1.5,5.5\" fill=\"#2ecc71\" opacity=\"0.55\"/></svg>'; tile.classList.add('gem'); tile.style.opacity = '0.45';
-            }
+            if(mBombs.includes(idx)) { tile.innerHTML='💣'; tile.classList.add('bomb'); }
+            else { tile.innerHTML='💎'; tile.classList.add('gem'); tile.style.opacity='0.35'; }
         });
-        const revealedTiles = Array.from(tiles);
-        mRevealTimeout = setTimeout(() => {
+        const snap = Array.from(tiles);
+        mRevealTimeout = setTimeout(function() {
             mRevealTimeout = null;
-            revealedTiles.forEach((tile) => {
+            snap.forEach(function(tile) {
                 if(tile.dataset.revealed) return;
-                tile.innerHTML = ''; tile.classList.remove('bomb','gem'); tile.style.opacity = '';
+                tile.innerHTML=''; tile.classList.remove('bomb','gem'); tile.style.opacity='';
             });
         }, 3000);
     }
