@@ -2713,23 +2713,19 @@
 <div id="win-container"></div>
 
 <script>
-    const SUPABASE_URL = "https://uohmshxaypofbdnuaiwj.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_Wj9VAynFYoQN3evD3fVzWQ_99eSqfOM";
+    const DB_URL    = "https://casbss-c75a0-default-rtdb.europe-west1.firebasedatabase.app/users";
+    const PROMO_URL = "https://casbss-c75a0-default-rtdb.europe-west1.firebasedatabase.app/promos";
 
     async function dbGet(table, id) {
         try {
-            const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}&select=*`, {
-                headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
-            });
-            const rows = await res.json();
-            if (!Array.isArray(rows)) { console.error('dbGet error:', JSON.stringify(rows)); return null; }
-            return rows[0] ? (table === 'users' ? rows[0].data : rows[0].val) : null;
+            const url = table === 'users' ? `${DB_URL}/${encodeURIComponent(id)}.json` : `${PROMO_URL}/${encodeURIComponent(id)}.json`;
+            const res = await fetch(url);
+            const data = await res.json();
+            return data || null;
         } catch(e) { console.error('dbGet exception:', e); return null; }
     }
 
     async function dbSet(table, id, value) {
-        // Keep local cache in sync for instant refresh login
-        // Always serialize the raw underlying object (not a Proxy) to avoid __raw contamination
         if(table === 'users') {
             try {
                 const rawVal = (value && value.__raw) ? value.__raw : value;
@@ -2737,29 +2733,18 @@
             } catch(e) {}
         }
         try {
-            const col = table === 'users' ? 'data' : 'val';
-            const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-                method: 'POST',
-                headers: {
-                    apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
-                    'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates'
-                },
-                body: JSON.stringify({ id, [col]: value })
-            });
-            if (!res.ok) { const err = await res.text(); console.error('dbSet error:', err); }
+            const url = table === 'users' ? `${DB_URL}/${encodeURIComponent(id)}.json` : `${PROMO_URL}/${encodeURIComponent(id)}.json`;
+            const rawVal = (value && value.__raw) ? value.__raw : value;
+            await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rawVal) });
         } catch(e) { console.error('dbSet exception:', e); }
     }
 
     async function dbGetAll(table) {
         try {
-            const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*`, {
-                headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
-            });
-            const rows = await res.json();
-            if (!Array.isArray(rows)) { console.error('dbGetAll error:', JSON.stringify(rows)); return {}; }
-            const out = {};
-            rows.forEach(r => out[r.id] = r.data ?? r.val);
-            return out;
+            const url = table === 'users' ? `${DB_URL}.json` : `${PROMO_URL}.json`;
+            const res = await fetch(url);
+            const data = await res.json();
+            return data || {};
         } catch(e) { console.error('dbGetAll exception:', e); return {}; }
     }
     const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1475155012266098688/gN9IvDw1VACuP9wrUJ6jjpxsfbyTC0_laPXcSI4OE1s9wIlbhFN58XoEpnju-TNm-uZb";
@@ -2858,30 +2843,23 @@
     function startDiscordOAuth() {
         const state = Math.random().toString(36).substring(2, 15);
         localStorage.setItem('swarm_oauth_state', state);
-        sessionStorage.setItem('swarm_oauth_state', state); // mobile fallback
         const params = new URLSearchParams({ client_id: DISCORD_CLIENT_ID, redirect_uri: DISCORD_REDIRECT, response_type: 'token', scope: 'identify', state });
         const statusEl = document.getElementById('discord-status');
         if(statusEl) statusEl.textContent = '🔄 Redirecting to Discord...';
-        sessionStorage.setItem('bss_oauth_pending', '1'); // flag that we expect a callback
         window.location.href = 'https://discord.com/oauth2/authorize?' + params.toString();
     }
 
     async function handleDiscordCallback() {
-        // Use live hash, or fall back to sessionStorage for mobile browsers
-        // that clear the hash before onload fires
-        const rawHash = window.location.hash.substring(1) || (sessionStorage.getItem('bss_oauth_hash') || '').substring(1);
-        const hash = rawHash;
+        const hash = window.location.hash.substring(1);
         if(!hash) return false;
         const params = new URLSearchParams(hash);
         const accessToken = params.get('access_token');
         const returnedState = params.get('state');
-        const savedState = localStorage.getItem('swarm_oauth_state') || sessionStorage.getItem('swarm_oauth_state');
+        const savedState = localStorage.getItem('swarm_oauth_state');
         if(!accessToken) return false;
         history.replaceState(null, '', window.location.pathname + window.location.search);
-        // Only block on mismatch if we actually have a saved state to compare against
         if(returnedState && savedState && returnedState !== savedState) { alert('❌ OAuth state mismatch!'); return false; }
         localStorage.removeItem('swarm_oauth_state');
-        sessionStorage.removeItem('swarm_oauth_state');
         const statusEl = document.getElementById('discord-status');
         if(statusEl) statusEl.textContent = '⏳ Fetching Discord profile...';
         try {
@@ -5394,68 +5372,15 @@
     function pfClose(){ document.getElementById('pf-overlay').classList.remove('open'); }
     function pfOverlayClick(e){ if(e.target===document.getElementById('pf-overlay')) pfClose(); }
 
-    // Mobile-safe OAuth hash handler — runs immediately on script parse
-    // (before onload) so iOS Safari / in-app browsers don't lose the hash
-    (function() {
-        const h = window.location.hash;
-        const q = window.location.search;
-        // Some mobile browsers pass the fragment as query string instead
-        const src = (h && h.includes('access_token')) ? h
-                  : (q && q.includes('access_token')) ? q.replace('?','#')
-                  : null;
-        if(src) {
-            sessionStorage.setItem('bss_oauth_hash', src.startsWith('#') ? src : '#' + src);
-        }
-    })();
-
     window.onload = async () => {
-        // OAuth check MUST run first — before pfInit() or anything that could throw
-        // pfInit uses crypto.subtle which can fail and would crash the entire onload
-        const savedHash = sessionStorage.getItem('bss_oauth_hash');
-        const hasOAuth = (window.location.hash && window.location.hash.includes('access_token')) || (savedHash && savedHash.includes('access_token'));
-        if (hasOAuth) {
-            if (!window.location.hash.includes('access_token') && savedHash) {
-                window.location.hash = savedHash.substring(1);
-            }
-            sessionStorage.removeItem('bss_oauth_hash');
-            // Start pfInit in background but don't await — don't let it block or crash login
-            pfInit().catch(e => console.warn('pfInit error:', e));
+        pfInit();
+        if(window.location.hash && window.location.hash.includes('access_token')) {
             const handled = await handleDiscordCallback();
-            if (handled) return;
+            if(handled) return;
         }
-        // No OAuth in progress — pfInit is safe to await now
-        try { await pfInit(); } catch(e) { console.warn('pfInit error:', e); }
         if(currentUser) {
-            // Try cache first so login is instant on refresh
-            const cached = localStorage.getItem('swarm_userdata_' + currentUser);
-            if(cached) {
-                try {
-                    const parsed = JSON.parse(cached);
-                    // Discard corrupted cache (had __raw serialized into it)
-                    if(parsed && parsed.__raw) throw new Error('corrupted cache');
-                    userData = parsed;
-                    loginSuccess();
-                    if(userData.discord && userData.displayName && userData.avatarUrl) {
-                        injectDiscordAvatar(userData.displayName, userData.avatarUrl);
-                    }
-                    // Refresh from Supabase in background to get latest chips/data
-                    dbGet('users', currentUser).then(fresh => {
-                        if(fresh) {
-                            // Update underlying raw data through the proxy
-                            const sym = Symbol.for('bss_raw');
-                            const raw = (userData && userData[sym]) ? userData[sym] : userData;
-                            Object.assign(raw, fresh);
-                            localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(fresh));
-                            updateUI();
-                        }
-                    });
-                    return;
-                } catch(e) { /* fall through to network fetch */ }
-            }
-            // No cache — fetch from Supabase normally
             userData = await dbGet('users', currentUser);
             if(userData) {
-                localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(userData));
                 loginSuccess();
                 if(userData.discord && userData.displayName && userData.avatarUrl) {
                     injectDiscordAvatar(userData.displayName, userData.avatarUrl);
