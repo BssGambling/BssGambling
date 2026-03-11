@@ -2319,7 +2319,7 @@
                 bet: mBet, mult: mMult, bombs: mBombs,
                 gridSize: mGridSize, gemsFound: mGemsFound,
                 revealed: revealedIdx,
-                risk: document.getElementById('m-risk')?.value || 'medium'
+                bombCount: getMines()
             };
         }
 
@@ -2385,58 +2385,39 @@
             if(state.mines?.active) {
                 const m = state.mines;
                 mBet = m.bet; mMult = m.mult; mBombs = m.bombs;
-                mGridSize = m.gridSize; mGemsFound = m.gemsFound;
-                mActive = true;
-                setTimeout(() => {
-                    showPage('games');
-                    selectGame('mines');
-                    const riskEl = document.getElementById('m-risk');
-                    if(riskEl) riskEl.value = m.risk;
-                    // Rebuild grid with saved state
+                mGridSize = m.gridSize; mGemsFound = m.gemsFound; mActive = true;
+                const rBC = m.bombCount || m.bombs.length;
+                const rStep = mMultStep(rBC);
+                setTimeout(function() {
+                    showPage('games'); selectGame('mines');
+                    var sl = document.getElementById('m-mine-slider');
+                    if(sl) { sl.value = rBC; sl.disabled = true; }
+                    document.getElementById('m-mine-lbl').innerText = rBC + ' Mines';
                     const board = document.getElementById('m-board');
-                    board.innerHTML = '';
-                    board.className = 'm-grid g' + mGridSize;
-                    const risk = m.risk;
+                    board.innerHTML = ''; board.className = 'm-grid g' + mGridSize;
                     for(let i = 0; i < mGridSize; i++) {
-                        const t = document.createElement('div');
-                        t.className = 'tile';
+                        const t = document.createElement('div'); t.className = 'tile';
                         if(m.revealed.includes(i)) {
-                            t.dataset.revealed = '1';
-                            t.innerHTML = mBombs.includes(i) ? '<svg class=\"ic ic-bomb\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"8\" cy=\"9.5\" r=\"5.5\" fill=\"#cc1f4a\" stroke=\"#ff4d7a\" stroke-width=\"0.6\"/><rect x=\"7\" y=\"3\" width=\"2\" height=\"3.5\" rx=\"1\" fill=\"#ff4d7a\"/><circle cx=\"8\" cy=\"9.5\" r=\"2\" fill=\"#ff4d7a\" opacity=\"0.35\"/><circle cx=\"9.5\" cy=\"3.2\" r=\"1.2\" fill=\"#12c97a\"/></svg>' : '<svg class=\"ic ic-gem\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 14.5,5.5 8,15 1.5,5.5\" fill=\"#1abc9c\" stroke=\"#16a085\" stroke-width=\"0.4\"/><polygon points=\"8,1 14.5,5.5 8,7.5 1.5,5.5\" fill=\"#2ecc71\" opacity=\"0.55\"/></svg>';
+                            t.dataset.revealed = '1'; t.innerHTML = mBombs.includes(i) ? '💣' : '💎';
                             t.classList.add(mBombs.includes(i) ? 'bomb' : 'gem');
                         } else {
-                            t.onclick = () => {
+                            t.onclick = function() {
                                 if(!mActive || t.dataset.revealed) return;
                                 t.dataset.revealed = '1';
                                 if(mBombs.includes(i)) {
-                                    t.innerHTML='<svg class=\"ic ic-bomb\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"8\" cy=\"9.5\" r=\"5.5\" fill=\"#cc1f4a\" stroke=\"#ff4d7a\" stroke-width=\"0.6\"/><rect x=\"7\" y=\"3\" width=\"2\" height=\"3.5\" rx=\"1\" fill=\"#ff4d7a\"/><circle cx=\"8\" cy=\"9.5\" r=\"2\" fill=\"#ff4d7a\" opacity=\"0.35\"/><circle cx=\"9.5\" cy=\"3.2\" r=\"1.2\" fill=\"#12c97a\"/></svg>'; t.classList.add('bomb'); play('boom'); mActive=false;
-                                    document.querySelectorAll('#m-board .tile').forEach((tile,idx) => { if(mBombs.includes(idx) && !tile.dataset.revealed) { tile.innerHTML='<svg class=\"ic ic-bomb\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"8\" cy=\"9.5\" r=\"5.5\" fill=\"#cc1f4a\" stroke=\"#ff4d7a\" stroke-width=\"0.6\"/><rect x=\"7\" y=\"3\" width=\"2\" height=\"3.5\" rx=\"1\" fill=\"#ff4d7a\"/><circle cx=\"8\" cy=\"9.5\" r=\"2\" fill=\"#ff4d7a\" opacity=\"0.35\"/><circle cx=\"9.5\" cy=\"3.2\" r=\"1.2\" fill=\"#12c97a\"/></svg>'; tile.classList.add('bomb'); tile.dataset.revealed='1'; }});
-                                    document.getElementById('m-cash').classList.add('hidden');
-                                    document.getElementById('m-start').disabled=false;
-                                    document.getElementById('m-bet').disabled=false;
-                                    document.getElementById('m-risk').disabled=false;
-                                    document.querySelectorAll('.m-grid-btn').forEach(b=>b.style.opacity='1');
-                                    addHistory("Mines", mBet, 0, -mBet);
-                                    clearGameState('mines');
+                                    t.innerHTML='💣'; t.classList.add('bomb'); play('boom'); mActive=false;
+                                    document.querySelectorAll('#m-board .tile').forEach(function(tile,idx){ if(mBombs.includes(idx)&&!tile.dataset.revealed){tile.innerHTML='💣';tile.classList.add('bomb');tile.dataset.revealed='1';}});
+                                    mSetUI(false); addHistory('Mines',mBet,0,-mBet); clearGameState('mines');
                                 } else {
-                                    t.innerHTML='<svg class=\"ic ic-gem\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 14.5,5.5 8,15 1.5,5.5\" fill=\"#1abc9c\" stroke=\"#16a085\" stroke-width=\"0.4\"/><polygon points=\"8,1 14.5,5.5 8,7.5 1.5,5.5\" fill=\"#2ecc71\" opacity=\"0.55\"/></svg>'; t.classList.add('gem');
-                                    play('star'); mGemsFound++;
-                                    mMult *= mMultStep[risk];
-                                    document.getElementById('m-mult-disp').innerText = mMult.toFixed(2) + '×';
-                                    document.getElementById('m-cash').classList.remove('hidden');
-                                    saveGameState();
+                                    t.innerHTML='💎'; t.classList.add('gem'); play('star'); mGemsFound++;
+                                    mMult=parseFloat((mMult*rStep).toFixed(4)); mUpdateMult(); saveGameState();
                                 }
                             };
                         }
                         board.appendChild(t);
                     }
-                    document.getElementById('m-mult-disp').innerText = mMult.toFixed(2) + '×';
-                    document.getElementById('m-cash').classList.remove('hidden');
-                    document.getElementById('m-start').disabled = true;
-                    document.getElementById('m-bet').disabled = true;
-                    document.getElementById('m-risk').disabled = true;
-                    document.querySelectorAll('.m-grid-btn').forEach(b => b.style.opacity = '0.5');
-                    toast('Mines restored! ' + m.gemsFound + ' gems found at ' + mMult.toFixed(2) + '×', 'success');
+                    mUpdateMult(); mSetUI(true);
+                    toast('Mines restored! ' + m.gemsFound + ' gems found at ' + mMult.toFixed(3) + '×', 'success');
                 }, 600);
             }
 
@@ -3001,121 +2982,92 @@
 
     // MINES
     // MINES
+    // ── MINES ───────────────────────────────────────────────────────────────────
     let mActive = false, mMult = 1, mBet = 0, mBombs = [], mGridSize = 25, mGemsFound = 0;
-    const mRiskMines = {
-        easy:   { 25:3,  36:5,  49:7,  64:9  },
-        medium: { 25:5,  36:8,  49:12, 64:15 },
-        hard:   { 25:8,  36:12, 49:17, 64:22 },
-        expert: { 25:11, 36:16, 49:22, 64:28 },
-        master: { 25:13, 36:19, 64:27, 49:35 }
-    };
-    const mMultStep = { easy:1.05, medium:1.10, hard:1.18, expert:1.28, master:1.45 };
+    let mRevealTimeout = null;
 
-    function setMGrid(n) {
-        if(mActive) return; // block during active game
-        mGridSize = n;
-        [25,36,49,64].forEach(s => document.getElementById('mg-'+s)?.classList.remove('active'));
-        document.getElementById('mg-'+n)?.classList.add('active');
-        const board = document.getElementById('m-board');
-        board.className = 'm-grid g'+n;
-        updateMineInfo();
+    function mSliderUpdate(v) {
+        v = parseInt(v);
+        if(mActive) { document.getElementById('m-mine-slider').value = mBombs.length; return; }
+        document.getElementById('m-mine-lbl').innerText = v + ' Mines';
     }
-    function updateMineInfo() {
-        const risk = document.getElementById('m-risk').value;
-        const bombs = mRiskMines[risk][mGridSize];
-        document.getElementById('m-bomb-count').innerText = bombs;
-        document.getElementById('m-gem-count').innerText = mGridSize - bombs;
+    function getMines() { return parseInt(document.getElementById('m-mine-slider')?.value || 3); }
+    // NERFED: step = bombs / (gridSize * 5). E.g. 3 mines on 25 grid = +0.024 per gem
+    function mMultStep(bombs) { return 1 + (bombs / (mGridSize * 5)); }
+
+    function mSetUI(playing) {
+        document.getElementById('m-start').disabled = playing;
+        document.getElementById('m-bet').disabled = playing;
+        var sl = document.getElementById('m-mine-slider'); if(sl) sl.disabled = playing;
+        document.getElementById('m-cash').classList.toggle('hidden', !playing);
+        var lv = document.getElementById('m-mult-live');
+        if(lv) lv.style.display = playing ? 'block' : 'none';
     }
-    document.getElementById('m-risk')?.addEventListener('change', () => {
-        if(mActive) { // revert to previous value silently - we just prevent change visually
-            updateMineInfo();
-        } else {
-            updateMineInfo();
-        }
-    });
-    // Override risk select to block changes during game
-    document.getElementById('m-risk')?.addEventListener('mousedown', function(e) {
-        if(mActive) { e.preventDefault(); }
-    });
+    function mUpdateMult() {
+        var lv = document.getElementById('m-mult-live');
+        if(lv) lv.innerText = mMult.toFixed(3) + '×';
+    }
 
     function startMines() {
         if(!acquireBetLock()) return;
-        mBet = clampBet(document.getElementById('m-bet').value);
+        mBet = Math.max(50, Math.min(600, parseInt(document.getElementById('m-bet').value) || 50));
         document.getElementById('m-bet').value = mBet;
-        if(mBet > userData.chips || mBet < MIN_BET) { toast('Not enough ★! Min bet: ' + MIN_BET, 'error'); releaseBetLock(); return; }
-        const risk = document.getElementById('m-risk').value;
-        const bombCount = mRiskMines[risk][mGridSize];
-        countGame(); userData.chips -= mBet; mActive = true; mMult = 1; mBombs = []; mGemsFound = 0; updateUI();
+        if(mBet > userData.chips) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
+        const bombs = getMines();
+        if(bombs >= mGridSize) { toast('Too many mines!', 'error'); releaseBetLock(); return; }
+        countGame();
+        userData.chips -= mBet; mActive = true; mMult = 1; mBombs = []; mGemsFound = 0;
+        updateUI(); addProfit('mines', -mBet);
         if(mRevealTimeout) { clearTimeout(mRevealTimeout); mRevealTimeout = null; }
-        addProfit('mines', -mBet);
         releaseBetLock();
-        document.getElementById('m-start').disabled = true;
-        document.getElementById('m-bet').disabled = true;
-        document.getElementById('m-risk').disabled = true;
-        document.querySelectorAll('.m-grid-btn').forEach(b => b.style.opacity = '0.4');
-        document.getElementById('m-mult-disp').innerText = '1.00×';
+        mSetUI(true); mUpdateMult();
+        const step = mMultStep(bombs);
         const board = document.getElementById('m-board');
-        board.innerHTML = '';
-        board.className = 'm-grid g' + mGridSize;
-        while(mBombs.length < bombCount) { let r = Math.floor(Math.random()*mGridSize); if(!mBombs.includes(r)) mBombs.push(r); }
-        for(let i=0; i<mGridSize; i++) {
-            let t = document.createElement('div'); t.className = 'tile';
-            t.onclick = () => {
+        board.innerHTML = ''; board.className = 'm-grid g' + mGridSize;
+        while(mBombs.length < bombs) { let r = Math.floor(Math.random()*mGridSize); if(!mBombs.includes(r)) mBombs.push(r); }
+        for(let i = 0; i < mGridSize; i++) {
+            const t = document.createElement('div'); t.className = 'tile';
+            t.onclick = function() {
                 if(!mActive || t.dataset.revealed) return;
                 t.dataset.revealed = '1';
                 if(mBombs.includes(i)) {
-                    t.innerHTML='<svg class=\"ic ic-bomb\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"8\" cy=\"9.5\" r=\"5.5\" fill=\"#cc1f4a\" stroke=\"#ff4d7a\" stroke-width=\"0.6\"/><rect x=\"7\" y=\"3\" width=\"2\" height=\"3.5\" rx=\"1\" fill=\"#ff4d7a\"/><circle cx=\"8\" cy=\"9.5\" r=\"2\" fill=\"#ff4d7a\" opacity=\"0.35\"/><circle cx=\"9.5\" cy=\"3.2\" r=\"1.2\" fill=\"#12c97a\"/></svg>'; t.classList.add('bomb'); play('boom'); mActive=false;
-                    // Reveal all bombs
-                    document.querySelectorAll('#m-board .tile').forEach((tile,idx) => { if(mBombs.includes(idx) && !tile.dataset.revealed) { tile.innerHTML='<svg class=\"ic ic-bomb\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"8\" cy=\"9.5\" r=\"5.5\" fill=\"#cc1f4a\" stroke=\"#ff4d7a\" stroke-width=\"0.6\"/><rect x=\"7\" y=\"3\" width=\"2\" height=\"3.5\" rx=\"1\" fill=\"#ff4d7a\"/><circle cx=\"8\" cy=\"9.5\" r=\"2\" fill=\"#ff4d7a\" opacity=\"0.35\"/><circle cx=\"9.5\" cy=\"3.2\" r=\"1.2\" fill=\"#12c97a\"/></svg>'; tile.classList.add('bomb'); tile.dataset.revealed='1'; }});
-                    document.getElementById('m-cash').classList.add('hidden');
-                    document.getElementById('m-start').disabled=false;
-                    document.getElementById('m-bet').disabled=false;
-                    document.getElementById('m-risk').disabled=false;
-                    document.querySelectorAll('.m-grid-btn').forEach(b => b.style.opacity = '1');
-                    addHistory("Mines", mBet, 0, -mBet);
+                    t.innerHTML = '💣'; t.classList.add('bomb'); play('boom'); mActive = false;
+                    document.querySelectorAll('#m-board .tile').forEach(function(tile, idx) {
+                        if(mBombs.includes(idx) && !tile.dataset.revealed) { tile.innerHTML='💣'; tile.classList.add('bomb'); tile.dataset.revealed='1'; }
+                    });
+                    mSetUI(false); addHistory('Mines', mBet, 0, -mBet); clearGameState('mines');
                 } else {
-                    t.innerHTML='<svg class=\"ic ic-gem\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 14.5,5.5 8,15 1.5,5.5\" fill=\"#1abc9c\" stroke=\"#16a085\" stroke-width=\"0.4\"/><polygon points=\"8,1 14.5,5.5 8,7.5 1.5,5.5\" fill=\"#2ecc71\" opacity=\"0.55\"/></svg>'; t.classList.add('gem');
+                    t.innerHTML = '💎'; t.classList.add('gem');
                     play('star'); mGemsFound++;
-                    mMult *= mMultStep[risk];
-                    document.getElementById('m-mult-disp').innerText = mMult.toFixed(2) + '×';
-                    document.getElementById('m-cash').classList.remove('hidden');
-                                saveGameState();
+                    mMult = parseFloat((mMult * step).toFixed(4));
+                    mUpdateMult(); saveGameState();
                 }
             };
             board.appendChild(t);
         }
     }
+
     function cashoutMines() {
         if(!mActive) return;
-        let win = Math.floor(mBet * mMult);
+        const win = Math.floor(mBet * mMult);
         userData.chips += win; play('win');
         showWinOverlay(mMult, win);
-        addHistory("Mines", mBet, mMult, win); clearGameState('mines');
+        addHistory('Mines', mBet, mMult, win); clearGameState('mines');
         addProfit('mines', win);
         mActive = false; updateUI();
-        document.getElementById('m-cash').classList.add('hidden');
-        document.getElementById('m-start').disabled = false;
-        document.getElementById('m-bet').disabled = false;
-        document.getElementById('m-risk').disabled = false;
-        document.querySelectorAll('.m-grid-btn').forEach(b => b.style.opacity = '1');
-        document.getElementById('m-mult-disp').innerText = mMult.toFixed(2) + '× ✓';
-
-        // Reveal all bombs and unclicked gems, then hide after 3s
+        mSetUI(false);
         const tiles = document.querySelectorAll('#m-board .tile');
-        tiles.forEach((tile, idx) => {
+        tiles.forEach(function(tile, idx) {
             if(tile.dataset.revealed) return;
-            if(mBombs.includes(idx)) {
-                tile.innerHTML = '<svg class=\"ic ic-bomb\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"8\" cy=\"9.5\" r=\"5.5\" fill=\"#cc1f4a\" stroke=\"#ff4d7a\" stroke-width=\"0.6\"/><rect x=\"7\" y=\"3\" width=\"2\" height=\"3.5\" rx=\"1\" fill=\"#ff4d7a\"/><circle cx=\"8\" cy=\"9.5\" r=\"2\" fill=\"#ff4d7a\" opacity=\"0.35\"/><circle cx=\"9.5\" cy=\"3.2\" r=\"1.2\" fill=\"#12c97a\"/></svg>'; tile.classList.add('bomb');
-            } else {
-                tile.innerHTML = '<svg class=\"ic ic-gem\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 14.5,5.5 8,15 1.5,5.5\" fill=\"#1abc9c\" stroke=\"#16a085\" stroke-width=\"0.4\"/><polygon points=\"8,1 14.5,5.5 8,7.5 1.5,5.5\" fill=\"#2ecc71\" opacity=\"0.55\"/></svg>'; tile.classList.add('gem'); tile.style.opacity = '0.45';
-            }
+            if(mBombs.includes(idx)) { tile.innerHTML='💣'; tile.classList.add('bomb'); }
+            else { tile.innerHTML='💎'; tile.classList.add('gem'); tile.style.opacity='0.35'; }
         });
-        const revealedTiles = Array.from(tiles);
-        mRevealTimeout = setTimeout(() => {
+        const snap = Array.from(tiles);
+        mRevealTimeout = setTimeout(function() {
             mRevealTimeout = null;
-            revealedTiles.forEach((tile) => {
+            snap.forEach(function(tile) {
                 if(tile.dataset.revealed) return;
-                tile.innerHTML = ''; tile.classList.remove('bomb','gem'); tile.style.opacity = '';
+                tile.innerHTML=''; tile.classList.remove('bomb','gem'); tile.style.opacity='';
             });
         }, 3000);
     }
