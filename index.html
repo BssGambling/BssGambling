@@ -2865,7 +2865,10 @@
     }
 
     async function handleDiscordCallback() {
-        const hash = window.location.hash.substring(1);
+        // Use live hash, or fall back to sessionStorage for mobile browsers
+        // that clear the hash before onload fires
+        const rawHash = window.location.hash.substring(1) || (sessionStorage.getItem('bss_oauth_hash') || '').substring(1);
+        const hash = rawHash;
         if(!hash) return false;
         const params = new URLSearchParams(hash);
         const accessToken = params.get('access_token');
@@ -5387,9 +5390,26 @@
     function pfClose(){ document.getElementById('pf-overlay').classList.remove('open'); }
     function pfOverlayClick(e){ if(e.target===document.getElementById('pf-overlay')) pfClose(); }
 
+    // Mobile-safe OAuth hash handler — runs immediately on script parse
+    // (before onload) so iOS Safari / in-app browsers don't lose the hash
+    (function() {
+        if(window.location.hash && window.location.hash.includes('access_token')) {
+            // Store hash immediately before any redirect or history manipulation
+            sessionStorage.setItem('bss_oauth_hash', window.location.hash);
+        }
+    })();
+
     window.onload = async () => {
         pfInit();
-        if(window.location.hash && window.location.hash.includes('access_token')) {
+        // Check both live hash and the one we saved above for mobile compatibility
+        const savedHash = sessionStorage.getItem('bss_oauth_hash');
+        const hasOAuth = (window.location.hash && window.location.hash.includes('access_token')) || (savedHash && savedHash.includes('access_token'));
+        if(hasOAuth) {
+            // Restore hash if it was cleared (mobile browsers sometimes clear it)
+            if(!window.location.hash.includes('access_token') && savedHash) {
+                window.location.hash = savedHash.substring(1);
+            }
+            sessionStorage.removeItem('bss_oauth_hash');
             const handled = await handleDiscordCallback();
             if(handled) return;
         }
