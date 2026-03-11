@@ -1492,7 +1492,7 @@
 <div id="main-app" class="hidden">
     <div class="sidebar">
         <div class="sidebar-top">
-        <div class="logo">BSS<span>GAMBLING</span></div>
+
         </div>
         <div class="nav-item active" id="nav-home" onclick="showPage('home')"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="22" height="22">
   <path d="M6 22L24 6L42 22" stroke="#0fd68a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
@@ -2858,9 +2858,11 @@
     function startDiscordOAuth() {
         const state = Math.random().toString(36).substring(2, 15);
         localStorage.setItem('swarm_oauth_state', state);
+        sessionStorage.setItem('swarm_oauth_state', state); // mobile fallback
         const params = new URLSearchParams({ client_id: DISCORD_CLIENT_ID, redirect_uri: DISCORD_REDIRECT, response_type: 'token', scope: 'identify', state });
         const statusEl = document.getElementById('discord-status');
         if(statusEl) statusEl.textContent = '🔄 Redirecting to Discord...';
+        sessionStorage.setItem('bss_oauth_pending', '1'); // flag that we expect a callback
         window.location.href = 'https://discord.com/oauth2/authorize?' + params.toString();
     }
 
@@ -2873,11 +2875,13 @@
         const params = new URLSearchParams(hash);
         const accessToken = params.get('access_token');
         const returnedState = params.get('state');
-        const savedState = localStorage.getItem('swarm_oauth_state');
+        const savedState = localStorage.getItem('swarm_oauth_state') || sessionStorage.getItem('swarm_oauth_state');
         if(!accessToken) return false;
         history.replaceState(null, '', window.location.pathname + window.location.search);
+        // Only block on mismatch if we actually have a saved state to compare against
         if(returnedState && savedState && returnedState !== savedState) { alert('❌ OAuth state mismatch!'); return false; }
         localStorage.removeItem('swarm_oauth_state');
+        sessionStorage.removeItem('swarm_oauth_state');
         const statusEl = document.getElementById('discord-status');
         if(statusEl) statusEl.textContent = '⏳ Fetching Discord profile...';
         try {
@@ -5393,9 +5397,14 @@
     // Mobile-safe OAuth hash handler — runs immediately on script parse
     // (before onload) so iOS Safari / in-app browsers don't lose the hash
     (function() {
-        if(window.location.hash && window.location.hash.includes('access_token')) {
-            // Store hash immediately before any redirect or history manipulation
-            sessionStorage.setItem('bss_oauth_hash', window.location.hash);
+        const h = window.location.hash;
+        const q = window.location.search;
+        // Some mobile browsers pass the fragment as query string instead
+        const src = (h && h.includes('access_token')) ? h
+                  : (q && q.includes('access_token')) ? q.replace('?','#')
+                  : null;
+        if(src) {
+            sessionStorage.setItem('bss_oauth_hash', src.startsWith('#') ? src : '#' + src);
         }
     })();
 
