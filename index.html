@@ -2823,7 +2823,7 @@
     // DISCORD OAUTH2 SYSTEM
     // ═══════════════════════════════════════════════
     let DISCORD_CLIENT_ID = '1481014769539481711';
-    let DISCORD_REDIRECT   = window.location.origin + window.location.pathname;
+    let DISCORD_REDIRECT   = 'https://bssgambling.github.io/BssGambling/';
 
     document.addEventListener('DOMContentLoaded', () => {
         const autoEl = document.getElementById('dc-auto-redirect');
@@ -5410,6 +5410,13 @@
 
     window.onload = async () => {
         pfInit();
+        // Debug: show current URL info on login screen
+        const _dbgEl = document.getElementById('discord-status');
+        if(_dbgEl) _dbgEl.textContent = 'URL: ' + window.location.href.substring(0, 80);
+        console.log('[BSS OAuth Debug] href:', window.location.href);
+        console.log('[BSS OAuth Debug] hash:', window.location.hash);
+        console.log('[BSS OAuth Debug] search:', window.location.search);
+        console.log('[BSS OAuth Debug] sessionHash:', sessionStorage.getItem('bss_oauth_hash'));
         // Check both live hash and the one we saved above for mobile compatibility
         const savedHash = sessionStorage.getItem('bss_oauth_hash');
         const hasOAuth = (window.location.hash && window.location.hash.includes('access_token')) || (savedHash && savedHash.includes('access_token'));
