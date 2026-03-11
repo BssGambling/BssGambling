@@ -477,7 +477,7 @@
 
     /* ── Mines ── */
     .m-grid { display: grid; gap: 8px; justify-content: center; }
-    .m-grid.g25 { grid-template-columns: repeat(5, 1fr); width: min(520px, 100%); }
+    .m-grid.g25 { grid-template-columns: repeat(5, 1fr); width: 460px; }
     .tile {
         background: linear-gradient(145deg, #1e2128, #181c24);
         border: 1px solid #2a2f3a;
@@ -488,8 +488,8 @@
         justify-content: center;
         font-size: 22px;
         transition: all 0.14s;
-        aspect-ratio: 1;
-        min-width: 0;
+        width: 84px;
+        height: 84px;
     }
     .tile:hover {
         background: linear-gradient(145deg, #242830, #1c2028);
@@ -500,8 +500,8 @@
     .tile.gem { background: linear-gradient(145deg, #0a2e1f, #071e15); border-color: var(--green); box-shadow: 0 0 10px rgba(15,214,138,0.15); }
     .tile.bomb { background: linear-gradient(145deg, #2e0a14, #1e0710); border-color: var(--red); box-shadow: 0 0 10px rgba(255,77,109,0.15); }
     .m-panel { display:flex; gap:24px; padding:24px; align-items:flex-start; justify-content:center; flex-wrap:wrap; }
-    .m-board-wrap { background:#111418; border:1.5px solid #2a2f3a; border-radius:16px; padding:20px; flex-shrink:0; }
-    .m-controls { width:260px; flex-shrink:0; background:#111418; border:1.5px solid #2a2f3a; border-radius:16px; padding:22px 20px; display:flex; flex-direction:column; }
+    .m-board-wrap { background:#111418; border:1.5px solid #2a2f3a; border-radius:16px; padding:20px; flex-shrink:0; width:460px; box-sizing:border-box; }
+    .m-controls { width:300px; flex-shrink:0; background:#111418; border:1.5px solid #2a2f3a; border-radius:16px; padding:22px 20px; display:flex; flex-direction:column; }
     .m-label { font-size:13px; color:#aaa; margin-bottom:8px; font-weight:600; font-family:'Sora',sans-serif; }
     .m-bet-row { display:flex; align-items:center; background:#0a0c10; border:1px solid #2a2f3a; border-radius:10px; overflow:hidden; margin-bottom:4px; }
     .m-bet-row input { border:none; background:transparent; color:#fff; padding:12px 14px; font-size:15px; font-weight:600; flex:1; width:0; outline:none; }
@@ -510,11 +510,11 @@
     .m-bet-btn:hover { background:#252b36; color:#f0c800; }
     .m-slider { width:100%; margin:8px 0 4px; accent-color:#e53935; height:4px; cursor:pointer; }
     .m-mine-lbl { font-size:15px; font-weight:800; color:#e53935; text-align:center; margin:4px 0 20px; font-family:'JetBrains Mono',monospace; }
-    .m-mult-disp { text-align:center; font-size:22px; font-weight:900; color:var(--green); margin-bottom:12px; font-family:'JetBrains Mono',monospace; }
+    .m-mult-disp { text-align:center; font-size:28px; font-weight:900; color:var(--green); margin-bottom:12px; font-family:'JetBrains Mono',monospace; }
     .m-start-btn { width:100%; background:#e53935; border:none; color:#fff; padding:15px; border-radius:10px; font-size:16px; font-weight:900; cursor:pointer; letter-spacing:1px; transition:0.2s; font-family:'Sora',sans-serif; box-shadow:0 4px 20px rgba(229,57,53,0.4); }
     .m-start-btn:hover { background:#c62828; box-shadow:0 6px 26px rgba(229,57,53,0.5); transform:translateY(-1px); }
     .m-start-btn:disabled { background:#333; color:#666; cursor:default; box-shadow:none; transform:none; }
-    .m-cash-btn { width:100%; background:var(--orange); border:none; color:#050810; padding:14px; border-radius:10px; font-size:15px; font-weight:800; cursor:pointer; margin-top:8px; letter-spacing:0.5px; font-family:'Sora',sans-serif; box-shadow:0 4px 16px rgba(255,153,0,0.3); transition:0.2s; }
+    .m-cash-btn { width:100%; background:#0fd68a; border:none; color:#030f08; padding:15px; border-radius:10px; font-size:16px; font-weight:900; cursor:pointer; margin-top:0; letter-spacing:1px; font-family:'Sora',sans-serif; box-shadow:0 4px 20px rgba(15,214,138,0.35); transition:0.2s; }
     .m-cash-btn:hover { filter:brightness(1.1); transform:translateY(-1px); }
     .profit-bar { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:8px 16px; display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; font-size:13px; }
     .profit-val.pos { color:var(--green); font-weight:800; font-family:'JetBrains Mono',monospace; }
@@ -1911,7 +1911,7 @@
                                     <div class="m-label">Bet Amount (50-600)</div>
                                     <div class="m-bet-row">
                                         <input type="number" id="m-bet" value="50" min="50" max="600" placeholder="50">
-                                        <button class="m-bet-btn" onclick="document.getElementById('m-bet').value=Math.max(50,Math.floor(parseInt(document.getElementById('m-bet').value)||50)/2)">1/2</button>
+                                        <button class="m-bet-btn" onclick="document.getElementById('m-bet').value=Math.max(50,Math.floor((parseInt(document.getElementById('m-bet').value)||50)/2))">1/2</button>
                                         <button class="m-bet-btn" onclick="document.getElementById('m-bet').value=Math.min(600,(parseInt(document.getElementById('m-bet').value)||50)*2)">2x</button>
                                     </div>
                                     <div class="m-label" style="margin-top:18px;">Mines (1-24)</div>
@@ -3758,7 +3758,8 @@
     function mMultStep(bombs) { return 1 + (bombs / (mGridSize * 5)); }
 
     function mSetUI(playing) {
-        document.getElementById('m-start').classList.toggle('hidden', playing);
+        var btn = document.getElementById('m-start');
+        if(btn) btn.style.display = playing ? 'none' : 'block';
         document.getElementById('m-bet').disabled = playing;
         var sl = document.getElementById('m-mine-slider'); if(sl) sl.disabled = playing;
         document.getElementById('m-cash').classList.toggle('hidden', !playing);
