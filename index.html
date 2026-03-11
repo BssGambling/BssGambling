@@ -2084,7 +2084,7 @@
                         <div id="game-tower" class="hidden">
                             <style>
                                 /* ===== TOWER LAYOUT ===== */
-                                /* ===== TOWER - SWARMBET ORANGE/BLACK THEME ===== */
+                                /* ===== TOWER - BSS GAMBLING ORANGE/BLACK THEME ===== */
                                 .tw-wrap { display:flex; height:calc(100vh - 130px); min-height:560px; overflow:hidden; }
 
                                 /* Left panel */
@@ -2619,7 +2619,7 @@
                     <div style="text-align:center; margin-bottom:30px;">
                         <div style="font-size:72px; margin-bottom:10px;"><svg class="ic ic-star" viewBox="0 0 16 16" width="72" height="72" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg></div>
                         <h2 style="color:var(--orange); font-size:26px; margin:0 0 8px;">How to Get Coins</h2>
-                        <p style="color:#888; font-size:14px; margin:0;">Follow the steps below to deposit <svg class="ic ic-star" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg> Stars into your SwarmBet account</p>
+                        <p style="color:#888; font-size:14px; margin:0;">Follow the steps below to deposit <svg class="ic ic-star" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg> Stars into your Bss Gambling account</p>
                     </div>
 
                     <!-- Step 1 -->
@@ -2642,7 +2642,7 @@
                             <h3 style="color:#12c97a; margin:0 0 8px; font-size:17px;">Open a Deposit Ticket</h3>
                             <p style="color:#aaa; margin:0; font-size:14px; line-height:1.6;">Head to the <strong style="color:#fff;">#tickets</strong> channel on our Discord and create a new ticket. Select <strong style="color:#fff;">"Deposit"</strong> as the ticket type and provide the following info:</p>
                             <ul style="color:#aaa; font-size:14px; margin:10px 0 0 0; padding-left:18px; line-height:2;">
-                                <li>Your SwarmBet username</li>
+                                <li>Your Bss Gambling username</li>
                                 <li>Amount of <svg class="ic ic-star" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg> Stars you want to deposit</li>
                                 <li>Proof of your in-game items / payment</li>
                             </ul>
@@ -2673,7 +2673,7 @@
 
         </div>
     <footer class="site-footer">
-        <div class="footer-brand">&#169; 2026 https://swarmbet.github.io/Home</div>
+        <div class="footer-brand">&#169; 2026 https://bssgambling.github.io/Home</div>
         <div class="footer-links"><a href="#" onclick="document.getElementById('tc-modal').style.display='flex'; return false;">Terms &amp; Conditions</a></div>
         <div class="footer-disclaimer">For entertainment purposes only. No real money involved.</div>
     </footer>
@@ -2760,7 +2760,7 @@
                         { name: "◆ New Balance", value: `${data.newBalance} coins`, inline: true }
                     ],
                     timestamp: timestamp,
-                    footer: { text: "SwarmBet Admin Panel - Deposit" }
+                    footer: { text: "Bss Gambling Admin Panel - Deposit" }
                 };
             } else if (type === 'withdraw') {
                 embed = {
@@ -2775,7 +2775,7 @@
                         { name: "◆ New Balance", value: `${data.newBalance} coins`, inline: true }
                     ],
                     timestamp: timestamp,
-                    footer: { text: "SwarmBet Admin Panel - Withdrawal" }
+                    footer: { text: "Bss Gambling Admin Panel - Withdrawal" }
                 };
             }
             
@@ -2967,7 +2967,7 @@
         document.getElementById('main-app').classList.remove('hidden');
         document.getElementById('display-name').innerText = currentUser;
         const admins = ["discord_595767263374737409", "discord_863482425417662475"];
-        if(admins.includes(currentUser)) document.getElementById('link-admin').classList.remove('hidden');
+        if(admins.includes(currentUser)) document.getElementById('link-admin')?.classList.remove('hidden');
         buildRoulette(); updateUI();
         document.getElementById('pf-float-btn').classList.remove('hidden');
         // Show home page on login
@@ -3461,7 +3461,7 @@
                     { name: "Multiplier", value: (mult.toFixed ? mult.toFixed(2) : mult) + "x", inline: true },
                     { name: isWin ? "Payout" : "Lost", value: isWin ? ("+" + payout + " Stars") : ("-" + bet + " Stars"), inline: true }
                 ],
-                footer: { text: "SwarmBet Live Games" },
+                footer: { text: "Bss Gambling Live Games" },
                 timestamp: new Date().toISOString()
             };
             await fetch(DISCORD_WEBHOOK_URL, {
