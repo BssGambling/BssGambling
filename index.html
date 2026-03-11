@@ -3172,6 +3172,39 @@
                 }, 600);
             }
 
+
+            // ── Tower ──
+            if(state.tower?.active) {
+                const tw = state.tower;
+                tBet = tw.bet; tLevel = tw.level; tCurrentRisk = tw.risk;
+                tBombs = tw.bombs.map(arr => new Set(arr));  // Array → Set
+                tActive = true;
+                setTimeout(() => {
+                    showPage('games');
+                    selectGame('tower');
+                    document.getElementById('t-risk').value = tw.risk;
+                    document.getElementById('t-risk').disabled = true;
+                    document.getElementById('t-bet').disabled = true;
+                    document.getElementById('t-start').disabled = true;
+                    buildTowerBoard();
+                    // Mark already-cleared rows as gems/safe
+                    for(let row = 0; row < tw.level; row++) {
+                        for(let j = 0; j < tGetCols(); j++) {
+                            const tile = document.getElementById(`t-tile-${row}-${j}`);
+                            if(tile) { tile.className = tBombs[row]?.has(j) ? 'tw-tile tw-bomb' : 'tw-tile tw-safe'; tile.onclick = null; }
+                        }
+                    }
+                    const mults = tGetMults();
+                    const m = tw.level > 0 ? mults[tw.level - 1] : 1;
+                    document.getElementById('t-mult-disp').textContent = m.toFixed(2) + '×';
+                    document.getElementById('t-profit-disp').value = '+' + Math.floor(tBet * m) + ' ★';
+                    document.getElementById('tower-status').textContent = `Floor ${tw.level}/${TOWER_ROWS} — keep climbing!`;
+                    document.getElementById('t-cash').classList.remove('hidden');
+                    tActivateRow(tw.level);
+                    toast('🗼 Tower restored! Floor ' + tw.level + '/' + TOWER_ROWS + ' at ' + m.toFixed(2) + '×', 'success');
+                }, 600);
+            }
+
             // ── Blackjack ──
             if(state.blackjack?.active) {
                 const bj = state.blackjack;
