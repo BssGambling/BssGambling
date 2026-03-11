@@ -2713,15 +2713,17 @@
 <div id="win-container"></div>
 
 <script>
-    const DB_URL    = "https://casbss-c75a0-default-rtdb.europe-west1.firebasedatabase.app/users";
-    const PROMO_URL = "https://casbss-c75a0-default-rtdb.europe-west1.firebasedatabase.app/promos";
+    const SUPABASE_URL = "https://uohmshxaypofbdnuaiwj.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvaG1zaHhheXBvZmJkbnVhaXdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNjY2NDQsImV4cCI6MjA4ODc0MjY0NH0.32yA_vM19i_0K-e95qdXrY4dR6m_fTDsJaNXqfi7T4I";
 
     async function dbGet(table, id) {
         try {
-            const url = table === 'users' ? `${DB_URL}/${encodeURIComponent(id)}.json` : `${PROMO_URL}/${encodeURIComponent(id)}.json`;
-            const res = await fetch(url);
-            const data = await res.json();
-            return data || null;
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}&select=*`, {
+                headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+            });
+            const rows = await res.json();
+            if (!Array.isArray(rows)) { console.error('dbGet error:', JSON.stringify(rows)); return null; }
+            return rows[0] ? (table === 'users' ? rows[0].data : rows[0].val) : null;
         } catch(e) { console.error('dbGet exception:', e); return null; }
     }
 
@@ -2733,18 +2735,29 @@
             } catch(e) {}
         }
         try {
-            const url = table === 'users' ? `${DB_URL}/${encodeURIComponent(id)}.json` : `${PROMO_URL}/${encodeURIComponent(id)}.json`;
+            const col = table === 'users' ? 'data' : 'val';
             const rawVal = (value && value.__raw) ? value.__raw : value;
-            await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rawVal) });
+            await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+                method: 'POST',
+                headers: {
+                    apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates'
+                },
+                body: JSON.stringify({ id, [col]: rawVal })
+            });
         } catch(e) { console.error('dbSet exception:', e); }
     }
 
     async function dbGetAll(table) {
         try {
-            const url = table === 'users' ? `${DB_URL}.json` : `${PROMO_URL}.json`;
-            const res = await fetch(url);
-            const data = await res.json();
-            return data || {};
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*`, {
+                headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+            });
+            const rows = await res.json();
+            if (!Array.isArray(rows)) return {};
+            const out = {};
+            rows.forEach(r => out[r.id] = r.data ?? r.val);
+            return out;
         } catch(e) { console.error('dbGetAll exception:', e); return {}; }
     }
     const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1475155012266098688/gN9IvDw1VACuP9wrUJ6jjpxsfbyTC0_laPXcSI4OE1s9wIlbhFN58XoEpnju-TNm-uZb";
@@ -2807,7 +2820,7 @@
     // ═══════════════════════════════════════════════
     // DISCORD OAUTH2 SYSTEM
     // ═══════════════════════════════════════════════
-    let DISCORD_CLIENT_ID = '1481014769539481711';
+    let DISCORD_CLIENT_ID = '1481357738633072701';
     let DISCORD_REDIRECT   = 'https://bssgambling.github.io/BssGambling/';
 
     document.addEventListener('DOMContentLoaded', () => {
