@@ -476,15 +476,12 @@
     @keyframes winPop { 0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } 15% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; } 100% { transform: translate(-50%, -70%) scale(0.8); opacity: 0; } }
 
     /* ── Mines ── */
-    .m-grid { display: grid; gap: 8px; justify-content: center; margin-top: 16px; }
-    .m-grid.g25 { grid-template-columns: repeat(5, 54px); }
-    .m-grid.g36 { grid-template-columns: repeat(6, 50px); }
-    .m-grid.g49 { grid-template-columns: repeat(7, 46px); }
-    .m-grid.g64 { grid-template-columns: repeat(8, 42px); }
+    .m-grid { display: grid; gap: 8px; justify-content: center; }
+    .m-grid.g25 { grid-template-columns: repeat(5, 1fr); width: min(520px, 100%); }
     .tile {
-        background: linear-gradient(145deg, #131a28, #0e141e);
-        border: 1px solid #1e2d42;
-        border-radius: 10px;
+        background: linear-gradient(145deg, #1e2128, #181c24);
+        border: 1px solid #2a2f3a;
+        border-radius: 12px;
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -492,35 +489,33 @@
         font-size: 22px;
         transition: all 0.14s;
         aspect-ratio: 1;
+        min-width: 0;
     }
     .tile:hover {
-        background: linear-gradient(145deg, #1a2638, #162032);
-        border-color: rgba(15,214,138,0.4);
-        transform: scale(1.06);
-        box-shadow: 0 0 14px rgba(15,214,138,0.15);
+        background: linear-gradient(145deg, #242830, #1c2028);
+        border-color: rgba(15,214,138,0.3);
+        transform: scale(1.04);
+        box-shadow: 0 0 12px rgba(15,214,138,0.1);
     }
     .tile.gem { background: linear-gradient(145deg, #0a2e1f, #071e15); border-color: var(--green); box-shadow: 0 0 10px rgba(15,214,138,0.15); }
     .tile.bomb { background: linear-gradient(145deg, #2e0a14, #1e0710); border-color: var(--red); box-shadow: 0 0 10px rgba(255,77,109,0.15); }
-    .m-panel { display:flex; gap:20px; padding:20px; flex-wrap:wrap; }
-    .m-controls { width:220px; flex-shrink:0; background:#080c14; border:1px solid var(--border); border-radius:14px; padding:18px; }
-    .m-board-wrap { flex:1; display:flex; flex-direction:column; align-items:center; }
-    .m-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:6px; margin-top:14px; font-weight:700; font-family:'Barlow Condensed',sans-serif; }
-    .m-bet-row { display:flex; align-items:center; background:var(--dark); border:1px solid var(--border2); border-radius:10px; overflow:hidden; }
-    .m-bet-row input { border:none; background:transparent; color:var(--text); padding:10px 12px; font-size:14px; font-weight:600; flex:1; width:0; text-align:left; }
-    .m-bet-btn { background:var(--panel2); border:none; color:var(--muted2); padding:8px 12px; cursor:pointer; font-size:11px; font-weight:700; transition:0.15s; }
-    .m-bet-btn:hover { background:var(--border2); color:var(--text); }
-    .m-grid-btns { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
-    .m-grid-btn { background:var(--panel2); border:1px solid var(--border); border-radius:8px; color:var(--muted2); padding:8px 4px; font-size:13px; font-weight:700; cursor:pointer; text-align:center; transition:0.15s; font-family:'JetBrains Mono',monospace; }
-    .m-grid-btn.active, .m-grid-btn:hover { background:rgba(15,214,138,0.1); border-color:rgba(15,214,138,0.3); color:var(--orange); }
-    .m-risk-select { width:100%; background:var(--dark); border:1px solid var(--border2); border-radius:10px; color:var(--text); padding:10px 12px; font-size:13px; cursor:pointer; appearance:none; font-family:'Sora',sans-serif; }
-    .m-risk-wrap { position:relative; }
-    .m-risk-wrap::after { content:'▾'; position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:12px; pointer-events:none; }
-    .m-start-btn { width:100%; background:var(--green); border:none; color:#030f08; padding:14px; border-radius:999px; font-size:14px; font-weight:800; cursor:pointer; margin-top:16px; letter-spacing:0.5px; transition:0.2s; font-family:'Sora',sans-serif; box-shadow:0 4px 16px rgba(15,214,138,0.25); position:relative; overflow:hidden; }
-    .m-start-btn::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%); border-radius:inherit; }
-    .m-start-btn:hover { transform:translateY(-1px); box-shadow:0 6px 22px rgba(15,214,138,0.35); filter:brightness(1.06); }
-    .m-cash-btn { width:100%; background:var(--orange); border:none; color:#050810; padding:14px; border-radius:999px; font-size:14px; font-weight:800; cursor:pointer; margin-top:8px; letter-spacing:0.5px; font-family:'Sora',sans-serif; box-shadow:0 4px 16px rgba(15,214,138,0.25); }
-    .m-mult-disp { text-align:center; font-size:30px; font-weight:900; color:var(--orange); margin-bottom:8px; font-family:'JetBrains Mono',monospace; }
-    .m-info { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:8px; }
+    .m-panel { display:flex; gap:24px; padding:24px; align-items:flex-start; justify-content:center; flex-wrap:wrap; }
+    .m-board-wrap { background:#111418; border:1.5px solid #2a2f3a; border-radius:16px; padding:20px; flex-shrink:0; }
+    .m-controls { width:260px; flex-shrink:0; background:#111418; border:1.5px solid #2a2f3a; border-radius:16px; padding:22px 20px; display:flex; flex-direction:column; }
+    .m-label { font-size:13px; color:#aaa; margin-bottom:8px; font-weight:600; font-family:'Sora',sans-serif; }
+    .m-bet-row { display:flex; align-items:center; background:#0a0c10; border:1px solid #2a2f3a; border-radius:10px; overflow:hidden; margin-bottom:4px; }
+    .m-bet-row input { border:none; background:transparent; color:#fff; padding:12px 14px; font-size:15px; font-weight:600; flex:1; width:0; outline:none; }
+    .m-bet-row input::-webkit-outer-spin-button, .m-bet-row input::-webkit-inner-spin-button { -webkit-appearance:none; }
+    .m-bet-btn { background:#1a1f28; border:none; border-left:1px solid #2a2f3a; color:#c9a800; padding:12px 16px; cursor:pointer; font-size:13px; font-weight:800; transition:0.15s; font-family:'Sora',sans-serif; }
+    .m-bet-btn:hover { background:#252b36; color:#f0c800; }
+    .m-slider { width:100%; margin:8px 0 4px; accent-color:#e53935; height:4px; cursor:pointer; }
+    .m-mine-lbl { font-size:15px; font-weight:800; color:#e53935; text-align:center; margin:4px 0 20px; font-family:'JetBrains Mono',monospace; }
+    .m-mult-disp { text-align:center; font-size:22px; font-weight:900; color:var(--green); margin-bottom:12px; font-family:'JetBrains Mono',monospace; }
+    .m-start-btn { width:100%; background:#e53935; border:none; color:#fff; padding:15px; border-radius:10px; font-size:16px; font-weight:900; cursor:pointer; letter-spacing:1px; transition:0.2s; font-family:'Sora',sans-serif; box-shadow:0 4px 20px rgba(229,57,53,0.4); }
+    .m-start-btn:hover { background:#c62828; box-shadow:0 6px 26px rgba(229,57,53,0.5); transform:translateY(-1px); }
+    .m-start-btn:disabled { background:#333; color:#666; cursor:default; box-shadow:none; transform:none; }
+    .m-cash-btn { width:100%; background:var(--orange); border:none; color:#050810; padding:14px; border-radius:10px; font-size:15px; font-weight:800; cursor:pointer; margin-top:8px; letter-spacing:0.5px; font-family:'Sora',sans-serif; box-shadow:0 4px 16px rgba(255,153,0,0.3); transition:0.2s; }
+    .m-cash-btn:hover { filter:brightness(1.1); transform:translateY(-1px); }
     .profit-bar { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:8px 16px; display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; font-size:13px; }
     .profit-val.pos { color:var(--green); font-weight:800; font-family:'JetBrains Mono',monospace; }
     .profit-val.neg { color:var(--red); font-weight:800; font-family:'JetBrains Mono',monospace; }
@@ -1884,11 +1879,12 @@
 <div class="game-card-new" onclick="selectGame('tower')">
                             <div class="game-icon-wrap">
                                 <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                                    <rect x="16" y="36" width="16" height="6" rx="2" fill="#f1c40f" opacity="0.9"/>
-                                    <rect x="13" y="28" width="22" height="7" rx="2" fill="#f1c40f" opacity="0.75"/>
-                                    <rect x="10" y="20" width="28" height="7" rx="2" fill="#f1c40f" opacity="0.6"/>
-                                    <rect x="7" y="12" width="34" height="7" rx="2" fill="#f1c40f" opacity="0.4"/>
-                                    <polygon points="24,4 30,12 18,12" fill="#f1c40f"/>
+                                    <path d="M24 4 L40 10 L40 26 C40 35 24 44 24 44 C24 44 8 35 8 26 L8 10 Z" fill="#0d2e18" stroke="#22c55e" stroke-width="1.5" opacity="0.95"/>
+                                    <path d="M24 8 L37 13 L37 26 C37 33 24 41 24 41 C24 41 11 33 11 26 L11 13 Z" fill="none" stroke="#16a34a" stroke-width="0.8" opacity="0.5"/>
+                                    <polygon points="24,14 30,19 28,27 20,27 18,19" fill="#22c55e" opacity="0.9"/>
+                                    <polygon points="24,14 30,19 24,17" fill="#4ade80" opacity="0.7"/>
+                                    <polygon points="24,14 18,19 24,17" fill="#166534" opacity="0.6"/>
+                                    <line x1="22" y1="16" x2="20" y2="21" stroke="#86efac" stroke-width="1" opacity="0.6"/>
                                 </svg>
                             </div>
                             <h3>Tower</h3>
@@ -1908,45 +1904,26 @@
                     <div class="card" style="background:#0c0c0c;">
                         <div id="game-mines" class="hidden">
                             <div class="m-panel">
+                                <div class="m-board-wrap">
+                                    <div class="m-grid g25" id="m-board"></div>
+                                </div>
                                 <div class="m-controls">
-                                    <div class="m-label">Bet Amount</div>
+                                    <div class="m-label">Bet Amount (50-600)</div>
                                     <div class="m-bet-row">
-                                        <span style="color:#888;padding:0 8px;"><svg class="ic ic-star" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg></span>
-                                        <input type="number" id="m-bet" value="50" min="50" max="1000">
-                                        <button class="m-bet-btn" onclick="document.getElementById('m-bet').value=Math.max(50,Math.floor(parseInt(document.getElementById('m-bet').value)/2))">½</button>
-                                        <button class="m-bet-btn" onclick="document.getElementById('m-bet').value=Math.min(1000,parseInt(document.getElementById('m-bet').value)*2)">2×</button>
+                                        <input type="number" id="m-bet" value="50" min="50" max="600" placeholder="50">
+                                        <button class="m-bet-btn" onclick="document.getElementById('m-bet').value=Math.max(50,Math.floor(parseInt(document.getElementById('m-bet').value)||50)/2)">1/2</button>
+                                        <button class="m-bet-btn" onclick="document.getElementById('m-bet').value=Math.min(600,(parseInt(document.getElementById('m-bet').value)||50)*2)">2x</button>
                                     </div>
-                                    <div class="m-label">Grid Size</div>
-                                    <div class="m-grid-btns">
-                                        <div class="m-grid-btn active" id="mg-25" onclick="setMGrid(25)">25</div>
-                                        <div class="m-grid-btn" id="mg-36" onclick="setMGrid(36)">36</div>
-                                        <div class="m-grid-btn" id="mg-49" onclick="setMGrid(49)">49</div>
-                                        <div class="m-grid-btn" id="mg-64" onclick="setMGrid(64)">64</div>
-                                    </div>
-                                    <div class="m-label">Risk Level</div>
-                                    <div class="m-risk-wrap">
-                                        <select class="m-risk-select" id="m-risk">
-                                            <option value="easy">Easy</option>
-                                            <option value="medium">Medium</option>
-                                            <option value="hard">Hard</option>
-                                            <option value="expert">Expert</option>
-                                            <option value="master">Master</option>
-                                        </select>
-                                    </div>
-                                    <div class="m-info" id="m-mine-info">
-                                        <span><svg class="ic ic-gem" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 14.5,5.5 8,15 1.5,5.5" fill="#1abc9c" stroke="#16a085" stroke-width="0.4"/><polygon points="8,1 14.5,5.5 8,7.5 1.5,5.5" fill="#2ecc71" opacity="0.55"/><line x1="8" y1="1" x2="8" y2="15" stroke="#16a085" stroke-width="0.5" opacity="0.5"/></svg> <span id="m-gem-count">22</span> Gems</span>
-                                        <span><svg class="ic ic-bomb" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="9.5" r="5.5" fill="#cc1f4a" stroke="#ff4d7a" stroke-width="0.6"/><rect x="7" y="3" width="2" height="3.5" rx="1" fill="#ff4d7a"/><circle cx="8" cy="9.5" r="2" fill="#ff4d7a" opacity="0.35"/><circle cx="9.5" cy="3.2" r="1.2" fill="#12c97a"/></svg> <span id="m-bomb-count">3</span> Mines</span>
-                                    </div>
-                                    <button class="m-start-btn" id="m-start" onclick="startMines()">▶ START GAME</button>
-                                    <button id="m-cash" class="m-cash-btn hidden" onclick="cashoutMines()"><svg class="ic ic-money" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><ellipse cx="8" cy="13" rx="5.5" ry="2.5" fill="#0aac6e"/><rect x="2.5" y="7" width="11" height="6" rx="2" fill="#0aac6e"/><ellipse cx="8" cy="7" rx="5.5" ry="2.5" fill="#12c97a"/><text x="8" y="9.5" text-anchor="middle" fill="#c9a800" font-size="4.5" font-weight="900" font-family="Arial">$</text></svg> CASH OUT</button>
+                                    <div class="m-label" style="margin-top:18px;">Mines (1-24)</div>
+                                    <input type="range" id="m-mine-slider" class="m-slider" min="1" max="24" value="3" oninput="mSliderUpdate(this.value)">
+                                    <div class="m-mine-lbl" id="m-mine-lbl">3 Mines</div>
+                                    <div class="m-mult-disp" id="m-mult-disp" style="display:none;">1.00×</div>
+                                    <button class="m-start-btn" id="m-start" onclick="startMines()">PLAY</button>
+                                    <button id="m-cash" class="m-cash-btn hidden" onclick="cashoutMines()">CASH OUT</button>
                                     <div class="profit-bar" style="margin-top:12px;margin-bottom:0;">
                                         <span style="color:#888;">Session Profit</span>
                                         <span class="profit-val zero" id="m-profit">+0 <svg class="ic ic-star" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg></span>
                                     </div>
-                                </div>
-                                <div class="m-board-wrap">
-                                    <div class="m-mult-disp" id="m-mult-disp">1.00×</div>
-                                    <div class="m-grid g25" id="m-board"></div>
                                 </div>
                             </div>
                         </div>
@@ -2150,60 +2127,60 @@
 
                                 /* Left panel */
                                 .tw-panel { width:300px; flex-shrink:0; background:#111; border-right:1px solid #222; padding:24px 20px; display:flex; flex-direction:column; gap:16px; overflow-y:auto; }
-                                .tw-panel-title { font-size:18px; font-weight:800; color:var(--orange); display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+                                .tw-panel-title { font-size:18px; font-weight:800; color:#22c55e; display:flex; align-items:center; gap:8px; margin-bottom:4px; }
                                 .tw-label { font-size:11px; color:#666; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; font-weight:600; }
 
                                 /* Bet row */
                                 .tw-bet-row { display:flex; align-items:center; background:#000; border:1px solid #333; border-radius:8px; overflow:hidden; }
-                                .tw-bet-row input { border:none; background:transparent; color:var(--orange); padding:11px 14px; font-size:15px; font-weight:600; flex:1; width:0; outline:none; }
+                                .tw-bet-row input { border:none; background:transparent; color:#22c55e; padding:11px 14px; font-size:15px; font-weight:600; flex:1; width:0; outline:none; }
                                 .tw-bet-half-2x { display:flex; border-left:1px solid #333; }
                                 .tw-bet-half-2x button { background:#1a1a1a; border:none; color:#888; padding:11px 14px; cursor:pointer; font-size:13px; font-weight:700; border-right:1px solid #222; transition:0.15s; }
                                 .tw-bet-half-2x button:last-child { border-right:none; }
-                                .tw-bet-half-2x button:hover { background:#2a2a2a; color:var(--orange); }
+                                .tw-bet-half-2x button:hover { background:#2a2a2a; color:#22c55e; }
 
                                 /* Risk dropdown */
                                 .tw-risk-wrap { position:relative; }
-                                .tw-risk-wrap::after { content:'▼'; position:absolute; right:14px; top:50%; transform:translateY(-50%); color:var(--orange); font-size:10px; pointer-events:none; }
-                                .tw-risk-dropdown { position:absolute; top:100%; left:0; right:0; background:#1a1a1a; border:1px solid var(--orange); border-radius:8px; z-index:200; overflow:hidden; display:none; margin-top:4px; box-shadow:0 8px 32px rgba(0,0,0,0.8),0 0 20px rgba(255,153,0,0.1); }
+                                .tw-risk-wrap::after { content:'▼'; position:absolute; right:14px; top:50%; transform:translateY(-50%); color:#22c55e; font-size:10px; pointer-events:none; }
+                                .tw-risk-dropdown { position:absolute; top:100%; left:0; right:0; background:#1a1a1a; border:1px solid #22c55e; border-radius:8px; z-index:200; overflow:hidden; display:none; margin-top:4px; box-shadow:0 8px 32px rgba(0,0,0,0.8),0 0 20px rgba(34,197,94,0.1); }
                                 .tw-risk-dropdown.open { display:block; }
                                 .tw-risk-option { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; cursor:pointer; font-size:14px; font-weight:700; color:white; transition:background 0.15s; }
-                                .tw-risk-option:hover, .tw-risk-option.selected { background:rgba(255,153,0,0.15); color:var(--orange); }
+                                .tw-risk-option:hover, .tw-risk-option.selected { background:rgba(34,197,94,0.15); color:#22c55e; }
                                 .tw-risk-icons { display:flex; gap:4px; align-items:center; }
                                 .tw-icon-gem { width:14px; height:14px; background:#27ae60; clip-path:polygon(50% 0%,100% 40%,50% 100%,0% 40%); flex-shrink:0; }
                                 .tw-icon-bomb { width:13px; height:13px; background:#e74c3c; clip-path:polygon(50% 0%,100% 40%,50% 100%,0% 40%); flex-shrink:0; }
 
                                 /* Buttons */
-                                .tw-start-btn { width:100%; background:var(--orange); border:none; color:black; padding:14px; border-radius:8px; font-size:15px; font-weight:900; cursor:pointer; transition:0.2s; letter-spacing:0.5px; }
-                                .tw-start-btn:hover { background:#ffaa22; }
+                                .tw-start-btn { width:100%; background:#22c55e; border:none; color:black; padding:14px; border-radius:8px; font-size:15px; font-weight:900; cursor:pointer; transition:0.2s; letter-spacing:0.5px; }
+                                .tw-start-btn:hover { background:#16a34a; }
                                 .tw-start-btn:disabled { background:#333; color:#666; cursor:default; }
-                                .tw-cash-btn { width:100%; background:linear-gradient(135deg,#ff9900,#cc7700); border:none; color:black; padding:14px; border-radius:8px; font-size:15px; font-weight:900; cursor:pointer; letter-spacing:0.5px; transition:0.2s; }
-                                .tw-cash-btn:hover { background:linear-gradient(135deg,#ffaa22,#ff9900); }
+                                .tw-cash-btn { width:100%; background:linear-gradient(135deg,#22c55e,#16a34a); border:none; color:black; padding:14px; border-radius:8px; font-size:15px; font-weight:900; cursor:pointer; letter-spacing:0.5px; transition:0.2s; }
+                                .tw-cash-btn:hover { background:linear-gradient(135deg,#4ade80,#22c55e); }
 
                                 /* Profit box */
                                 .tw-profit-box { background:#000; border:1px solid #333; border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; font-size:13px; }
-                                .tw-mult-big { font-size:32px; font-weight:900; color:var(--orange); text-align:center; line-height:1; }
+                                .tw-mult-big { font-size:32px; font-weight:900; color:#22c55e; text-align:center; line-height:1; }
                                 .tw-sub-status { text-align:center; font-size:12px; color:#666; margin-top:4px; }
 
                                 /* Arena */
-                                .tw-arena { flex:1; background:radial-gradient(ellipse at center,#1a0d00 0%,#0a0500 60%,#000 100%); display:flex; align-items:center; justify-content:center; padding:20px; overflow:hidden; position:relative; }
-                                .tw-arena::before, .tw-arena::after { content:''; position:absolute; top:0; bottom:0; width:55px; background:linear-gradient(180deg,#1a0d00 0%,#120900 40%,#0a0500 100%); border:2px solid #3a2000; border-top:none; border-bottom:none; box-shadow:inset 0 0 20px rgba(255,153,0,0.05); }
+                                .tw-arena { flex:1; background:radial-gradient(ellipse at center,#001a0d 0%,#000a05 60%,#000 100%); display:flex; align-items:center; justify-content:center; padding:20px; overflow:hidden; position:relative; }
+                                .tw-arena::before, .tw-arena::after { content:''; position:absolute; top:0; bottom:0; width:55px; background:linear-gradient(180deg,#001a0d 0%,#000f08 40%,#000a05 100%); border:2px solid #003a1a; border-top:none; border-bottom:none; box-shadow:inset 0 0 20px rgba(34,197,94,0.05); }
                                 .tw-arena::before { left:30px; border-radius:6px 6px 0 0; }
                                 .tw-arena::after  { right:30px; border-radius:6px 6px 0 0; }
 
                                 /* Board */
-                                .tw-board-outer { position:relative; z-index:2; background:#0d0800; border:2px solid #3a2000; border-radius:6px; padding:6px; box-shadow:0 0 60px rgba(0,0,0,0.9),0 0 30px rgba(255,153,0,0.05); width:min(500px,calc(100% - 140px)); height:min(590px,calc(100% - 20px)); display:flex; flex-direction:column; gap:4px; box-sizing:border-box; }
+                                .tw-board-outer { position:relative; z-index:2; background:#000d05; border:2px solid #003a1a; border-radius:6px; padding:6px; box-shadow:0 0 60px rgba(0,0,0,0.9),0 0 30px rgba(34,197,94,0.05); width:min(500px,calc(100% - 140px)); height:min(590px,calc(100% - 20px)); display:flex; flex-direction:column; gap:4px; box-sizing:border-box; }
 
                                 /* Rows */
                                 .tw-row { display:flex; gap:4px; flex:1; min-height:0; }
 
                                 /* Tiles */
-                                .tw-tile { flex:1; min-width:0; min-height:0; border-radius:5px; display:flex; align-items:flex-end; justify-content:center; padding-bottom:5px; font-size:20px; cursor:default; position:relative; overflow:hidden; transition:transform 0.12s,border-color 0.12s,box-shadow 0.12s,opacity 0.2s; border:1.5px solid #3a2000; }
+                                .tw-tile { flex:1; min-width:0; min-height:0; border-radius:5px; display:flex; align-items:flex-end; justify-content:center; padding-bottom:5px; font-size:20px; cursor:default; position:relative; overflow:hidden; transition:transform 0.12s,border-color 0.12s,box-shadow 0.12s,opacity 0.2s; border:1.5px solid #003a1a; }
                                 .tw-tile::before { content:''; position:absolute; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 18px,rgba(0,0,0,0.35) 18px,rgba(0,0,0,0.35) 19px),repeating-linear-gradient(90deg,transparent,transparent 28px,rgba(0,0,0,0.25) 28px,rgba(0,0,0,0.25) 29px); pointer-events:none; border-radius:4px; }
-                                .tw-tile-badge { position:relative; z-index:2; font-size:10px; font-weight:800; color:var(--orange); background:rgba(20,10,0,0.85); border:1px solid rgba(255,153,0,0.35); border-radius:20px; padding:2px 8px; letter-spacing:0.2px; pointer-events:none; white-space:nowrap; }
-                                .tw-tile.tw-inactive { background:linear-gradient(160deg,#1a0e00 0%,#110900 100%); border-color:#2a1500; opacity:0.6; }
-                                .tw-tile.tw-active { background:linear-gradient(160deg,#231200 0%,#1a0d00 100%); border-color:#4a2800; opacity:1; cursor:pointer; }
-                                .tw-tile.tw-active .tw-tile-badge { color:#ffcc44; background:rgba(30,15,0,0.9); border-color:rgba(255,153,0,0.7); box-shadow:0 0 8px rgba(255,153,0,0.3); }
-                                .tw-tile.tw-active:hover { background:linear-gradient(160deg,#3a2000 0%,#2a1500 100%); border-color:var(--orange); box-shadow:0 0 16px rgba(255,153,0,0.4); transform:scale(1.03); }
+                                .tw-tile-badge { position:relative; z-index:2; font-size:10px; font-weight:800; color:#22c55e; background:rgba(0,15,5,0.85); border:1px solid rgba(34,197,94,0.35); border-radius:20px; padding:2px 8px; letter-spacing:0.2px; pointer-events:none; white-space:nowrap; }
+                                .tw-tile.tw-inactive { background:linear-gradient(160deg,#001a0d 0%,#000f08 100%); border-color:#002a12; opacity:0.6; }
+                                .tw-tile.tw-active { background:linear-gradient(160deg,#002a12 0%,#001a0d 100%); border-color:#00491e; opacity:1; cursor:pointer; }
+                                .tw-tile.tw-active .tw-tile-badge { color:#4ade80; background:rgba(0,20,8,0.9); border-color:rgba(34,197,94,0.7); box-shadow:0 0 8px rgba(34,197,94,0.3); }
+                                .tw-tile.tw-active:hover { background:linear-gradient(160deg,#004a20 0%,#003515 100%); border-color:#22c55e; box-shadow:0 0 16px rgba(34,197,94,0.4); transform:scale(1.03); }
                                 .tw-tile.tw-gem { background:linear-gradient(160deg,#0d3a20 0%,#0a2818 100%); border-color:#27ae60; box-shadow:0 0 14px rgba(39,174,96,0.4); cursor:default; animation:twReveal 0.25s ease; }
                                 .tw-tile.tw-gem .tw-tile-badge { color:#4ade80; background:rgba(5,30,15,0.85); border-color:rgba(39,174,96,0.5); }
                                 .tw-tile.tw-bomb { background:linear-gradient(160deg,#3a0d0d 0%,#280808 100%); border-color:#e74c3c; box-shadow:0 0 14px rgba(231,76,60,0.4); cursor:default; animation:twReveal 0.25s ease; }
@@ -2214,7 +2191,7 @@
                             <div class="tw-wrap">
                                 <!-- ── Left panel ── -->
                                 <div class="tw-panel">
-                                    <div class="tw-panel-title">🏰 Tower</div>
+                                    <div class="tw-panel-title">🛡️ Tower</div>
 
                                     <div class="tw-profit-box">
                                         <span style="color:#888; font-size:12px;">Session Profit</span>
@@ -3145,7 +3122,7 @@
                     if(sl) { sl.value = rBC; sl.disabled = true; }
                     document.getElementById('m-mine-lbl').innerText = rBC + ' Mines';
                     const board = document.getElementById('m-board');
-                    board.innerHTML = ''; board.className = 'm-grid g' + mGridSize;
+                    board.innerHTML = ''; board.className = 'm-grid g25';
                     for(let i = 0; i < mGridSize; i++) {
                         const t = document.createElement('div'); t.className = 'tile';
                         if(m.revealed.includes(i)) {
@@ -3778,20 +3755,19 @@
         document.getElementById('m-mine-lbl').innerText = v + ' Mines';
     }
     function getMines() { return parseInt(document.getElementById('m-mine-slider')?.value || 3); }
-    // NERFED: step = bombs / (gridSize * 5). E.g. 3 mines on 25 grid = +0.024 per gem
     function mMultStep(bombs) { return 1 + (bombs / (mGridSize * 5)); }
 
     function mSetUI(playing) {
-        document.getElementById('m-start').disabled = playing;
+        document.getElementById('m-start').classList.toggle('hidden', playing);
         document.getElementById('m-bet').disabled = playing;
         var sl = document.getElementById('m-mine-slider'); if(sl) sl.disabled = playing;
         document.getElementById('m-cash').classList.toggle('hidden', !playing);
-        var lv = document.getElementById('m-mult-live');
-        if(lv) lv.style.display = playing ? 'block' : 'none';
+        var md = document.getElementById('m-mult-disp');
+        if(md) md.style.display = playing ? 'block' : 'none';
     }
     function mUpdateMult() {
-        var lv = document.getElementById('m-mult-live');
-        if(lv) lv.innerText = mMult.toFixed(3) + '×';
+        var md = document.getElementById('m-mult-disp');
+        if(md) md.innerText = mMult.toFixed(3) + '×';
     }
 
     function startMines() {
@@ -3809,7 +3785,7 @@
         mSetUI(true); mUpdateMult();
         const step = mMultStep(bombs);
         const board = document.getElementById('m-board');
-        board.innerHTML = ''; board.className = 'm-grid g' + mGridSize;
+        board.innerHTML = ''; board.className = 'm-grid g25';
         while(mBombs.length < bombs) { let r = Math.floor(Math.random()*mGridSize); if(!mBombs.includes(r)) mBombs.push(r); }
         for(let i = 0; i < mGridSize; i++) {
             const t = document.createElement('div'); t.className = 'tile';
