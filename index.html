@@ -2858,22 +2858,48 @@
         localStorage.setItem('swarm_oauth_state', state);
         const params = new URLSearchParams({ client_id: DISCORD_CLIENT_ID, redirect_uri: DISCORD_REDIRECT, response_type: 'token', scope: 'identify', state });
         const statusEl = document.getElementById('discord-status');
-        if(statusEl) statusEl.textContent = '🔄 Redirecting to Discord...';
-        window.location.href = 'https://discord.com/oauth2/authorize?' + params.toString();
+        if(statusEl) statusEl.textContent = '🔄 Opening Discord login...';
+
+        const authUrl = 'https://discord.com/oauth2/authorize?' + params.toString();
+        const w = 500, h = 700;
+        const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
+        const top  = Math.round(window.screenY + (window.outerHeight - h) / 2);
+        const popup = window.open(authUrl, 'DiscordLogin', `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`);
+
+        if(!popup) {
+            // Popups blocked — fall back to redirect
+            if(statusEl) statusEl.textContent = '🔄 Redirecting to Discord...';
+            window.location.href = authUrl;
+            return;
+        }
+
+        // Poll until the popup lands back on our redirect URI containing the token
+        const poll = setInterval(() => {
+            try {
+                const popupUrl = popup.location.href;
+                if(popupUrl && popupUrl.includes('access_token')) {
+                    clearInterval(poll);
+                    const hash = popup.location.hash.substring(1);
+                    popup.close();
+                    const tokenParams = new URLSearchParams(hash);
+                    const accessToken = tokenParams.get('access_token');
+                    if(accessToken) handleDiscordToken(accessToken);
+                }
+            } catch(e) {
+                // Cross-origin while on Discord's domain — keep waiting
+            }
+            // If popup was closed manually
+            if(popup.closed) {
+                clearInterval(poll);
+                if(statusEl) statusEl.textContent = '❌ Login cancelled.';
+            }
+        }, 300);
     }
 
-    async function handleDiscordCallback() {
-        // Support both hash fragment (#access_token=...) and query param (?access_token=...)
-        const hash = window.location.hash.substring(1);
-        const search = window.location.search.substring(1);
-        const params = new URLSearchParams(hash || search);
-        const accessToken = params.get('access_token');
-        if(!accessToken) return false;
-
+    async function handleDiscordToken(accessToken) {
         const statusEl = document.getElementById('discord-status');
         if(statusEl) statusEl.textContent = '⏳ Logging in with Discord...';
         localStorage.removeItem('swarm_oauth_state');
-
         try {
             const userRes = await fetch('https://discord.com/api/users/@me', { headers: { 'Authorization': 'Bearer ' + accessToken } });
             if(!userRes.ok) throw new Error('Discord API error ' + userRes.status);
@@ -2882,7 +2908,6 @@
             const displayName = dcUser.username + (dcUser.discriminator && dcUser.discriminator !== '0' ? '#' + dcUser.discriminator : '');
             const avatarUrl = dcUser.avatar ? `https://cdn.discordapp.com/avatars/${dcUser.id}/${dcUser.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${parseInt(dcUser.id) % 6}.png`;
 
-            // Try to get user from DB; fall back to localStorage cache if DB fails
             let user = null;
             try { user = await dbGet('users', discordUsername); } catch(dbErr) { console.warn('dbGet failed, using cache:', dbErr); }
             if(!user) {
@@ -2894,27 +2919,29 @@
             } else {
                 user.displayName = displayName; user.avatarUrl = avatarUrl; user.discord = true;
             }
-            // Save to DB (non-blocking) and localStorage
             dbSet('users', discordUsername, user).catch(e => console.warn('dbSet failed:', e));
             localStorage.setItem('swarm_userdata_' + discordUsername, JSON.stringify(user));
             localStorage.setItem('swarm_user', discordUsername);
-
             currentUser = discordUsername; userData = user;
-
-            // Clear the token from the URL now that login succeeded
-            history.replaceState(null, '', window.location.pathname);
-
             loginSuccess();
             injectDiscordAvatar(displayName, avatarUrl);
-            return true;
         } catch(e) {
             console.error('Discord OAuth error:', e);
-            const msg = '❌ Discord login failed: ' + e.message;
-            if(statusEl) statusEl.textContent = msg;
-            // Clear bad hash so refresh doesn't loop
-            history.replaceState(null, '', window.location.pathname);
-            return false;
+            if(statusEl) statusEl.textContent = '❌ Discord login failed: ' + e.message;
         }
+    }
+
+    async function handleDiscordCallback() {
+        // Support both hash fragment (#access_token=...) and query param (?access_token=...)
+        const hash = window.location.hash.substring(1);
+        const search = window.location.search.substring(1);
+        const params = new URLSearchParams(hash || search);
+        const accessToken = params.get('access_token');
+        if(!accessToken) return false;
+        // Clean up the URL
+        try { history.replaceState(null, '', window.location.pathname); } catch(e) { window.location.hash = ''; }
+        await handleDiscordToken(accessToken);
+        return true;
     }
 
     function injectDiscordAvatar(displayName, avatarUrl) {
