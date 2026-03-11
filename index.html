@@ -2820,89 +2820,62 @@
     // ═══════════════════════════════════════════════
     // DISCORD OAUTH2 SYSTEM
     // ═══════════════════════════════════════════════
-    let DISCORD_CLIENT_ID = '1481357738633072701';
-    let DISCORD_REDIRECT   = 'https://bssgambling.github.io/BssGambling/';
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const autoEl = document.getElementById('dc-auto-redirect');
-        if(autoEl) autoEl.textContent = DISCORD_REDIRECT;
-        if(document.getElementById('dc-client-id')) document.getElementById('dc-client-id').value = DISCORD_CLIENT_ID;
-        if(document.getElementById('dc-redirect'))  document.getElementById('dc-redirect').value  = DISCORD_REDIRECT;
-    });
+    const DISCORD_CLIENT_ID = '1481357738633072701';
+    const DISCORD_REDIRECT  = 'https://bssgambling.github.io/BssGambling/';
 
     function discordLogin() {
-        if(!DISCORD_CLIENT_ID) {
-            const modal = document.getElementById('discord-config-modal');
-            modal.style.display = 'flex';
-            document.getElementById('dc-redirect').value = DISCORD_REDIRECT;
-            document.getElementById('dc-auto-redirect').textContent = DISCORD_REDIRECT;
-            return;
-        }
-        startDiscordOAuth();
+        const state = Math.random().toString(36).substring(2);
+        sessionStorage.setItem('dc_state', state);
+        const p = new URLSearchParams({
+            client_id: DISCORD_CLIENT_ID,
+            redirect_uri: DISCORD_REDIRECT,
+            response_type: 'token',
+            scope: 'identify',
+            state
+        });
+        window.location.href = 'https://discord.com/oauth2/authorize?' + p.toString();
     }
 
-    function saveDiscordConfig() {
-        const id  = document.getElementById('dc-client-id').value.trim();
-        const red = document.getElementById('dc-redirect').value.trim();
-        if(!id) { alert('Please enter a Client ID!'); return; }
-        if(!red) { alert('Please enter a Redirect URI!'); return; }
-        DISCORD_CLIENT_ID = id; DISCORD_REDIRECT = red;
-        localStorage.setItem('swarm_dc_client_id', id);
-        localStorage.setItem('swarm_dc_redirect', red);
-        document.getElementById('discord-config-modal').style.display = 'none';
-        startDiscordOAuth();
-    }
-
-    function startDiscordOAuth() {
-        const state = Math.random().toString(36).substring(2, 15);
-        localStorage.setItem('swarm_oauth_state', state);
-        const params = new URLSearchParams({ client_id: DISCORD_CLIENT_ID, redirect_uri: DISCORD_REDIRECT, response_type: 'token', scope: 'identify', state });
+    async function processDiscordToken(token) {
         const statusEl = document.getElementById('discord-status');
-        if(statusEl) statusEl.textContent = '🔄 Redirecting to Discord...';
-        window.location.href = 'https://discord.com/oauth2/authorize?' + params.toString();
-    }
-
-    async function handleDiscordCallback() {
-        const hash = window.location.hash.substring(1);
-        if(!hash) return false;
-        const params = new URLSearchParams(hash);
-        const accessToken = params.get('access_token');
-        const returnedState = params.get('state');
-        const savedState = localStorage.getItem('swarm_oauth_state');
-        if(!accessToken) return false;
-        history.replaceState(null, '', window.location.pathname + window.location.search);
-        if(returnedState && savedState && returnedState !== savedState) { alert('❌ OAuth state mismatch!'); return false; }
-        localStorage.removeItem('swarm_oauth_state');
-        const statusEl = document.getElementById('discord-status');
-        if(statusEl) statusEl.textContent = '⏳ Fetching Discord profile...';
+        if(statusEl) statusEl.textContent = '⏳ Logging you in...';
         try {
-            const userRes = await fetch('https://discord.com/api/users/@me', { headers: { 'Authorization': 'Bearer ' + accessToken } });
-            if(!userRes.ok) throw new Error('Discord API ' + userRes.status);
-            const dcUser = await userRes.json();
-            const discordUsername = 'discord_' + dcUser.id;
-            const displayName = dcUser.username + (dcUser.discriminator && dcUser.discriminator !== '0' ? '#' + dcUser.discriminator : '');
-            const avatarUrl = dcUser.avatar ? `https://cdn.discordapp.com/avatars/${dcUser.id}/${dcUser.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${parseInt(dcUser.id) % 6}.png`;
-            let user = await dbGet('users', discordUsername);
+            const res = await fetch('https://discord.com/api/users/@me', {
+                headers: { Authorization: 'Bearer ' + token }
+            });
+            if(!res.ok) throw new Error('Discord error ' + res.status);
+            const dc = await res.json();
+            const id = 'discord_' + dc.id;
+            const displayName = dc.global_name || dc.username;
+            const avatarUrl = dc.avatar
+                ? `https://cdn.discordapp.com/avatars/${dc.id}/${dc.avatar}.png`
+                : `https://cdn.discordapp.com/embed/avatars/${parseInt(dc.id) % 6}.png`;
+
+            let user = await dbGet('users', id);
             if(!user) {
                 user = { chips: 0, discord: true, displayName, avatarUrl };
-                await dbSet('users', discordUsername, user);
-            } else { user.displayName = displayName; user.avatarUrl = avatarUrl; user.discord = true; await dbSet('users', discordUsername, user); }
-            currentUser = discordUsername; userData = user;
-            localStorage.setItem('swarm_user', discordUsername);
+            } else {
+                user.displayName = displayName;
+                user.avatarUrl = avatarUrl;
+                user.discord = true;
+            }
+            await dbSet('users', id, user);
+            localStorage.setItem('swarm_user', id);
+            currentUser = id;
+            userData = user;
             loginSuccess();
             injectDiscordAvatar(displayName, avatarUrl);
-            return true;
         } catch(e) {
-            console.error('Discord OAuth error:', e);
-            if(statusEl) statusEl.textContent = '❌ Error: ' + e.message;
-            return false;
+            console.error('Discord login error:', e);
+            if(statusEl) statusEl.textContent = '❌ Login failed: ' + e.message;
         }
     }
 
     function injectDiscordAvatar(displayName, avatarUrl) {
         const nameEl = document.getElementById('display-name');
-        if(!nameEl) return;
-        nameEl.innerHTML = `<img src="${avatarUrl}" style="width:28px;height:28px;border-radius:50%;border:2px solid #5865F2;vertical-align:middle;margin-right:8px;" onerror="this.style.display='none'"><span style="color:#5865F2;">${displayName}</span>`;
+        if(nameEl) nameEl.innerHTML = `<img src="${avatarUrl}" style="width:28px;height:28px;border-radius:50%;border:2px solid #5865F2;vertical-align:middle;margin-right:8px;" onerror="this.style.display='none'"><span style="color:#5865F2;">${displayName}</span>`;
+        const homeEl = document.getElementById('home-display-name');
+        if(homeEl) homeEl.innerHTML = `<img src="${avatarUrl}" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-right:6px;" onerror="this.style.display='none'">${displayName}`;
     }
 
     const sfx = {
@@ -5386,10 +5359,28 @@
 
     window.onload = async () => {
         pfInit();
-        if(window.location.hash && window.location.hash.includes('access_token')) {
-            const handled = await handleDiscordCallback();
-            if(handled) return;
+
+        // Step 1: If Discord just redirected back with a token in the URL,
+        // stash it in sessionStorage and reload to a clean URL immediately.
+        if(window.location.hash.includes('access_token')) {
+            const p = new URLSearchParams(window.location.hash.substring(1));
+            const token = p.get('access_token');
+            if(token) {
+                sessionStorage.setItem('dc_token', token);
+                window.location.replace(DISCORD_REDIRECT);
+                return;
+            }
         }
+
+        // Step 2: On the clean reload, pick up the stashed token and log in.
+        const pendingToken = sessionStorage.getItem('dc_token');
+        if(pendingToken) {
+            sessionStorage.removeItem('dc_token');
+            await processDiscordToken(pendingToken);
+            return;
+        }
+
+        // Step 3: Already logged in — restore session.
         if(currentUser) {
             userData = await dbGet('users', currentUser);
             if(userData) {
