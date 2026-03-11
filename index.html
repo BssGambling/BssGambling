@@ -2848,6 +2848,20 @@
         a.volume = name === 'win' ? 0.2 : name === 'card' ? 0.5 : name === 'star' ? 0.8 : 0.4;
         a.play().catch(()=>{});
     }
+    function playAndGetDuration(name) {
+        return new Promise(resolve => {
+            if(!audioReady || !sfx[name]) { resolve({ audio: null, duration: 1500 }); return; }
+            const a = new Audio(sfx[name]);
+            a.volume = 0.4;
+            const onMeta = () => {
+                const ms = isFinite(a.duration) && a.duration > 0 ? Math.round(a.duration * 1000) : 1500;
+                a.play().catch(()=>{});
+                resolve({ audio: a, duration: ms });
+            };
+            if (isFinite(a.duration) && a.duration > 0) { onMeta(); }
+            else { a.addEventListener('loadedmetadata', onMeta, { once: true }); }
+        });
+    }
 
     // --- AUTH & CORE ---
     async function auth(type) {
@@ -5434,21 +5448,22 @@ async function spPrintSticker() {
   const delay = ms => new Promise(r => setTimeout(r, ms));
 
   if (!rollSecond) {
-    // Both spin simultaneously but player slightly shorter
-    play('stickerSpin');
+    // Both spin simultaneously — duration matches sound length
+    const { duration: spinDur } = await playAndGetDuration('stickerSpin');
     await Promise.all([
-      spSpinSlot('player-slot', playerSticker, 1300),
-      spSpinSlot('bot-slot', botSticker, 1700)
+      spSpinSlot('player-slot', playerSticker, spinDur * 0.85),
+      spSpinSlot('bot-slot', botSticker, spinDur)
     ]);
     spShowRarityLabel('player-rarity', 'player-sticker-name', playerSticker);
     spShowRarityLabel('bot-rarity', 'bot-sticker-name', botSticker);
   } else {
-    // Bot reveals first, then player
-    play('stickerSpin');
-    await spSpinSlot('bot-slot', botSticker, 1400);
+    // Bot reveals first, then player — each spin gets its own sound
+    const { duration: botDur } = await playAndGetDuration('stickerSpin');
+    await spSpinSlot('bot-slot', botSticker, botDur);
     spShowRarityLabel('bot-rarity', 'bot-sticker-name', botSticker);
     await delay(300);
-    await spSpinSlot('player-slot', playerSticker, 1600);
+    const { duration: playerDur } = await playAndGetDuration('stickerSpin');
+    await spSpinSlot('player-slot', playerSticker, playerDur);
     spShowRarityLabel('player-rarity', 'player-sticker-name', playerSticker);
   }
 
