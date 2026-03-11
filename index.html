@@ -2866,13 +2866,10 @@
         window.location.href = 'https://discord.com/oauth2/authorize?' + params.toString();
     }
 
-    async function handleDiscordCallback(fallbackHashStr) {
-        // Use live hash first; fall back to the hash string saved before page navigation
-        // (passed in as a parameter — we do NOT write to window.location.hash because
-        //  that triggers a reload on many browsers and loses the access token)
-        const liveHash = window.location.hash.startsWith('#') ? window.location.hash.substring(1) : window.location.hash;
-        const savedHash = (fallbackHashStr || '').replace(/^#/, '');
-        const rawHash = (liveHash && liveHash.includes('access_token')) ? liveHash : savedHash;
+    async function handleDiscordCallback() {
+        // Use live hash, or fall back to sessionStorage for mobile browsers
+        // that clear the hash before onload fires
+        const rawHash = window.location.hash.substring(1) || (sessionStorage.getItem('bss_oauth_hash') || '').substring(1);
         const hash = rawHash;
         if(!hash) return false;
         const params = new URLSearchParams(hash);
@@ -5412,21 +5409,22 @@
     })();
 
     window.onload = async () => {
-        pfInit();
-        console.log('[BSS OAuth Debug] href:', window.location.href);
-        console.log('[BSS OAuth Debug] hash:', window.location.hash);
-        console.log('[BSS OAuth Debug] search:', window.location.search);
-        console.log('[BSS OAuth Debug] sessionHash:', sessionStorage.getItem('bss_oauth_hash'));
-        // Check both live hash and the one we saved above for mobile compatibility
+        // OAuth check MUST run first — before pfInit() or anything that could throw
+        // pfInit uses crypto.subtle which can fail and would crash the entire onload
         const savedHash = sessionStorage.getItem('bss_oauth_hash');
         const hasOAuth = (window.location.hash && window.location.hash.includes('access_token')) || (savedHash && savedHash.includes('access_token'));
-        if(hasOAuth) {
+        if (hasOAuth) {
+            if (!window.location.hash.includes('access_token') && savedHash) {
+                window.location.hash = savedHash.substring(1);
+            }
             sessionStorage.removeItem('bss_oauth_hash');
-            // Pass the savedHash directly — do NOT write to window.location.hash
-            // because that triggers a navigation/reload on many browsers, losing the token
-            const handled = await handleDiscordCallback(savedHash);
-            if(handled) return;
+            // Start pfInit in background but don't await — don't let it block or crash login
+            pfInit().catch(e => console.warn('pfInit error:', e));
+            const handled = await handleDiscordCallback();
+            if (handled) return;
         }
+        // No OAuth in progress — pfInit is safe to await now
+        try { await pfInit(); } catch(e) { console.warn('pfInit error:', e); }
         if(currentUser) {
             // Try cache first so login is instant on refresh
             const cached = localStorage.getItem('swarm_userdata_' + currentUser);
