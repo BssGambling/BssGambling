@@ -2033,16 +2033,6 @@
                                 <div id="r-slider" class="r-slider-inner"></div>
                             </div>
 
-                            <!-- Bet controls row -->
-                            <div style="display:flex; gap:8px; margin-bottom:14px; align-items:center; flex-wrap:wrap; justify-content:center;">
-                                <span style="color:#888; font-size:13px;">Chip:</span>
-                                <input type="number" id="r-bet" value="50" min="50" max="1000" style="width:80px;">
-                                <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('r-bet').value=Math.max(50,Math.floor(parseInt(document.getElementById('r-bet').value||50)/2))">½</button>
-                                <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('r-bet').value=Math.min(1000,parseInt(document.getElementById('r-bet').value||50)*2)">2×</button>
-                                <button class="btn-play" id="r-spin" onclick="spinRoulette()">SPIN</button>
-                                <button class="btn-play" style="background:#333; color:#aaa;" onclick="clearRouletteBets()">CLEAR</button>
-                            </div>
-
                             <!-- Full betting board -->
                             <div class="r-board-wrap">
                                 <!-- Number grid: 0 + rows 3,2,1 top-to-bottom, cols 1-12 left-to-right -->
@@ -2066,6 +2056,16 @@
                                     <button class="btn-extra" style="background:#1e2530;border:1px solid #3a4a5a;color:#ccc;" onclick="setExtraBet('odd',this)">ODD</button>
                                     <button class="btn-extra" style="background:#1e2530;border:1px solid #3a4a5a;color:#ccc;" onclick="setExtraBet('19-36',this)">19–36</button>
                                 </div>
+                            </div>
+
+                            <!-- Bet controls row — moved to bottom -->
+                            <div style="display:flex; gap:8px; margin-top:18px; align-items:center; flex-wrap:wrap; justify-content:center;">
+                                <span style="color:#888; font-size:13px;">Chip:</span>
+                                <input type="number" id="r-bet" value="50" min="50" max="1000" style="width:80px;">
+                                <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('r-bet').value=Math.max(50,Math.floor(parseInt(document.getElementById('r-bet').value||50)/2))">½</button>
+                                <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('r-bet').value=Math.min(1000,parseInt(document.getElementById('r-bet').value||50)*2)">2×</button>
+                                <button class="btn-play" id="r-spin" onclick="spinRoulette()">SPIN</button>
+                                <button class="btn-play" style="background:#333; color:#aaa;" onclick="clearRouletteBets()">CLEAR</button>
                             </div>
                         </div>
 
