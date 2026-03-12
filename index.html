@@ -3847,19 +3847,30 @@
     // ══════════════ END FREE PLAY ══════════════
 
     async function sendDiscordWebhook(game, bet, mult, win, balanceBefore) {
-        if(fpEnabled) return; //  Free Play — never log to Discord
+        if(fpEnabled) return;
         try {
             const isWin = win > 0;
             const playerName = userData?.displayName || currentUser || "Unknown";
-            const payout = isWin ? Math.floor(win) : 0;
-            const snapBefore = typeof balanceBefore === 'number' ? Math.floor(balanceBefore) : Math.floor((userData?.chips||0) + bet - (isWin ? payout - bet : 0));
-            const snapAfter  = isWin ? snapBefore - bet + payout : snapBefore - bet;
+
+            // win can be either profit or full payout depending on game — normalise to profit
+            // If win > bet it's a full payout (e.g. coinflip passes b*2), convert to profit
+            const profit = (isWin && win > bet) ? win - bet : win;
+            const payout = isWin ? Math.floor(win > bet ? win : bet + win) : 0;
+
+            const snapBefore = typeof balanceBefore === 'number' ? Math.floor(balanceBefore) : Math.floor((userData?.chips || 0) + bet - Math.max(0, profit));
+            const snapAfter  = Math.floor(snapBefore - bet + (isWin ? payout : 0));
+
             const embed = {
-                title: game,
+                title: (isWin ? "✅ " : "❌ ") + game,
                 color: isWin ? 0x27ae60 : 0xe74c3c,
-                description: "**Player:** " + playerName + "\n**Bet:** " + bet + " Stars\n**" + (isWin ? "Payout" : "Lost") + ":** " + (isWin ? "+" + payout : "-" + bet) + " Stars\n**Multiplier:** " + (mult.toFixed ? mult.toFixed(2) : mult) + "x\n\nBalance: " + snapBefore + " -> " + snapAfter,
+                description: "**Player:** " + playerName +
+                    "\n**Bet:** " + bet + " Stars" +
+                    "\n**" + (isWin ? "Payout" : "Lost") + ":** " + (isWin ? "+" + payout : "-" + bet) + " Stars" +
+                    "\n**Multiplier:** " + (mult && mult.toFixed ? mult.toFixed(2) : mult) + "x" +
+                    "\n\n**Balance:** " + snapBefore + " → " + snapAfter,
                 fields: [
-                    { name: "Game Details", value: "**Multiplier:** " + (mult.toFixed ? mult.toFixed(2) : mult) + "x\n**Result:** " + (isWin ? "WIN" : "LOSS"), inline: false }
+                    { name: "Result", value: isWin ? "🟢 WIN" : "🔴 LOSS", inline: true },
+                    { name: "Profit", value: (isWin ? "+" : "") + Math.floor(profit) + " ★", inline: true }
                 ],
                 footer: { text: "BSS Gambling" },
                 timestamp: new Date().toISOString()
@@ -3869,7 +3880,7 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ embeds: [embed] })
             });
-        } catch(e) {}
+        } catch(e) { console.error('webhook error', e); }
     }
 
     function addHistory(game, bet, mult, win, balanceBefore) {
@@ -4526,6 +4537,8 @@
         if(isRSpinning || !userData) return; const amt = clampBet(document.getElementById('r-bet').value);
         document.getElementById('r-bet').value = amt;
         if(amt > userData.chips) { toast('Not enough ★!', 'error'); return; } if(!currentBets[type]) currentBets[type] = 0;
+        const totalSoFar = Object.values(currentBets).reduce((a, b) => a + b, 0);
+        if(totalSoFar + amt > MAX_BET) { toast(`Total bet can't exceed ${MAX_BET} ★!`, 'error'); return; }
         if(Object.keys(currentBets).length === 0 || Object.values(currentBets).every(v => v === 0)) rBalBefore = userData.chips;
         currentBets[type] += amt; userData.chips -= amt; updateUI(); saveGameState();
         let chip = el.querySelector('.chip-overlay'); if(!chip) { chip = document.createElement('div'); chip.className = 'chip-overlay'; el.appendChild(chip); }
