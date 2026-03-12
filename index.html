@@ -1453,44 +1453,71 @@
         body { flex-direction: column; overflow: auto; height: auto; min-height: 100vh; }
         .sidebar { display: none !important; }
         .main-wrapper { height: auto; min-height: 100vh; overflow-y: auto; }
-        .top-nav { padding: 0 16px; height: 56px; justify-content: space-between; }
-        .container { padding: 16px 12px 80px !important; }
-        .card { padding: 16px; border-radius: 12px; }
+        .top-nav { padding: 0 24px; height: 90px; justify-content: space-between; }
+        .container { padding: 30px 24px 180px !important; }
+        .card { padding: 36px 28px; border-radius: 20px; }
 
         /* Bottom nav bar */
         #mobile-nav {
             display: flex !important;
             position: fixed; bottom: 0; left: 0; right: 0;
-            height: 62px;
+            height: 110px;
             background: var(--sidebar);
             border-top: 1px solid var(--border);
             z-index: 9999;
             justify-content: space-around;
             align-items: center;
-            padding: 0 4px;
+            padding: 0 8px;
         }
         #mobile-nav .mob-nav-item {
             display: flex; flex-direction: column; align-items: center;
-            justify-content: center; gap: 3px; flex: 1;
-            padding: 6px 2px; border-radius: 10px; cursor: pointer;
-            color: var(--muted2); font-size: 9px; font-weight: 700;
+            justify-content: center; gap: 8px; flex: 1;
+            padding: 10px 4px; border-radius: 14px; cursor: pointer;
+            color: var(--muted2); font-size: 16px; font-weight: 700;
             letter-spacing: 0.5px; text-transform: uppercase;
             transition: color 0.15s; border: none; background: none;
         }
         #mobile-nav .mob-nav-item.active { color: var(--orange); }
-        #mobile-nav .mob-nav-item svg { width: 20px; height: 20px; }
+        #mobile-nav .mob-nav-item svg { width: 36px; height: 36px; }
 
-        h1, h2 { font-size: 22px !important; }
-        input[type="number"], input[type="text"] { font-size: 16px !important; padding: 12px !important; }
-        button { min-height: 44px; }
-        .balance-box { font-size: 13px; padding: 5px 12px 5px 8px; }
-        table { font-size: 12px; }
-        th, td { padding: 8px 6px !important; }
+        h1, h2 { font-size: 42px !important; }
+        h3 { font-size: 30px !important; }
+        p, span, div, label { font-size: 22px !important; line-height: 1.5 !important; }
+        input[type="number"], input[type="text"] {
+            font-size: 28px !important;
+            padding: 20px 16px !important;
+            border-radius: 14px !important;
+            height: 70px !important;
+        }
+        button, .btn-play {
+            min-height: 72px !important;
+            font-size: 22px !important;
+            padding: 18px 30px !important;
+            border-radius: 14px !important;
+        }
+        .balance-box {
+            font-size: 22px !important;
+            padding: 10px 22px 10px 14px !important;
+            border-radius: 999px !important;
+        }
+        #display-chips { font-size: 22px !important; }
+        table { font-size: 20px !important; }
+        th, td { padding: 16px 12px !important; }
+        .nav-section-label { font-size: 18px !important; }
 
         /* Fix modal width on mobile */
         #login-modal > div {
             width: 94vw !important; max-width: 94vw !important;
-            padding: 20px 16px !important; margin: 0 auto !important;
+            padding: 36px 28px !important; margin: 0 auto !important;
+        }
+
+        /* Game cards / home cards */
+        .home-card { padding: 28px !important; border-radius: 16px !important; }
+
+        /* Chip bet buttons */
+        .chip-btn, [class*="chip"] {
+            width: 80px !important; height: 80px !important;
+            font-size: 18px !important;
         }
     }
     #mobile-nav { display: none; }
