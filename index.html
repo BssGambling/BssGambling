@@ -1549,9 +1549,34 @@
             font-weight: 800 !important;
         }
 
-        /* ── Home page stats ── */
-        .home-stats, [style*="grid-template-columns"] {
+        /* ── Home cards — side by side, equal width, horizontal layout ── */
+        .home-cards-grid {
             grid-template-columns: repeat(2, 1fr) !important;
+            gap: 12px !important;
+        }
+        .home-card {
+            padding: 20px 16px !important;
+            border-radius: 16px !important;
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 14px !important;
+        }
+        .home-card-icon {
+            margin-bottom: 0 !important;
+            flex-shrink: 0 !important;
+        }
+        .home-card-badge {
+            margin-bottom: 6px !important;
+            font-size: 9px !important;
+        }
+        .home-card-title {
+            font-size: 17px !important;
+            margin-bottom: 4px !important;
+        }
+        .home-card-desc {
+            font-size: 11px !important;
+            line-height: 1.4 !important;
         }
 
         /* Games page padding */
@@ -1578,7 +1603,19 @@
         }
         button { min-height: 44px; font-size: 14px !important; }
 
-        /* Login / auth card */
+        /* Provably Fair button — sit above bottom nav, shrink to icon only */
+        .pf-float-btn {
+            bottom: 78px !important;
+            right: 12px !important;
+            padding: 8px !important;
+            border-radius: 50% !important;
+            width: 40px !important;
+            height: 40px !important;
+            justify-content: center !important;
+        }
+        .pf-float-label { display: none !important; }
+        .pf-float-dot { display: none !important; }
+        .pf-float-shield { font-size: 18px !important; }
         #login-modal > div,
         #auth-screen .card {
             width: 92vw !important;
