@@ -1450,74 +1450,56 @@
 
     /* ── MOBILE RESPONSIVE ── */
     @media (max-width: 768px) {
-        body { flex-direction: column; overflow: auto; height: auto; min-height: 100vh; }
-        .sidebar { display: none !important; }
-        .main-wrapper { height: auto; min-height: 100vh; overflow-y: auto; }
-        .top-nav { padding: 0 24px; height: 90px; justify-content: space-between; }
-        .container { padding: 30px 24px 180px !important; }
-        .card { padding: 36px 28px; border-radius: 20px; }
-
-        /* Bottom nav bar */
-        #mobile-nav {
+        html, body {
+            width: 100%;
+            min-width: 0;
+            overflow-x: hidden;
+        }
+        body {
+            flex-direction: row;
+        }
+        .sidebar {
             display: flex !important;
-            position: fixed; bottom: 0; left: 0; right: 0;
-            height: 110px;
-            background: var(--sidebar);
-            border-top: 1px solid var(--border);
-            z-index: 9999;
-            justify-content: space-around;
-            align-items: center;
-            padding: 0 8px;
+            width: 72px !important;
+            min-width: 72px !important;
+            flex-shrink: 0;
         }
-        #mobile-nav .mob-nav-item {
-            display: flex; flex-direction: column; align-items: center;
-            justify-content: center; gap: 8px; flex: 1;
-            padding: 10px 4px; border-radius: 14px; cursor: pointer;
-            color: var(--muted2); font-size: 16px; font-weight: 700;
-            letter-spacing: 0.5px; text-transform: uppercase;
-            transition: color 0.15s; border: none; background: none;
+        .sidebar-top { padding: 16px 8px !important; }
+        .logo { font-size: 0 !important; gap: 0 !important; }
+        .logo::before { font-size: 22px !important; margin: 0 auto; }
+        .logo span { display: none; }
+        .nav-section-label { display: none; }
+        .nav-item {
+            flex-direction: column !important;
+            gap: 4px !important;
+            padding: 10px 4px !important;
+            font-size: 8px !important;
+            margin: 2px 4px !important;
+            text-align: center;
         }
-        #mobile-nav .mob-nav-item.active { color: var(--orange); }
-        #mobile-nav .mob-nav-item svg { width: 36px; height: 36px; }
-
-        h1, h2 { font-size: 42px !important; }
-        h3 { font-size: 30px !important; }
-        p, span, div, label { font-size: 22px !important; line-height: 1.5 !important; }
-        input[type="number"], input[type="text"] {
-            font-size: 28px !important;
+        .nav-item svg { width: 18px !important; height: 18px !important; }
+        .main-wrapper {
+            flex: 1;
+            min-width: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            height: 100vh;
+        }
+        .top-nav {
+            padding: 0 14px;
+            height: 54px;
+        }
+        .container {
             padding: 20px 16px !important;
-            border-radius: 14px !important;
-            height: 70px !important;
+            zoom: 1 !important;
         }
-        button, .btn-play {
-            min-height: 72px !important;
-            font-size: 22px !important;
-            padding: 18px 30px !important;
-            border-radius: 14px !important;
-        }
-        .balance-box {
-            font-size: 22px !important;
-            padding: 10px 22px 10px 14px !important;
-            border-radius: 999px !important;
-        }
-        #display-chips { font-size: 22px !important; }
-        table { font-size: 20px !important; }
-        th, td { padding: 16px 12px !important; }
-        .nav-section-label { font-size: 18px !important; }
+        #mobile-nav { display: none !important; }
 
-        /* Fix modal width on mobile */
+        /* Login modal */
         #login-modal > div {
-            width: 94vw !important; max-width: 94vw !important;
-            padding: 36px 28px !important; margin: 0 auto !important;
-        }
-
-        /* Game cards / home cards */
-        .home-card { padding: 28px !important; border-radius: 16px !important; }
-
-        /* Chip bet buttons */
-        .chip-btn, [class*="chip"] {
-            width: 80px !important; height: 80px !important;
-            font-size: 18px !important;
+            width: 94vw !important;
+            max-width: 94vw !important;
+            zoom: 1 !important;
         }
     }
     #mobile-nav { display: none; }
