@@ -821,8 +821,19 @@
         color: var(--orange);
         line-height: 1;
         margin-bottom: 6px;
+        transition: all 0.3s ease;
     }
     .home-stat-label { font-size:11px; color:var(--muted); font-weight:600; letter-spacing:0.5px; text-transform:uppercase; font-family:'Barlow Condensed',sans-serif; }
+    
+    /* Stat update animation */
+    @keyframes statPulse {
+        0% { transform: scale(1); color: var(--orange); }
+        50% { transform: scale(1.15); color: #0fd68a; text-shadow: 0 0 10px rgba(15, 214, 138, 0.5); }
+        100% { transform: scale(1); color: var(--orange); }
+    }
+    .stat-updated {
+        animation: statPulse 0.5s ease;
+    }
 
     .home-cards-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
     .home-card {
@@ -3236,14 +3247,38 @@
         const statBig  = document.getElementById('home-stat-biggest');
         console.log('Found elements:', { statBets, statWins, statBig });
         if(statBets) {
+            const oldVal = statBets.innerText;
             statBets.innerText = total;
+            if(oldVal !== String(total)) {
+                statBets.classList.remove('stat-updated');
+                void statBets.offsetWidth;
+                statBets.classList.add('stat-updated');
+                setTimeout(() => statBets.classList.remove('stat-updated'), 500);
+            }
             console.log('Updated bets to:', total);
         }
         if(statWins) {
+            const oldVal = statWins.innerText;
             statWins.innerText = wins;
-            console.log('Updated wins to:', wins);
+            if(oldVal !== String(wins)) {
+                statWins.classList.remove('stat-updated');
+                void statWins.offsetWidth;
+                statWins.classList.add('stat-updated');
+                setTimeout(() => statWins.classList.remove('stat-updated'), 500);
+            }
+            console.log('Updated bets to:', wins);
         }
-        if(statBig)  statBig.innerHTML = biggest > 0 ? '+' + biggest + ' <svg class=\"ic ic-star\" viewBox=\"0 0 16 16\" width=\"13\" height=\"13\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8\" fill=\"#0fd68a\" stroke=\"#c9a800\" stroke-width=\"0.4\"/></svg>' : '—';
+        if(statBig) {
+            const oldVal = statBig.innerHTML;
+            const newVal = biggest > 0 ? '+' + biggest + ' <svg class=\"ic ic-star\" viewBox=\"0 0 16 16\" width=\"13\" height=\"13\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8\" fill=\"#0fd68a\" stroke=\"#c9a800\" stroke-width=\"0.4\"/></svg>' : '—';
+            statBig.innerHTML = newVal;
+            if(oldVal !== newVal) {
+                statBig.classList.remove('stat-updated');
+                void statBig.offsetWidth;
+                statBig.classList.add('stat-updated');
+                setTimeout(() => statBig.classList.remove('stat-updated'), 500);
+            }
+        }
 
         // Recent 5 bets preview
         const container = document.getElementById('home-recent-bets');
