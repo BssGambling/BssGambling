@@ -1555,28 +1555,31 @@
             gap: 12px !important;
         }
         .home-card {
-            padding: 20px 16px !important;
+            padding: 20px 14px !important;
             border-radius: 16px !important;
             display: flex !important;
-            flex-direction: row !important;
+            flex-direction: column !important;
             align-items: center !important;
-            gap: 14px !important;
+            justify-content: center !important;
+            text-align: center !important;
+            gap: 10px !important;
+            overflow: hidden !important;
         }
+        .home-card-badge { display: none !important; }
         .home-card-icon {
             margin-bottom: 0 !important;
             flex-shrink: 0 !important;
         }
-        .home-card-badge {
-            margin-bottom: 6px !important;
-            font-size: 9px !important;
-        }
         .home-card-title {
-            font-size: 17px !important;
+            font-size: 16px !important;
             margin-bottom: 4px !important;
+            white-space: nowrap !important;
         }
         .home-card-desc {
             font-size: 11px !important;
             line-height: 1.4 !important;
+            white-space: normal !important;
+            word-break: break-word !important;
         }
 
         /* Games page padding */
@@ -1603,7 +1606,75 @@
         }
         button { min-height: 44px; font-size: 14px !important; }
 
-        /* Provably Fair button — sit above bottom nav, shrink to icon only */
+        /* ══ TOWER: stack panel above board ══ */
+        .tw-wrap {
+            flex-direction: column !important;
+            height: auto !important;
+            min-height: unset !important;
+        }
+        .tw-panel {
+            width: 100% !important;
+            border-right: none !important;
+            border-bottom: 1px solid #222 !important;
+            padding: 16px !important;
+            gap: 12px !important;
+        }
+        .tw-arena {
+            padding: 12px !important;
+            min-height: 400px !important;
+        }
+        .tw-board-outer {
+            width: calc(100% - 20px) !important;
+            height: min(420px, 65vw) !important;
+        }
+
+        /* ══ ROULETTE: shrink table to fit ══ */
+        .roulette-layout {
+            flex-direction: column !important;
+        }
+        .r-grid {
+            grid-template-columns: 36px repeat(12, 1fr) !important;
+            gap: 2px !important;
+        }
+        .cell {
+            height: 34px !important;
+            font-size: 10px !important;
+            border-radius: 3px !important;
+        }
+        .cell.nula {
+            height: 106px !important;
+            font-size: 14px !important;
+        }
+
+        /* ══ DICE: stack controls vertically ══ */
+        .dg-panel {
+            flex-direction: column !important;
+            gap: 16px !important;
+        }
+        .dg-panel-right {
+            width: 100% !important;
+        }
+
+        /* ══ STICKER: stack slots vertically ══ */
+        #game-sticker .sticker-slots-row,
+        #game-sticker .slots-wrap,
+        #game-sticker [style*="display:flex"] {
+            flex-direction: column !important;
+            align-items: center !important;
+        }
+        #game-sticker .sticker-slot {
+            width: 100% !important;
+            max-width: 280px !important;
+        }
+
+        /* ══ BW wrap (crash/bee) ══ */
+        .bw-wrap {
+            flex-direction: column !important;
+            padding: 12px !important;
+        }
+        .bw-right {
+            width: 100% !important;
+        }
         .pf-float-btn {
             bottom: 78px !important;
             right: 12px !important;
