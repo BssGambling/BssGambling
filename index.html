@@ -1632,15 +1632,7 @@
 
                 <!-- Quick Stats -->
                 <div class="home-section-title">📊 Your Stats</div>
-                <div class="home-stats-row">
-                    <div class="home-stat-box">
-                        <div class="home-stat-val" id="home-stat-bets">0</div>
-                        <div class="home-stat-label">Total Bets</div>
-                    </div>
-                    <div class="home-stat-box">
-                        <div class="home-stat-val" id="home-stat-wins">0</div>
-                        <div class="home-stat-label">Wins</div>
-                    </div>
+                <div class="home-stats-row" style="grid-template-columns: 1fr;">
                     <div class="home-stat-box">
                         <div class="home-stat-val" id="home-stat-biggest">—</div>
                         <div class="home-stat-label">Biggest Win</div>
@@ -3228,30 +3220,17 @@
         if(nameEl) nameEl.innerText = (userData && userData.displayName) ? userData.displayName : currentUser || '---';
         if(chipsEl) chipsEl.innerText = userData ? Math.floor(userData.chips) : 0;
 
-        // Stats from bet history (win > 0 means won, negative = lost)
-        const total = betHistory.length;
-        const wins = betHistory.filter(b => b.win > 0).length;
+        // Only calculate biggest win from bet history
         const biggest = betHistory.reduce((max, b) => b.win > max ? b.win : max, 0);
-        console.log('[renderHomePage] Calculated stats:', { total, wins, biggest, betHistoryLength: betHistory.length });
+        console.log('[renderHomePage] Calculated biggest win:', biggest);
         
-        const statBets = document.getElementById('home-stat-bets');
-        const statWins = document.getElementById('home-stat-wins');
-        const statBig  = document.getElementById('home-stat-biggest');
-        console.log('[renderHomePage] Found elements:', { 
-            statBets: !!statBets, 
-            statWins: !!statWins, 
-            statBig: !!statBig 
-        });
+        const statBig = document.getElementById('home-stat-biggest');
+        console.log('[renderHomePage] Found biggest element:', !!statBig);
         
-        if(statBets) {
-            statBets.innerText = total;
-            console.log('[renderHomePage] Updated bets to:', total);
+        if(statBig) {
+            statBig.innerHTML = biggest > 0 ? '+' + biggest + ' <svg class=\"ic ic-star\" viewBox=\"0 0 16 16\" width=\"13\" height=\"13\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8\" fill=\"#0fd68a\" stroke=\"#c9a800\" stroke-width=\"0.4\"/></svg>' : '—';
+            console.log('[renderHomePage] Updated biggest win to:', biggest);
         }
-        if(statWins) {
-            statWins.innerText = wins;
-            console.log('[renderHomePage] Updated wins to:', wins);
-        }
-        if(statBig)  statBig.innerHTML = biggest > 0 ? '+' + biggest + ' <svg class=\"ic ic-star\" viewBox=\"0 0 16 16\" width=\"13\" height=\"13\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8\" fill=\"#0fd68a\" stroke=\"#c9a800\" stroke-width=\"0.4\"/></svg>' : '—';
 
         // Recent 5 bets preview
         const container = document.getElementById('home-recent-bets');
