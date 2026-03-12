@@ -3350,6 +3350,11 @@
     function setChips(v) { if(fpEnabled) { fpChips = v; } else { userData.chips = v; } }
     function addChips(v) { if(fpEnabled) { fpChips += v; } else { userData.chips += v; } }
     function selectGame(g) {
+        // Block switching away from mines if a mines game is active
+        if(mActive && g !== 'mines') {
+            toast('⛏️ Finish your Mines game first — cashout or hit a bomb!', 'error');
+            return;
+        }
         document.getElementById('selection-menu').classList.add('hidden');
         document.getElementById('game-active-page').classList.remove('hidden');
         ['mines','dice','roulette','blackjack','coinflip','crash','limbo','tower','keno','sticker'].forEach(id => {
@@ -3364,6 +3369,10 @@
     }
 
     function backToMenu() {
+        if(mActive) {
+            toast('⛏️ Finish your Mines game first — cashout or hit a bomb!', 'error');
+            return;
+        }
         if(crashActive) clearInterval(crashInterval);
         document.getElementById('selection-menu').classList.remove('hidden');
         document.getElementById('game-active-page').classList.add('hidden');
@@ -4047,17 +4056,14 @@
         countGame(); userData.chips -= crashBet; addProfit('crash', -crashBet); updateUI(); crashActive = true; crashMult = 1.00;
         const display = document.getElementById('crash-display'); display.style.color = "white";
         document.getElementById('c-start').disabled = true;
-        // Fully random crash point — no house rigging
+        // Nerfed crash point — higher house edge, crashes earlier on average
         function generateCrashPoint() {
-            // Provably fair: exponential distribution with house edge of ~4%
-            // Formula: 99 / (1 - u) * 0.01  clamped at 1.00
-            // Gives natural crash curve: lots of low, some mid, rare highs
             const u = Math.random();
-            if (u >= 0.99) return 1.00; // ~1% instant crash (natural)
-            // Inverse CDF of exponential-ish distribution
-            const raw = 0.99 / (1 - u);
-            // Add some extra variance for exciting big numbers
-            const bonus = Math.random() < 0.08 ? (Math.random() * 50) : 0;
+            if (u >= 0.94) return 1.00; // ~6% instant crash (up from 1%)
+            // Steeper distribution = crashes lower on average
+            const raw = 0.94 / (1 - u);
+            // Rare big number bonus: 3% chance (down from 8%), smaller range
+            const bonus = Math.random() < 0.03 ? (Math.random() * 15) : 0;
             return Math.max(1.00, parseFloat((raw + bonus).toFixed(2)));
         }
         let crashPoint = generateCrashPoint();
@@ -5807,7 +5813,7 @@ async function spPrintSticker() {
   const bRank = spGetRarityRank(botSticker.rarity);
 
   let result;
-  if (pRank === bRank) result = 'lose';
+  if (pRank === bRank) result = 'tie';
   else {
     const playerWins = lowestWins ? pRank < bRank : pRank > bRank;
     result = playerWins ? 'win' : 'lose';
@@ -5839,7 +5845,9 @@ async function spPrintSticker() {
     addChips(bet);
     addProfit('sticker', bet);
     banner.className = 'result-banner tie';
-    banner.textContent = `🤝 TIE — ROBOT WINS! Bet refunded`;
+    banner.textContent = `🤝 TIE! You got the same sticker — bet refunded`;
+    playerPanel.classList.remove('winner', 'loser');
+    botPanel.classList.remove('winner', 'loser');
   }
 
   spUpdateCoins();
