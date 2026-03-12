@@ -3454,27 +3454,24 @@
             const playerName = userData?.displayName || currentUser || "Unknown";
             const payout = isWin ? Math.floor(win) : 0;
             const embed = {
-                title: isWin ? ("WIN - " + game) : ("LOSS - " + game),
+                title: game,
                 color: isWin ? 0x27ae60 : 0xe74c3c,
+                description: "**Player:** " + playerName + "\n**Bet:** " + bet + " Stars\n**" + (isWin ? "Payout" : "Lost") + ":** " + (isWin ? "+" + payout : "-" + bet) + " Stars\n**Multiplier:** " + (mult.toFixed ? mult.toFixed(2) : mult) + "x\n\nBalance: " + Math.floor(userData?.chips||0) + " -> " + (isWin ? Math.floor((userData?.chips||0)+payout-bet) : Math.floor((userData?.chips||0)-bet)),
                 fields: [
-                    { name: "Player", value: playerName, inline: true },
-                    { name: "Bet", value: bet + " Stars", inline: true },
-                    { name: "Multiplier", value: (mult.toFixed ? mult.toFixed(2) : mult) + "x", inline: true },
-                    { name: isWin ? "Payout" : "Lost", value: isWin ? ("+" + payout + " Stars") : ("-" + bet + " Stars"), inline: true }
+                    { name: "Game Details", value: "**Multiplier:** " + (mult.toFixed ? mult.toFixed(2) : mult) + "x\n**Result:** " + (isWin ? "WIN" : "LOSS"), inline: false }
                 ],
-                footer: { text: "Bss Gambling Live Games" },
+                footer: { text: "BSS Gambling" },
                 timestamp: new Date().toISOString()
             };
-            const webhookBody = JSON.stringify({ embeds: [embed] });
             await fetch(DISCORD_WEBHOOK_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: webhookBody
+                body: JSON.stringify({ embeds: [embed] })
             });
             await fetch(DISCORD_WEBHOOK_URL2, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: webhookBody
+                body: JSON.stringify({ embeds: [embed] })
             });
         } catch(e) {}
     }
