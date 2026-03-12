@@ -4022,18 +4022,18 @@
         let crashPoint = generateCrashPoint();
         releaseBetLock();
         function getTickInterval() {
-            // The higher the multiplier, the faster the tick — creates acceleration effect
-            if (crashMult >= 50) return 16;
-            if (crashMult >= 20) return 20;
-            if (crashMult >= 10) return 30;
-            if (crashMult >= 5)  return 50;
-            if (crashMult >= 3)  return 70;
-            if (crashMult >= 2)  return 90;
-            return 120;
+            // 5x faster tick intervals
+            if (crashMult >= 50) return 3;
+            if (crashMult >= 20) return 4;
+            if (crashMult >= 10) return 6;
+            if (crashMult >= 5)  return 10;
+            if (crashMult >= 3)  return 14;
+            if (crashMult >= 2)  return 18;
+            return 24;
         }
         function crashTick() {
-            // Increment grows faster at higher multipliers = feels like acceleration
-            crashMult += 0.01 + (crashMult * 0.008);
+            // 5x larger increment per tick
+            crashMult += 0.05 + (crashMult * 0.04);
             display.innerText = crashMult.toFixed(2) + "x";
             // Check crash FIRST — if it crashes before target, you lose
             if (crashMult >= crashPoint) {
