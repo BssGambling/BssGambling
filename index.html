@@ -5859,6 +5859,11 @@ async function spPrintSticker() {
   spUpdateStats();
   updateUI();
 
+  // Auto-hide banner after 3 seconds
+  setTimeout(() => {
+    banner.className = 'result-banner';
+  }, 3000);
+
   if (typeof sendDiscordWebhook === 'function' && typeof fpEnabled !== 'undefined' && !fpEnabled) {
     const stickerWin = result === 'win' ? coinsChange : 0;
     sendDiscordWebhook('Sticker Printer', bet, result === 'win' ? 2 : 0, stickerWin);
