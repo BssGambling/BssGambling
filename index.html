@@ -1509,41 +1509,62 @@
         /* ── Games grid: 2 columns, nicely sized ── */
         .games-grid-new {
             grid-template-columns: repeat(2, 1fr) !important;
-            gap: 10px !important;
+            gap: 12px !important;
+        }
+        .originals-grid {
+            grid-template-columns: 1fr !important;
         }
         .game-card-new {
-            padding: 18px 12px 14px !important;
-            border-radius: 14px !important;
+            padding: 24px 16px 18px !important;
+            border-radius: 18px !important;
         }
         .game-icon-wrap {
-            width: 64px !important;
-            height: 64px !important;
-            border-radius: 14px !important;
-            margin-bottom: 12px !important;
+            width: 80px !important;
+            height: 80px !important;
+            border-radius: 18px !important;
+            margin-bottom: 16px !important;
         }
         .game-icon-wrap img, .game-icon-wrap svg {
-            width: 40px !important;
-            height: 40px !important;
+            width: 48px !important;
+            height: 48px !important;
         }
-        .game-icon-wrap span { font-size: 36px !important; line-height: 1 !important; }
-        .game-card-info { margin-bottom: 10px !important; }
+        .game-icon-wrap span { font-size: 44px !important; line-height: 1 !important; }
+        .game-card-info { margin-bottom: 14px !important; }
         .game-card-info h3 {
-            font-size: 13px !important;
+            font-size: 18px !important;
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
-            margin: 0 0 4px !important;
+            margin: 0 0 6px !important;
         }
-        .game-card-info p { font-size: 11px !important; }
+        .game-card-info p {
+            font-size: 13px !important;
+            white-space: normal !important;
+            line-height: 1.4 !important;
+        }
         .game-play-btn {
-            padding: 9px 0 !important;
-            font-size: 12px !important;
-            border-radius: 8px !important;
+            padding: 12px 0 !important;
+            font-size: 15px !important;
+            border-radius: 10px !important;
+            font-weight: 800 !important;
         }
 
         /* ── Home page stats ── */
         .home-stats, [style*="grid-template-columns"] {
             grid-template-columns: repeat(2, 1fr) !important;
+        }
+
+        /* Games page padding */
+        #page-games {
+            padding: 20px 14px 100px !important;
+            min-height: unset !important;
+        }
+        .games-page-title {
+            font-size: 20px !important;
+            margin: 0 0 16px 0 !important;
+        }
+        .section-title, .originals-title {
+            font-size: 18px !important;
         }
 
         /* ── History table ── */
