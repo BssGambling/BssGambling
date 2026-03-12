@@ -3850,6 +3850,7 @@
         if(fpEnabled) return;
         try {
             const isWin = win > 0;
+            const isTie = win === 0 && mult === 1;
             const playerName = userData?.displayName || currentUser || "Unknown";
 
             // win can be either profit or full payout depending on game — normalise to profit
@@ -3858,18 +3859,18 @@
             const payout = isWin ? Math.floor(win > bet ? win : bet + win) : 0;
 
             const snapBefore = typeof balanceBefore === 'number' ? Math.floor(balanceBefore) : Math.floor((userData?.chips || 0) + bet - Math.max(0, profit));
-            const snapAfter  = Math.floor(snapBefore - bet + (isWin ? payout : 0));
+            const snapAfter  = Math.floor(snapBefore - bet + (isWin ? payout : isTie ? bet : 0));
 
             const embed = {
-                title: (isWin ? "✅ " : "❌ ") + game,
-                color: isWin ? 0x27ae60 : 0xe74c3c,
+                title: (isWin ? "✅ " : isTie ? "🤝 " : "❌ ") + game,
+                color: isWin ? 0x27ae60 : isTie ? 0xf1c40f : 0xe74c3c,
                 description: "**Player:** " + playerName +
                     "\n**Bet:** " + bet + " Stars" +
-                    "\n**" + (isWin ? "Payout" : "Lost") + ":** " + (isWin ? "+" + payout : "-" + bet) + " Stars" +
+                    "\n**" + (isWin ? "Payout" : isTie ? "Refund" : "Lost") + ":** " + (isWin ? "+" + payout : isTie ? "+" + bet : "-" + bet) + " Stars" +
                     "\n**Multiplier:** " + (mult && mult.toFixed ? mult.toFixed(2) : mult) + "x" +
                     "\n\n**Balance:** " + snapBefore + " → " + snapAfter,
                 fields: [
-                    { name: "Result", value: isWin ? "🟢 WIN" : "🔴 LOSS", inline: true },
+                    { name: "Result", value: isWin ? "🟢 WIN" : isTie ? "🟡 TIE" : "🔴 LOSS", inline: true },
                     { name: "Profit", value: (isWin ? "+" : "") + Math.floor(profit) + " ★", inline: true }
                 ],
                 footer: { text: "BSS Gambling" },
