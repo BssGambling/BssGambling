@@ -3548,21 +3548,40 @@
     }
 
     function addHistory(game, bet, mult, win) {
+        console.log('═══════════════════════════════════════');
+        console.log('[addHistory] CALLED');
+        console.log('[addHistory] Game:', game);
+        console.log('[addHistory] Bet:', bet);
+        console.log('[addHistory] Mult:', mult);
+        console.log('[addHistory] Win:', win);
+        console.log('[addHistory] Free Play Enabled:', fpEnabled);
+        console.log('[addHistory] betHistory length BEFORE:', betHistory.length);
+        
         if(fpEnabled) {
             // In Free Play: still show in local history with FP tag, but don't persist or webhook
             betHistory.unshift({ game: ' ' + game, bet, mult, win: Math.floor(win), fp: true });
             if(betHistory.length > 50) betHistory.pop();
+            console.log('[addHistory] FREE PLAY - Added to betHistory');
+            console.log('[addHistory] betHistory length AFTER:', betHistory.length);
             renderHomePage(); // Update stats
             return;
         }
         betHistory.unshift({ game, bet, mult, win: Math.floor(win) });
         if(betHistory.length > 50) betHistory.pop();
-        try { localStorage.setItem('swarm_history_' + currentUser, JSON.stringify(betHistory)); } catch(e) {}
+        console.log('[addHistory] NORMAL MODE - Added to betHistory');
+        console.log('[addHistory] betHistory length AFTER:', betHistory.length);
+        console.log('[addHistory] Saving to localStorage...');
+        try { localStorage.setItem('swarm_history_' + currentUser, JSON.stringify(betHistory)); } catch(e) {
+            console.error('[addHistory] localStorage save failed:', e);
+        }
         // Also save to Supabase so it persists
         dbSet('swarm_history_' + currentUser, betHistory);
-        console.log('[addHistory] Updating stats after', game, 'bet. History length:', betHistory.length);
+        console.log('[addHistory] Calling renderHomePage...');
         renderHomePage(); // Update home stats immediately
+        console.log('[addHistory] Calling sendDiscordWebhook...');
         sendDiscordWebhook(game, bet, mult, win);
+        console.log('[addHistory] COMPLETE');
+        console.log('═══════════════════════════════════════');
     }
 
     function renderHistory() {
