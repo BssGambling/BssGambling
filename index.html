@@ -3254,7 +3254,9 @@
     }
     const MIN_BET = 50;
     const MAX_BET = 1000;
+    const MAX_COINS = 10000;
     function clampBet(v) { return Math.max(MIN_BET, Math.min(MAX_BET, parseInt(v) || MIN_BET)); }
+    function isAtCoinCap() { return Math.floor(getChips()) >= MAX_COINS; }
 
     // ── House Edge Counter ──────────────────────────────────────────────────
     // House edge only activates on every 10th game. All other 9 are fair.
@@ -3301,6 +3303,36 @@
                 fpBtn.style.cursor  = locked ? 'not-allowed' : 'pointer';
                 fpBtn.title = locked ? 'Finish your current game first' : 'Free Play Mode';
             } catch(e) {}
+        }
+
+        // Block all betting if coins >= 10,000
+        const MAX_COINS = 10000;
+        const atCap = chips >= MAX_COINS;
+        const betBtnIds = [
+            'bj-deal-btn','c-start','print-btn','keno-bet-btn',
+            'limbo-bet-btn','tower-start-btn','m-start-btn','roulette-spin-btn',
+            'coinflip-btn','dice-roll-btn'
+        ];
+        betBtnIds.forEach(id => {
+            const btn = document.getElementById(id);
+            if(btn) {
+                btn.disabled = atCap;
+                btn.style.opacity = atCap ? '0.4' : '';
+                btn.title = atCap ? 'You\'ve reached the 10,000 coin cap!' : '';
+            }
+        });
+        // Show/hide cap banner
+        let capBanner = document.getElementById('coin-cap-banner');
+        if(atCap) {
+            if(!capBanner) {
+                capBanner = document.createElement('div');
+                capBanner.id = 'coin-cap-banner';
+                capBanner.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#c9a800;color:#050810;padding:10px 22px;border-radius:999px;font-family:\'Sora\',sans-serif;font-weight:800;font-size:13px;z-index:9000;letter-spacing:0.5px;box-shadow:0 4px 20px rgba(201,168,0,0.5);';
+                capBanner.textContent = '🏆 Max coins reached! You can\'t bet anymore.';
+                document.body.appendChild(capBanner);
+            }
+        } else if(capBanner) {
+            capBanner.remove();
         }
     }
 
@@ -3766,6 +3798,7 @@
     }
 
     function startMines() {
+        if(isAtCoinCap()) return;
         if(!acquireBetLock()) return;
         mBet = Math.max(50, Math.min(600, parseInt(document.getElementById('m-bet').value) || 50));
         document.getElementById('m-bet').value = mBet;
@@ -3868,6 +3901,7 @@
     }
 
     function playDice() {
+        if(isAtCoinCap()) return;
         if(!acquireBetLock()) return;
         let b = Math.max(50, Math.min(1000, parseInt(document.getElementById('d-bet').value) || 50));
         document.getElementById('d-bet').value = b;
@@ -3966,6 +4000,7 @@
 
     // COINFLIP
     function playCoinFlip() {
+        if(isAtCoinCap()) return;
         if(!acquireBetLock()) return;
         let b = clampBet(document.getElementById('cf-bet').value), choice = document.getElementById('cf-choice').value;
         document.getElementById('cf-bet').value = b;
@@ -3994,6 +4029,7 @@
     // CRASH
     let crashActive = false, crashMult = 1.0, crashInterval, crashBet = 0;
     function startCrash() {
+        if(isAtCoinCap()) return;
         if(!acquireBetLock()) return;
         crashBet = clampBet(document.getElementById('c-bet').value);
         document.getElementById('c-bet').value = crashBet;
@@ -4110,6 +4146,7 @@
         currentBets = {}; document.querySelectorAll('.cell, .btn-extra').forEach(el => { el.classList.remove('active'); const c = el.querySelector('.chip-overlay'); if(c) c.remove(); }); updateUI();
     }
     function spinRoulette() {
+        if(isAtCoinCap()) return;
         if(isRSpinning || Object.keys(currentBets).length === 0) return;
         isRSpinning = true; document.getElementById('r-spin').disabled = true; play('rSpin');
         const slider = document.getElementById('r-slider');
@@ -4240,6 +4277,7 @@
     }
 
     async function startKeno() {
+        if(isAtCoinCap()) return;
         if(kenoPlaying) return;
         if(kenoSelected.size < 3) return;
         const bet = clampBet(document.getElementById('keno-bet').value);
@@ -4367,6 +4405,7 @@
         document.getElementById('bj-dealer-count').textContent = bjDealer.length > 0 ? `(${bjDealer.length} cards)` : '';
     }
     function startBlackjack() {
+        if(isAtCoinCap()) return;
         if(!acquireBetLock()) return;
         bjBet = clampBet(document.getElementById('bj-bet').value);
         document.getElementById('bj-bet').value = bjBet;
@@ -4709,6 +4748,7 @@
     }
 
     function startTower() {
+        if(isAtCoinCap()) return;
         if(!acquireBetLock()) return;
         tBet = clampBet(document.getElementById('t-bet').value);
         document.getElementById('t-bet').value = tBet;
@@ -5483,9 +5523,12 @@
         if(!spInitialized) {
             spInitialized = true;
             spInitTierList();
+            spUpdateCoins();
             spUpdatePotential();
             spUpdateStats();
             document.getElementById('bet-input').addEventListener('input', spUpdatePotential);
+        } else {
+            spUpdateCoins(); // sync if coins changed since last visit
         }
     }
 
@@ -5524,7 +5567,6 @@ const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic
 const RARITY_MULT = { common: 0.96, uncommon: 1.2, rare: 1.6, epic: 2.2, legendary: 3.5, mythic: 6.0, secret: 10.0 };
 
 // ===== GAME STATE =====
-let coins = 1000;
 let wins = 0, losses = 0, streak = 0;
 let isRolling = false;
 let history = [];
@@ -5570,10 +5612,11 @@ function spGetRarityRank(rarity) {
 // ===== UI HELPERS =====
 function spUpdateCoins() {
   const el = document.getElementById('coins-display');
+  if(!el) return;
   el.classList.remove('coin-animate');
   void el.offsetWidth;
   el.classList.add('coin-animate');
-  el.textContent = coins;
+  el.textContent = Math.floor(getChips());
 }
 
 function spUpdateStats() {
@@ -5586,8 +5629,8 @@ function spSetBet(mode) {
   const input = document.getElementById('bet-input');
   let val = parseInt(input.value) || 50;
   if (mode === 'half') val = Math.max(50, Math.floor(val / 2));
-  else if (mode === 'double') val = Math.min(coins, Math.min(1000, val * 2));
-  else if (mode === 'max') val = Math.min(coins, 1000);
+  else if (mode === 'double') val = Math.min(getChips(), Math.min(1000, val * 2));
+  else if (mode === 'max') val = Math.min(getChips(), 1000);
   input.value = val;
   spUpdatePotential();
 }
@@ -5690,9 +5733,10 @@ function spResetSlot(slotId, panelId, rarityId, nameId, placeholder) {
 // ===== MAIN GAME =====
 async function spPrintSticker() {
   if (isRolling) return;
+  if (isAtCoinCap()) return;
   const bet = parseInt(document.getElementById('bet-input').value) || 50;
   if (bet < 50 || bet > 1000) { alert('Bet must be between 50 and 1000 coins!'); return; }
-  if (bet > coins) { alert('Not enough coins!'); return; }
+  if (bet > getChips()) { alert('Not enough coins!'); return; }
 
   const lowestWins = document.getElementById('lowest-wins').checked;
   const rollSecond = document.getElementById('roll-second').checked;
@@ -5706,8 +5750,11 @@ async function spPrintSticker() {
   spResetSlot('player-slot', 'player-panel', 'player-rarity', 'player-sticker-name', 'READY TO PRINT');
   spResetSlot('bot-slot', 'bot-panel', 'bot-rarity', 'bot-sticker-name', 'WAITING...');
 
-  coins -= bet;
+  addChips(-bet);
+  countGame();
+  addProfit('sticker', -bet);
   spUpdateCoins();
+  updateUI();
 
   const playerSticker = spRollSticker();
   const botSticker = spRollSticker();
@@ -5754,7 +5801,8 @@ async function spPrintSticker() {
   let coinsChange = 0;
   if (result === 'win') {
     coinsChange = bet * 2;
-    coins += coinsChange;
+    addChips(coinsChange);
+    addProfit('sticker', coinsChange);
     wins++;
     streak = streak > 0 ? streak + 1 : 1;
     playerPanel.classList.add('winner');
@@ -5769,13 +5817,15 @@ async function spPrintSticker() {
     banner.className = 'result-banner lose';
     banner.textContent = `💀 ROBOT WINS! -${bet} COINS`;
   } else {
-    coins += bet;
+    addChips(bet);
+    addProfit('sticker', bet);
     banner.className = 'result-banner tie';
     banner.textContent = `🤝 TIE — ROBOT WINS! Bet refunded`;
   }
 
   spUpdateCoins();
   spUpdateStats();
+  updateUI();
 
   if (typeof sendDiscordWebhook === 'function' && typeof fpEnabled !== 'undefined' && !fpEnabled) {
     const stickerWin = result === 'win' ? coinsChange : 0;
@@ -5786,11 +5836,12 @@ async function spPrintSticker() {
   if (history.length > 5) history.pop();
   spRenderHistory();
 
-  if (coins < 50) {
+  if (getChips() < 50) {
     await delay(1000);
     if (confirm('You\'re out of coins! Reset to 1000?')) {
-      coins = 1000;
+      setChips(1000);
       spUpdateCoins();
+      updateUI();
     }
   }
 
