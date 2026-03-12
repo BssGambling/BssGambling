@@ -4031,22 +4031,14 @@
             if (crashMult >= 2)  return 18;
             return 24;
         }
+        let cashedOut = false;
         function crashTick() {
             // 5x larger increment per tick
             crashMult += 0.05 + (crashMult * 0.04);
             display.innerText = crashMult.toFixed(2) + "x";
-            // Check crash FIRST — if it crashes before target, you lose
-            if (crashMult >= crashPoint) {
-                clearInterval(crashInterval); crashActive = false;
-                display.style.color = "var(--red)"; play('boom');
-                addHistory("Crash", crashBet, 0, -crashBet);
-                toast('💥 Crashed at ' + crashPoint.toFixed(2) + 'x! Target was ' + targetMult.toFixed(2) + 'x', 'error');
-                document.getElementById('c-start').disabled = false;
-                return;
-            }
-            // Then check if target reached
-            if (crashMult >= targetMult && crashActive) {
-                clearInterval(crashInterval); crashActive = false;
+            // Lock in win when target is hit — but keep the counter running
+            if (crashMult >= targetMult && !cashedOut) {
+                cashedOut = true;
                 let win = Math.floor(crashBet * targetMult); userData.chips += win;
                 display.style.color = "var(--green)";
                 play('win'); showWinOverlay(targetMult, win); addHistory("Crash", crashBet, targetMult, win);
@@ -4054,6 +4046,20 @@
                 toast('✈️ Cashed out at ' + targetMult.toFixed(2) + 'x! +' + win + ' ★', 'success');
                 updateUI();
                 document.getElementById('c-start').disabled = false;
+            }
+            // Game ends when crash point is hit
+            if (crashMult >= crashPoint) {
+                clearInterval(crashInterval); crashActive = false;
+                display.style.color = cashedOut ? "var(--green)" : "var(--red)";
+                if (!cashedOut) {
+                    play('boom');
+                    addHistory("Crash", crashBet, 0, -crashBet);
+                    toast('💥 Crashed at ' + crashPoint.toFixed(2) + 'x! Target was ' + targetMult.toFixed(2) + 'x', 'error');
+                    document.getElementById('c-start').disabled = false;
+                } else {
+                    play('boom');
+                    toast('💥 Crashed at ' + crashPoint.toFixed(2) + 'x — already cashed out at ' + targetMult.toFixed(2) + 'x!', 'success');
+                }
                 return;
             }
             // Reschedule with dynamic interval based on current multiplier
