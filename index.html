@@ -5284,6 +5284,7 @@
         if(!tActive) return;
         const m = tGetMults()[tLevel - 1];
         const win = Math.floor(tBet * m);
+        if(typeof acLegitChange === 'function') acLegitChange(userData.chips + win);
         userData.chips += win; play('win');
        ;
         addHistory("Tower", tBet, m, win, twBalBefore); clearGameState('tower');
