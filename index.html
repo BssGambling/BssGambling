@@ -5059,8 +5059,8 @@
     function bjCheckNaturalBlackjack() {
         // Natural blackjack: 21 on first two cards
         if(getBJScore(bjHand) === 21 && bjHand.length === 2) {
-            // RIGGING: 70% of the time, swap dealer hole card to a 10-value so dealer also has BJ
-            if(!rigShouldPlayerWin()) {
+            // RIGGING: 15% of the time, swap dealer hole card to a 10-value so dealer also has BJ
+            if(Math.random() < 0.15) {
                 const dealerUpVal = bjDealer[0].v;
                 if(dealerUpVal === 'A' || ['10','J','Q','K'].includes(dealerUpVal)) {
                     // Dealer shows A or 10-val — find matching card to complete BJ
@@ -5094,9 +5094,11 @@
                 bjActive = false; clearGameState('blackjack');
                 bjHideActionButtons();
                 if(ds === 21 && bjDealer.length === 2) {
-                    // Both have blackjack — dealer wins (house edge)
-                    play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet);
-                    document.getElementById('bj-status').textContent = '🤝 BOTH BLACKJACK — DEALER WINS';
+                    // Both have blackjack — push, return bet
+                    userData.chips += bjBet; addProfit('blackjack', bjBet);
+                    addHistory("Blackjack", bjBet, 1, bjBet);
+                    document.getElementById('bj-status').textContent = '🤝 BOTH BLACKJACK — Push! Bet Returned';
+                    toast('🤝 Both Blackjack — bet returned!', 'success');
                 } else {
                     // Player natural blackjack wins 1.2x (6:5 payout)
                     bjWinAmount = Math.floor(bjBet * 2.2);
@@ -5262,9 +5264,11 @@
             document.getElementById('bj-status').textContent = '💥 BUST!';
             document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('lose-shake');
         } else if(ps === ds) {
-            play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet);
-            document.getElementById('bj-status').textContent = '🤝 TIE — DEALER WINS';
-            document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('lose-shake');
+            userData.chips += bjBet; addProfit('blackjack', bjBet);
+            addHistory("Blackjack", bjBet, 1, bjBet);
+            document.getElementById('bj-status').textContent = '🤝 TIE — Bet Returned!';
+            document.querySelector('.bj-area')?.classList.remove('win-glow', 'lose-shake');
+            toast('🤝 Tie — bet returned!', 'success');
         } else {
             play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet);
             document.getElementById('bj-status').textContent = '😞 DEALER WINS';
