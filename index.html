@@ -3350,11 +3350,6 @@
     function setChips(v) { if(fpEnabled) { fpChips = v; } else { userData.chips = v; } }
     function addChips(v) { if(fpEnabled) { fpChips += v; } else { userData.chips += v; } }
     function selectGame(g) {
-        // Block switching away from mines if a mines game is active
-        if(mActive && g !== 'mines') {
-            toast('⛏️ Finish your Mines game first — cashout or hit a bomb!', 'error');
-            return;
-        }
         document.getElementById('selection-menu').classList.add('hidden');
         document.getElementById('game-active-page').classList.remove('hidden');
         ['mines','dice','roulette','blackjack','coinflip','crash','limbo','tower','keno','sticker'].forEach(id => {
@@ -3369,10 +3364,6 @@
     }
 
     function backToMenu() {
-        if(mActive) {
-            toast('⛏️ Finish your Mines game first — cashout or hit a bomb!', 'error');
-            return;
-        }
         if(crashActive) clearInterval(crashInterval);
         document.getElementById('selection-menu').classList.remove('hidden');
         document.getElementById('game-active-page').classList.add('hidden');
@@ -3918,6 +3909,7 @@
     }
 
     function playDice() {
+        if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
         if(isAtCoinCap()) return;
         if(!acquireBetLock()) return;
         let b = Math.max(50, Math.min(1000, parseInt(document.getElementById('d-bet').value) || 50));
@@ -3961,6 +3953,14 @@
                 if(diceCount === 1 && houseEdge()) {
                     if(dWinCond === 'high' && compRolls[0] <= yourRolls[0]) compRolls[0] = Math.min(100, yourRolls[0] + 1);
                     else if(dWinCond === 'low' && compRolls[0] >= yourRolls[0]) compRolls[0] = Math.max(1, yourRolls[0] - 1);
+                }
+                // Tiny nerf: comp gets a slight reroll advantage (~10% of the time)
+                if(Math.random() < 0.10) {
+                    const reroll = Array.from({length: diceCount}, dRollNum);
+                    for(let i = 0; i < diceCount; i++) {
+                        if(dWinCond === 'high') compRolls[i] = Math.max(compRolls[i], reroll[i]);
+                        else compRolls[i] = Math.min(compRolls[i], reroll[i]);
+                    }
                 }
 
                 const compRow = document.getElementById('d-comp-dice');
@@ -4017,6 +4017,7 @@
 
     // COINFLIP
     function playCoinFlip() {
+        if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
         if(isAtCoinCap()) return;
         if(!acquireBetLock()) return;
         let b = clampBet(document.getElementById('cf-bet').value), choice = document.getElementById('cf-choice').value;
@@ -4046,6 +4047,7 @@
     // CRASH
     let crashActive = false, crashMult = 1.0, crashInterval, crashBet = 0;
     function startCrash() {
+        if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
         if(isAtCoinCap()) return;
         if(!acquireBetLock()) return;
         crashBet = clampBet(document.getElementById('c-bet').value);
@@ -4069,19 +4071,19 @@
         let crashPoint = generateCrashPoint();
         releaseBetLock();
         function getTickInterval() {
-            // 5x faster tick intervals
-            if (crashMult >= 50) return 3;
-            if (crashMult >= 20) return 4;
-            if (crashMult >= 10) return 6;
-            if (crashMult >= 5)  return 10;
-            if (crashMult >= 3)  return 14;
-            if (crashMult >= 2)  return 18;
-            return 24;
+            // Slowed by 25%
+            if (crashMult >= 50) return 4;
+            if (crashMult >= 20) return 5;
+            if (crashMult >= 10) return 8;
+            if (crashMult >= 5)  return 13;
+            if (crashMult >= 3)  return 18;
+            if (crashMult >= 2)  return 23;
+            return 30;
         }
         let cashedOut = false;
         function crashTick() {
-            // 5x larger increment per tick
-            crashMult += 0.05 + (crashMult * 0.04);
+            // Slowed by 25%
+            crashMult += 0.0375 + (crashMult * 0.03);
             display.innerText = crashMult.toFixed(2) + "x";
             // Lock in win when target is hit — but keep the counter running
             if (crashMult >= targetMult && !cashedOut) {
@@ -4147,6 +4149,7 @@
     }
     function handleRClick(val, el) { setExtraBet(val, el); }
     function setExtraBet(type, el) {
+        if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
         if(isRSpinning || !userData) return; const amt = clampBet(document.getElementById('r-bet').value);
         document.getElementById('r-bet').value = amt;
         if(amt > userData.chips) { toast('Not enough ★!', 'error'); return; } if(!currentBets[type]) currentBets[type] = 0;
@@ -4160,6 +4163,7 @@
         currentBets = {}; document.querySelectorAll('.cell, .btn-extra').forEach(el => { el.classList.remove('active'); const c = el.querySelector('.chip-overlay'); if(c) c.remove(); }); updateUI();
     }
     function spinRoulette() {
+        if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
         if(isAtCoinCap()) return;
         if(isRSpinning || Object.keys(currentBets).length === 0) return;
         isRSpinning = true; document.getElementById('r-spin').disabled = true; play('rSpin');
@@ -4291,6 +4295,7 @@
     }
 
     async function startKeno() {
+        if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
         if(isAtCoinCap()) return;
         if(kenoPlaying) return;
         if(kenoSelected.size < 3) return;
@@ -4419,6 +4424,7 @@
         document.getElementById('bj-dealer-count').textContent = bjDealer.length > 0 ? `(${bjDealer.length} cards)` : '';
     }
     function startBlackjack() {
+        if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
         if(isAtCoinCap()) return;
         if(!acquireBetLock()) return;
         bjBet = clampBet(document.getElementById('bj-bet').value);
@@ -4762,6 +4768,7 @@
     }
 
     function startTower() {
+        if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
         if(isAtCoinCap()) return;
         if(!acquireBetLock()) return;
         tBet = clampBet(document.getElementById('t-bet').value);
@@ -5756,6 +5763,7 @@ function spResetSlot(slotId, panelId, rarityId, nameId, placeholder) {
 
 // ===== MAIN GAME =====
 async function spPrintSticker() {
+  if (mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
   if (isRolling) return;
   if (isAtCoinCap()) return;
   const bet = parseInt(document.getElementById('bet-input').value) || 50;
