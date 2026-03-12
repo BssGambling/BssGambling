@@ -1052,7 +1052,8 @@
   .tier-label {
     font-family: 'Fredoka One', cursive;
     font-size: 1.1rem;
-    width: 60px;
+    min-width: 90px;
+    width: auto;
     text-align: center;
     border-radius: 6px;
     padding: 4px 8px;
@@ -5021,12 +5022,17 @@
         bjUpdateCounters(); saveGameState();
         let newScore = getBJScore(bjHand);
         if(newScore === 21 && bjHand.length >= 5) {
+            document.getElementById('bj-hit-btn').style.visibility='hidden'; document.getElementById('bj-hit-btn').style.pointerEvents='none';
+            document.getElementById('bj-stand-btn').style.visibility='hidden'; document.getElementById('bj-stand-btn').style.pointerEvents='none';
             bjStand();
         } else if(newScore > 21) {
+            document.getElementById('bj-hit-btn').style.visibility='hidden'; document.getElementById('bj-hit-btn').style.pointerEvents='none';
+            document.getElementById('bj-stand-btn').style.visibility='hidden'; document.getElementById('bj-stand-btn').style.pointerEvents='none';
             bjStand();
         }
     }
     function bjStand() {
+        if(!bjActive) return;
         bjActive=false; clearGameState('blackjack');
         document.getElementById('bj-insurance-prompt').classList.add('hidden');
         renderCard(bjDealer[1], 'bj-dealer-hand');
@@ -5037,7 +5043,7 @@
             rigInjectDealerWinCards(bjDealer, ps);
         }
 
-        while(ds < 17 || (ds === 17 && isSoftHand(bjDealer))) { let c = deck.pop(); bjDealer.push(c); renderCard(c, 'bj-dealer-hand', false); ds = getBJScore(bjDealer); }
+        while((ds < 17 || (ds === 17 && isSoftHand(bjDealer))) && deck.length > 0 && bjDealer.length < 7) { let c = deck.pop(); bjDealer.push(c); renderCard(c, 'bj-dealer-hand', false); ds = getBJScore(bjDealer); }
         document.getElementById('bj-dealer-score').textContent = 'Score: ' + ds;
         document.getElementById('bj-player-score').textContent = 'Score: ' + ps;
         bjUpdateCounters();
