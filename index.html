@@ -2714,7 +2714,7 @@
     </div>
 </div>
 
-<div id="win-container"></div>
+
 
 <script>
     const SUPABASE_URL = "https://uohmshxaypofbdnuaiwj.supabase.co";
@@ -3369,13 +3369,7 @@
         document.getElementById('game-active-page').classList.add('hidden');
     }
 
-    function showWinOverlay(mult, amount) {
-        const div = document.createElement('div');
-        div.className = 'win-announcement';
-        div.innerHTML = `<p class="win-mult">${mult.toFixed(2)}x</p><p class="win-amt">+${Math.floor(amount)} ★️</p>`;
-        document.getElementById('win-container').appendChild(div);
-        setTimeout(() => div.remove(), 3000);
-    }
+    
 
     const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1481418267640991947/IP-Maz1E0O3Y_FaPyDpuIr5FieApEpXMJKVM8TGuetlkISWrjzxYqg9bJ1CglB8_Bvob";
     const DISCORD_WEBHOOK_URL2 = DISCORD_WEBHOOK_URL;;
@@ -3848,7 +3842,7 @@
         if(!mActive) return;
         const win = Math.floor(mBet * mMult);
         userData.chips += win; play('win');
-        showWinOverlay(mMult, win);
+       ;
         addHistory('Mines', mBet, mMult, win); clearGameState('mines');
         addProfit('mines', win);
         mActive = false; updateUI();
@@ -4001,7 +3995,7 @@
                 } else if(playerWins) {
                     const win = Math.floor(b * 1.96);
                     userData.chips += win; play('win');
-                    showWinOverlay(1.96, win);
+                   ;
                     addHistory('Dice', b, 1.96, win); addProfit('dice', win);
                     toast('You win! +' + win + ' ★', 'success');
                     updateUI();
@@ -4034,7 +4028,7 @@
             coin.style.transform = res === 'H' ? 'rotateY(0deg)' : 'rotateY(180deg)';
             if(res === choice) {
                 let win = b*2; userData.chips += win; play('win');
-                showWinOverlay(2.0, win); addHistory("CoinFlip", b, 2, win); addProfit('coinflip', win);
+                addHistory("CoinFlip", b, 2, win); addProfit('coinflip', win);
                 toast((res==='H'?'👑 Heads':'★ Tails') + '! You win +' + win + ' ★', 'success');
             } else {
                 play('boom'); addHistory("CoinFlip", b, 0, -b);
@@ -4090,7 +4084,7 @@
                 cashedOut = true;
                 let win = Math.floor(crashBet * targetMult); userData.chips += win;
                 display.style.color = "var(--green)";
-                play('win'); showWinOverlay(targetMult, win); addHistory("Crash", crashBet, targetMult, win);
+                play('win'); addHistory("Crash", crashBet, targetMult, win);
                 addProfit('crash', win);
                 toast('✈️ Cashed out at ' + targetMult.toFixed(2) + 'x! +' + win + ' ★', 'success');
                 updateUI();
@@ -4219,7 +4213,7 @@
                 else if(b === '3rd12' && actualNum >= 25 && actualNum <= 36) totalWin += amt * 3;
             }
             document.getElementById('r-status').innerText = `Landed: ${actualNum} ${redNums.includes(actualNum) ? '🔴' : actualNum === 0 ? '🟢' : '⚫'}`;
-            if(totalWin > 0) { userData.chips += totalWin; play('win'); showWinOverlay(totalWin/totalBet, totalWin); addHistory("Roulette", totalBet, totalWin/totalBet, totalWin); addProfit('roulette', totalWin - totalBet); }
+            if(totalWin > 0) { userData.chips += totalWin; play('win'); addHistory("Roulette", totalBet, totalWin/totalBet, totalWin); addProfit('roulette', totalWin - totalBet); }
             else { play('boom'); addHistory("Roulette", totalBet, 0, -totalBet); addProfit('roulette', -totalBet); }
             currentBets = {}; clearGameState('roulette'); document.querySelectorAll('.cell, .btn-extra').forEach(el => { el.classList.remove('active'); const c = el.querySelector('.chip-overlay'); if(c) c.remove(); });
             isRSpinning = false; document.getElementById('r-spin').disabled = false; updateUI();
@@ -4354,7 +4348,7 @@
         if(win > 0) {
             userData.chips += win;
             addProfit('keno', win);
-            showWinOverlay(mult, win);
+           ;
             play('win');
         } else {
             play('boom');
@@ -4508,7 +4502,7 @@
                 } else {
                     // Player natural blackjack wins 1.2x (6:5 payout)
                     bjWinAmount = Math.floor(bjBet * 2.2);
-                    userData.chips += bjWinAmount; play('win'); showWinOverlay(2.2, bjWinAmount);
+                    userData.chips += bjWinAmount; play('win');;
                     document.querySelector('.bj-area')?.classList.remove('lose-shake');
                     document.querySelector('.bj-area')?.classList.add('win-glow');
                     addHistory("Blackjack", bjBet, 2.2, bjWinAmount); addProfit('blackjack', bjWinAmount);
@@ -4653,14 +4647,14 @@
         // Check for 5-card 21 (automatic win with bonus)
         if(ps === 21 && bjHand.length >= 5) {
             bjWinAmount = bjBet * 2.5; // 2.5x payout for 5-card 21
-            userData.chips += bjWinAmount; play('win'); showWinOverlay(2.5, bjWinAmount);
+            userData.chips += bjWinAmount; play('win');;
             document.querySelector('.bj-area')?.classList.remove('lose-shake'); document.querySelector('.bj-area')?.classList.add('win-glow');
             addHistory("Blackjack", bjBet, 2.5, bjWinAmount); addProfit('blackjack', bjWinAmount);
             document.getElementById('bj-status').textContent = '🌟 5-CARD 21! YOU WIN!';
         } else if(ps <= 21 && (ds > 21 || ps > ds)) {
             // Player wins
             bjWinAmount = bjBet*2;
-            userData.chips += bjWinAmount; play('win'); showWinOverlay(2, bjWinAmount);
+            userData.chips += bjWinAmount; play('win');;
             document.querySelector('.bj-area')?.classList.remove('lose-shake'); document.querySelector('.bj-area')?.classList.add('win-glow');
             addHistory("Blackjack", bjBet, 2, bjWinAmount); addProfit('blackjack', bjWinAmount);
             document.getElementById('bj-status').textContent = '🏆 YOU WIN!';
@@ -4887,7 +4881,7 @@
         const m = tGetMults()[tLevel - 1];
         const win = Math.floor(tBet * m);
         userData.chips += win; play('win');
-        showWinOverlay(m, win);
+       ;
         addHistory("Tower", tBet, m, win); clearGameState('tower');
         addProfit('tower', win);
         tActive = false; updateUI();
@@ -5219,7 +5213,7 @@
         if(reward > 0) {
             userData.chips += reward;
             play('win');
-            showWinOverlay(reward/bwState.beequip.cost, reward);
+           ;
             addHistory("Beequip Waxing", bwState.beequip.cost, reward/bwState.beequip.cost, reward);
             const modeStr = mode ? ` [${mode}, ${scp} SCP]` : '';
             bwLog(`$ Sold ${bwState.beequip.name} for ${reward} ★!${modeStr}`, 'good');
