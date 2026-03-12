@@ -3058,16 +3058,34 @@
         } catch(e) { console.error('dbGet exception:', e); return null; }
     }
 
+    const EDGE_BASE = "https://uohmshxaypofbdnuaiwj.supabase.co/functions/v1";
+
     async function dbSet(table, id, value) {
+        const rawVal = (value && value.__raw) ? value.__raw : value;
+
+        // Always cache locally
         if(table === 'users') {
-            try {
-                const rawVal = (value && value.__raw) ? value.__raw : value;
-                localStorage.setItem('swarm_userdata_' + id, JSON.stringify(rawVal));
-            } catch(e) {}
+            try { localStorage.setItem('swarm_userdata_' + id, JSON.stringify(rawVal)); } catch(e) {}
         }
+
+        // For users table — route through Edge Function so anon key can't write chips directly
+        if(table === 'users') {
+            const token = sessionStorage.getItem('dc_token_live');
+            if(token) {
+                try {
+                    await fetch(`${EDGE_BASE}/save-user`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ discord_token: token, data: rawVal })
+                    });
+                } catch(e) { console.error('save-user edge function error:', e); }
+                return;
+            }
+        }
+
+        // All other tables (history, promos etc) use direct Supabase — not sensitive
         try {
             const col = table === 'users' ? 'data' : 'val';
-            const rawVal = (value && value.__raw) ? value.__raw : value;
             await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
                 method: 'POST',
                 headers: {
@@ -5871,6 +5889,7 @@
         // Step 2: On the clean reload, pick up the stashed token and log in.
         const pendingToken = sessionStorage.getItem('dc_token');
         if(pendingToken) {
+            sessionStorage.setItem('dc_token_live', pendingToken); // keep for edge function calls
             sessionStorage.removeItem('dc_token');
             await processDiscordToken(pendingToken);
             return;
