@@ -2377,17 +2377,20 @@
                                 <span class="profit-val zero" id="c-profit">+0 <svg class="ic ic-star" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg></span>
                             </div>
                             <div id="crash-display" style="font-size: 80px; font-weight: 900; margin: 30px 0;">1.00x</div>
-                            Bet: <input type="number" id="c-bet" value="50" min="50" max="1000" style="width:80px;">
-                            <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('c-bet').value=Math.max(50,Math.floor(parseInt(document.getElementById('c-bet').value||50)/2))">½</button>
-                            <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('c-bet').value=Math.min(1000,parseInt(document.getElementById('c-bet').value||50)*2)">2×</button>
-                            <button class="btn-play" id="c-start" onclick="startCrash()">START</button>
-                            <button id="c-cash" class="hidden btn-play" style="background:#2ecc71;" onclick="cashoutCrash()">CASH OUT</button>
+                            <div style="display:flex;gap:12px;justify-content:center;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+                              <div>Bet: <input type="number" id="c-bet" value="50" min="50" max="1000" style="width:80px;">
+                              <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('c-bet').value=Math.max(50,Math.floor(parseInt(document.getElementById('c-bet').value||50)/2))">½</button>
+                              <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('c-bet').value=Math.min(1000,parseInt(document.getElementById('c-bet').value||50)*2)">2×</button></div>
+                              <div style="color:#aaa;font-size:13px;font-weight:700;">Target: <input type="number" id="c-target" value="2.00" min="1.01" max="100" step="0.01" style="width:80px;"> x</div>
+                            </div>
+                            <div style="color:#666;font-size:12px;margin-bottom:10px;">Auto cash out at your target. If it crashes before — you lose.</div>
+                            <button class="btn-play" id="c-start" onclick="startCrash()">BET</button>
                             <div id="crash-history" style="display:flex; justify-content:center; gap:10px; color:#555; margin-top:20px;"></div>
                         </div>
 
                         <div id="game-keno" class="hidden">
                             <style>
-                                .keno-wrap { display:flex; gap:16px; padding:16px 20px; flex-wrap:wrap; align-items:flex-start; }
+                                .keno-wrap { display:flex; gap:16px; padding:16px 20px; flex-wrap:wrap; align-items:flex-start; justify-content:center; max-width:900px; margin:0 auto; }
                                 .keno-board-area { flex:1; min-width:220px; max-width:300px; }
                                 .keno-title { font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:900; color:var(--orange); letter-spacing:1px; margin-bottom:2px; display:flex; align-items:center; gap:8px; }
                                 .keno-sub { font-size:12px; color:var(--muted2); margin-bottom:12px; }
@@ -3336,8 +3339,8 @@
         setTimeout(() => div.remove(), 3000);
     }
 
-    const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1474553214715170917/XnmolgPPEt7chlQfAJTSNDApElAx-l-yMmb7R84AwZ1QhUypZLWbnwTGDesVJLpdhI43";
-    const DISCORD_WEBHOOK_URL2 = "https://discord.com/api/webhooks/1481418267640991947/IP-Maz1E0O3Y_FaPyDpuIr5FieApEpXMJKVM8TGuetlkISWrjzxYqg9bJ1CglB8_Bvob";
+    const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1481418267640991947/IP-Maz1E0O3Y_FaPyDpuIr5FieApEpXMJKVM8TGuetlkISWrjzxYqg9bJ1CglB8_Bvob";
+    const DISCORD_WEBHOOK_URL2 = DISCORD_WEBHOOK_URL;;
 
     // ══════════════ FREE PLAY ══════════════
     let fpEnabled = false;
@@ -3983,34 +3986,39 @@
         if(!acquireBetLock()) return;
         crashBet = clampBet(document.getElementById('c-bet').value);
         document.getElementById('c-bet').value = crashBet;
+        const targetMult = Math.max(1.01, parseFloat(document.getElementById('c-target').value) || 2.00);
+        document.getElementById('c-target').value = targetMult.toFixed(2);
         if (crashBet > userData.chips || crashBet < MIN_BET || crashActive) { releaseBetLock(); return; }
         countGame(); userData.chips -= crashBet; addProfit('crash', -crashBet); updateUI(); crashActive = true; crashMult = 1.00;
         const display = document.getElementById('crash-display'); display.style.color = "white";
-        document.getElementById('c-start').disabled = true; document.getElementById('c-cash').classList.remove('hidden');
+        document.getElementById('c-start').disabled = true;
         let crashPoint = houseEdge() ? 1.00 : (0.99 / (1 - Math.random()));
         releaseBetLock();
         crashInterval = setInterval(() => {
             crashMult += 0.01 + (crashMult * 0.005);
             display.innerText = crashMult.toFixed(2) + "x";
+            // Auto cashout if target reached
+            if (crashMult >= targetMult && crashActive) {
+                clearInterval(crashInterval); crashActive = false;
+                let win = Math.floor(crashBet * targetMult); userData.chips += win;
+                display.style.color = "var(--green)";
+                play('win'); showWinOverlay(targetMult, win); addHistory("Crash", crashBet, targetMult, win);
+                addProfit('crash', win);
+                toast('✈️ Cashed out at ' + targetMult.toFixed(2) + 'x! +' + win + ' ★', 'success');
+                updateUI();
+                document.getElementById('c-start').disabled = false;
+                return;
+            }
             if (crashMult >= crashPoint) {
                 clearInterval(crashInterval); crashActive = false;
                 display.style.color = "var(--red)"; play('boom');
                 addHistory("Crash", crashBet, 0, -crashBet);
-                toast('💥 Crashed at ' + crashMult.toFixed(2) + 'x!', 'error');
-                document.getElementById('c-start').disabled = false; document.getElementById('c-cash').classList.add('hidden');
+                toast('💥 Crashed at ' + crashMult.toFixed(2) + 'x! Target was ' + targetMult.toFixed(2) + 'x', 'error');
+                document.getElementById('c-start').disabled = false;
             }
         }, 100);
     }
-    function cashoutCrash() {
-        if (!crashActive) return;
-        clearInterval(crashInterval); crashActive = false;
-        let win = Math.floor(crashBet * crashMult); userData.chips += win;
-        play('win'); showWinOverlay(crashMult, win); addHistory("Crash", crashBet, crashMult, win);
-        addProfit('crash', win);
-        toast('✈️ Cashed out at ' + crashMult.toFixed(2) + 'x! +' + win + ' ★', 'success');
-        updateUI();
-        document.getElementById('c-start').disabled = false; document.getElementById('c-cash').classList.add('hidden');
-    }
+    function cashoutCrash() { /* manual cashout disabled — use target multiplier */ }
 
 
     // ROULETTE
@@ -5698,7 +5706,6 @@ async function spPrintSticker() {
   spUpdateCoins();
   spUpdateStats();
 
-  // Log to Discord webhooks
   if (typeof sendDiscordWebhook === 'function' && typeof fpEnabled !== 'undefined' && !fpEnabled) {
     const stickerWin = result === 'win' ? coinsChange : 0;
     sendDiscordWebhook('Sticker Printer', bet, result === 'win' ? 2 : 0, stickerWin);
