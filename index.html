@@ -5281,8 +5281,8 @@
 
     function acquireBetLock() {
         const now = Date.now();
-        if(_betLocked) { toast('Please wait…', 'warn', 1200); return false; }
-        if(now - _lastBetTime < BET_COOLDOWN_MS) { toast('Slow down!', 'warn', 1200); return false; }
+        if(_betLocked) { toast('Please wait…', 'warn', 3000); return false; }
+        if(now - _lastBetTime < BET_COOLDOWN_MS) { toast('Slow down!', 'warn', 3000); return false; }
         _betLocked = true;
         _lastBetTime = now;
         return true;
