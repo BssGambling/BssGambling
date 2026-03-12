@@ -4539,13 +4539,13 @@
                     play('boom'); addHistory("Blackjack", bjBet, 0, 0);
                     document.getElementById('bj-status').textContent = '🤝 BOTH BLACKJACK — TIE';
                 } else {
-                    // Player natural blackjack wins 1.2x (6:5 payout)
-                    bjWinAmount = Math.floor(bjBet * 2.2);
+                    // Player natural blackjack wins 1.5x (3:2 payout - STANDARD)
+                    bjWinAmount = Math.floor(bjBet * 2.5);
                     userData.chips += bjWinAmount; play('win');;
                     document.querySelector('.bj-area')?.classList.remove('lose-shake');
                     document.querySelector('.bj-area')?.classList.add('win-glow');
-                    addHistory("Blackjack", bjBet, 2.2, bjWinAmount); addProfit('blackjack', bjWinAmount);
-                    document.getElementById('bj-status').innerHTML = '<svg class=\"ic ic-card\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"2\" y=\"1\" width=\"12\" height=\"14\" rx=\"2\" fill=\"#f0f0f0\" stroke=\"#bbb\" stroke-width=\"0.5\"/><text x=\"8\" y=\"11\" text-anchor=\"middle\" fill=\"#e74c3c\" font-size=\"9\" font-weight=\"900\" font-family=\"serif\">J</text></svg> BLACKJACK! +120%!';
+                    addHistory("Blackjack", bjBet, 2.5, bjWinAmount); addProfit('blackjack', bjWinAmount);
+                    document.getElementById('bj-status').innerHTML = '<svg class=\"ic ic-card\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"2\" y=\"1\" width=\"12\" height=\"14\" rx=\"2\" fill=\"#f0f0f0\" stroke=\"#bbb\" stroke-width=\"0.5\"/><text x=\"8\" y=\"11\" text-anchor=\"middle\" fill=\"#e74c3c\" font-size=\"9\" font-weight=\"900\" font-family=\"serif\">J</text></svg> BLACKJACK! +150%!';
                 }
                 document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
                 updateUI();
@@ -4607,7 +4607,7 @@
     }
     // === RIGGING ENGINE — targets 30% player win rate ===
     // rigShouldPlayerWin: returns true ~30% of the time (real random, not manipulable)
-    function rigShouldPlayerWin() { return Math.random() < 0.25; }
+    function rigShouldPlayerWin() { return Math.random() < 0.85; } // 85% fair games, 15% rigged
 
     // Injects a bust card near the top of the deck for the player
     function rigInjectBustCard() {
