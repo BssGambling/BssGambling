@@ -3528,11 +3528,13 @@
             // In Free Play: still show in local history with FP tag, but don't persist or webhook
             betHistory.unshift({ game: ' ' + game, bet, mult, win: Math.floor(win), fp: true });
             if(betHistory.length > 50) betHistory.pop();
+            renderHomePage(); // Update stats
             return;
         }
         betHistory.unshift({ game, bet, mult, win: Math.floor(win) });
         if(betHistory.length > 50) betHistory.pop();
         try { localStorage.setItem('swarm_history_' + currentUser, JSON.stringify(betHistory)); } catch(e) {}
+        renderHomePage(); // Update home stats immediately
         sendDiscordWebhook(game, bet, mult, win);
     }
 
@@ -5892,6 +5894,7 @@ async function spPrintSticker() {
   
   // Update home page stats
   updateUI();
+  renderHomePage();
 
   if (getChips() < 50) {
     await delay(1000);
