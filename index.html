@@ -3467,7 +3467,7 @@
                                 if(mBombs.includes(i)) {
                                     t.innerHTML=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='36' height='36'><defs><radialGradient id='bG' cx='38%' cy='35%' r='60%'><stop offset='0%' stop-color='#7a5af8'/><stop offset='60%' stop-color='#4c1d95'/><stop offset='100%' stop-color='#1e0a3c'/></radialGradient></defs><circle cx='18' cy='20' r='13' fill='url(#bG)' stroke='#6d28d9' stroke-width='1'/><ellipse cx='14' cy='14' rx='3' ry='2' fill='rgba(255,255,255,0.18)' transform='rotate(-30 14 14)'/><rect x='17' y='5' width='3' height='6' rx='1.5' fill='#a78bfa' transform='rotate(15 18 8)'/><circle cx='24' cy='4' r='2' fill='#f59e0b'/><line x1='20' y1='6' x2='23' y2='4' stroke='#fbbf24' stroke-width='1.5' stroke-linecap='round'/><circle cx='25' cy='3' r='1.5' fill='#fde68a' opacity='0.9'/><circle cx='27' cy='2' r='1' fill='white' opacity='0.7'/></svg>`; t.classList.add('bomb'); play('boom'); mActive=false;
                                     document.querySelectorAll('#m-board .tile').forEach(function(tile,idx){ if(mBombs.includes(idx)&&!tile.dataset.revealed){tile.innerHTML=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='36' height='36'><defs><radialGradient id='bG' cx='38%' cy='35%' r='60%'><stop offset='0%' stop-color='#7a5af8'/><stop offset='60%' stop-color='#4c1d95'/><stop offset='100%' stop-color='#1e0a3c'/></radialGradient></defs><circle cx='18' cy='20' r='13' fill='url(#bG)' stroke='#6d28d9' stroke-width='1'/><ellipse cx='14' cy='14' rx='3' ry='2' fill='rgba(255,255,255,0.18)' transform='rotate(-30 14 14)'/><rect x='17' y='5' width='3' height='6' rx='1.5' fill='#a78bfa' transform='rotate(15 18 8)'/><circle cx='24' cy='4' r='2' fill='#f59e0b'/><line x1='20' y1='6' x2='23' y2='4' stroke='#fbbf24' stroke-width='1.5' stroke-linecap='round'/><circle cx='25' cy='3' r='1.5' fill='#fde68a' opacity='0.9'/><circle cx='27' cy='2' r='1' fill='white' opacity='0.7'/></svg>`;tile.classList.add('bomb');tile.dataset.revealed='1';}});
-                                    mSetUI(false); addHistory('Mines',mBet,0,-mBet); clearGameState('mines');
+                                    mSetUI(false); addHistory('Mines',mBet,0,-mBet,mBalBefore); clearGameState('mines');
                                 } else {
                                     t.innerHTML=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='38' height='38'><defs><linearGradient id='gG' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='#a8ffdf'/><stop offset='50%' stop-color='#0fd68a'/><stop offset='100%' stop-color='#07855a'/></linearGradient><linearGradient id='gT' x1='0%' y1='0%' x2='0%' y2='100%'><stop offset='0%' stop-color='#d4fff0'/><stop offset='100%' stop-color='#0fd68a'/></linearGradient></defs><polygon points='18,2 32,12 26,34 10,34 4,12' fill='url(#gG)' stroke='#0fd68a' stroke-width='1'/><polygon points='18,2 32,12 18,8 4,12' fill='url(#gT)' opacity='0.7'/><polygon points='18,8 32,12 26,34 10,34 4,12' fill='none' stroke='rgba(255,255,255,0.15)' stroke-width='0.5'/><polygon points='18,2 24,10 18,8 12,10' fill='white' opacity='0.4'/></svg>`; t.classList.add('gem'); play('star'); mGemsFound++;
                                     mMult=parseFloat((mCalcMult(mGridSize, mBombs.length, mGemsFound)).toFixed(3)); mUpdateMult(); saveGameState();
@@ -3846,16 +3846,18 @@
     }
     // ══════════════ END FREE PLAY ══════════════
 
-    async function sendDiscordWebhook(game, bet, mult, win) {
+    async function sendDiscordWebhook(game, bet, mult, win, balanceBefore) {
         if(fpEnabled) return; //  Free Play — never log to Discord
         try {
             const isWin = win > 0;
             const playerName = userData?.displayName || currentUser || "Unknown";
             const payout = isWin ? Math.floor(win) : 0;
+            const snapBefore = typeof balanceBefore === 'number' ? Math.floor(balanceBefore) : Math.floor((userData?.chips||0) + bet - (isWin ? payout - bet : 0));
+            const snapAfter  = isWin ? snapBefore - bet + payout : snapBefore - bet;
             const embed = {
                 title: game,
                 color: isWin ? 0x27ae60 : 0xe74c3c,
-                description: "**Player:** " + playerName + "\n**Bet:** " + bet + " Stars\n**" + (isWin ? "Payout" : "Lost") + ":** " + (isWin ? "+" + payout : "-" + bet) + " Stars\n**Multiplier:** " + (mult.toFixed ? mult.toFixed(2) : mult) + "x\n\nBalance: " + Math.floor(userData?.chips||0) + " -> " + (isWin ? Math.floor((userData?.chips||0)+payout-bet) : Math.floor((userData?.chips||0)-bet)),
+                description: "**Player:** " + playerName + "\n**Bet:** " + bet + " Stars\n**" + (isWin ? "Payout" : "Lost") + ":** " + (isWin ? "+" + payout : "-" + bet) + " Stars\n**Multiplier:** " + (mult.toFixed ? mult.toFixed(2) : mult) + "x\n\nBalance: " + snapBefore + " -> " + snapAfter,
                 fields: [
                     { name: "Game Details", value: "**Multiplier:** " + (mult.toFixed ? mult.toFixed(2) : mult) + "x\n**Result:** " + (isWin ? "WIN" : "LOSS"), inline: false }
                 ],
@@ -3870,7 +3872,7 @@
         } catch(e) {}
     }
 
-    function addHistory(game, bet, mult, win) {
+    function addHistory(game, bet, mult, win, balanceBefore) {
         console.log('═══════════════════════════════════════');
         console.log('[addHistory] CALLED');
         console.log('[addHistory] Game:', game);
@@ -3902,7 +3904,7 @@
         console.log('[addHistory] Calling renderHomePage...');
         renderHomePage(); // Update home stats immediately
         console.log('[addHistory] Calling sendDiscordWebhook...');
-        sendDiscordWebhook(game, bet, mult, win);
+        sendDiscordWebhook(game, bet, mult, win, balanceBefore);
         console.log('[addHistory] COMPLETE');
         console.log('═══════════════════════════════════════');
     }
@@ -4191,6 +4193,7 @@
         const bombs = getMines();
         if(bombs >= mGridSize) { toast('Too many mines!', 'error'); releaseBetLock(); return; }
         countGame();
+        const mBalBefore = userData.chips;
         userData.chips -= mBet; mActive = true; mMult = 1; mBombs = []; mGemsFound = 0;
         updateUI(); addProfit('mines', -mBet);
         if(mRevealTimeout) { clearTimeout(mRevealTimeout); mRevealTimeout = null; }
@@ -4209,7 +4212,7 @@
                     document.querySelectorAll('#m-board .tile').forEach(function(tile, idx) {
                         if(mBombs.includes(idx) && !tile.dataset.revealed) { tile.innerHTML=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='36' height='36'><defs><radialGradient id='bG' cx='38%' cy='35%' r='60%'><stop offset='0%' stop-color='#7a5af8'/><stop offset='60%' stop-color='#4c1d95'/><stop offset='100%' stop-color='#1e0a3c'/></radialGradient></defs><circle cx='18' cy='20' r='13' fill='url(#bG)' stroke='#6d28d9' stroke-width='1'/><ellipse cx='14' cy='14' rx='3' ry='2' fill='rgba(255,255,255,0.18)' transform='rotate(-30 14 14)'/><rect x='17' y='5' width='3' height='6' rx='1.5' fill='#a78bfa' transform='rotate(15 18 8)'/><circle cx='24' cy='4' r='2' fill='#f59e0b'/><line x1='20' y1='6' x2='23' y2='4' stroke='#fbbf24' stroke-width='1.5' stroke-linecap='round'/><circle cx='25' cy='3' r='1.5' fill='#fde68a' opacity='0.9'/><circle cx='27' cy='2' r='1' fill='white' opacity='0.7'/></svg>`; tile.classList.add('bomb'); tile.dataset.revealed='1'; }
                     });
-                    mSetUI(false); addHistory('Mines', mBet, 0, -mBet); clearGameState('mines');
+                    mSetUI(false); addHistory('Mines', mBet, 0, -mBet, mBalBefore); clearGameState('mines');
                 } else {
                     t.innerHTML = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='38' height='38'><defs><linearGradient id='gG' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='#a8ffdf'/><stop offset='50%' stop-color='#0fd68a'/><stop offset='100%' stop-color='#07855a'/></linearGradient><linearGradient id='gT' x1='0%' y1='0%' x2='0%' y2='100%'><stop offset='0%' stop-color='#d4fff0'/><stop offset='100%' stop-color='#0fd68a'/></linearGradient></defs><polygon points='18,2 32,12 26,34 10,34 4,12' fill='url(#gG)' stroke='#0fd68a' stroke-width='1'/><polygon points='18,2 32,12 18,8 4,12' fill='url(#gT)' opacity='0.7'/><polygon points='18,8 32,12 26,34 10,34 4,12' fill='none' stroke='rgba(255,255,255,0.15)' stroke-width='0.5'/><polygon points='18,2 24,10 18,8 12,10' fill='white' opacity='0.4'/></svg>`; t.classList.add('gem');
                     play('star'); mGemsFound++;
@@ -4226,7 +4229,7 @@
         const win = Math.floor(mBet * mMult);
         userData.chips += win; play('win');
        ;
-        addHistory('Mines', mBet, mMult, win); clearGameState('mines');
+        addHistory('Mines', mBet, mMult, win, mBalBefore); clearGameState('mines');
         addProfit('mines', win);
         mActive = false; updateUI();
         mSetUI(false);
@@ -4308,7 +4311,7 @@
         document.getElementById('d-card-you').className = 'dg-card';
         document.getElementById('d-card-comp').className = 'dg-card dg-card-comp';
 
-        countGame(); userData.chips -= b; addProfit('dice', -b); updateUI();
+        countGame(); const dBalBefore = userData.chips; userData.chips -= b; addProfit('dice', -b); updateUI();
         releaseBetLock();
 
         const delay1 = rollSecond ? 600 : 300;
@@ -4365,18 +4368,18 @@
                 else if(!tie) { document.getElementById('d-card-comp').classList.add('dg-card-win'); }
 
                 if(tie) {
-                    play('boom'); addHistory('Dice', b, 0, 0);
+                    play('boom'); addHistory('Dice', b, 0, 0, dBalBefore);
                     toast('Tie! No winner.', 'error');
                     updateUI();
                 } else if(playerWins) {
                     const win = Math.floor(b * 2.00); // Updated to 2.00x for 94% RTP
                     userData.chips += win; play('win');
                    ;
-                    addHistory('Dice', b, 2.00, win); addProfit('dice', win);
+                    addHistory('Dice', b, 2.00, win, dBalBefore); addProfit('dice', win);
                     toast('You win! +' + win + ' ★', 'success');
                     updateUI();
                 } else {
-                    play('boom'); addHistory('Dice', b, 0, -b);
+                    play('boom'); addHistory('Dice', b, 0, -b, dBalBefore);
                     toast('Computer wins. Better luck next time!', 'error');
                     updateUI();
                 }
@@ -4394,7 +4397,7 @@
         document.getElementById('cf-bet').value = b;
         let btn = document.getElementById('cf-btn'), coin = document.getElementById('coin-obj');
         if(b > userData.chips || b < MIN_BET) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
-        countGame(); userData.chips -= b; addProfit('coinflip', -b); updateUI(); btn.disabled = true;
+        countGame(); const cfBalBefore = userData.chips; userData.chips -= b; addProfit('coinflip', -b); updateUI(); btn.disabled = true;
         coin.classList.add('cf-spinning');
         setTimeout(() => {
             coin.classList.remove('cf-spinning');
@@ -4404,10 +4407,10 @@
             coin.style.transform = res === 'H' ? 'rotateY(0deg)' : 'rotateY(180deg)';
             if(res === choice) {
                 let win = b*2; userData.chips += win; play('win');
-                addHistory("CoinFlip", b, 2, win); addProfit('coinflip', win);
+                addHistory("CoinFlip", b, 2, win, cfBalBefore); addProfit('coinflip', win);
                 toast((res==='H'?'👑 Heads':'★ Tails') + '! You win +' + win + ' ★', 'success');
             } else {
-                play('boom'); addHistory("CoinFlip", b, 0, -b);
+                play('boom'); addHistory("CoinFlip", b, 0, -b, cfBalBefore);
                 toast((res==='H'?'👑 Heads':'★ Tails') + ' — you lose!', 'error');
             }
             btn.disabled = false; releaseBetLock(); updateUI();
@@ -4425,7 +4428,7 @@
         const targetMult = Math.max(1.01, parseFloat(document.getElementById('c-target').value) || 2.00);
         document.getElementById('c-target').value = targetMult.toFixed(2);
         if (crashBet > userData.chips || crashBet < MIN_BET || crashActive) { releaseBetLock(); return; }
-        countGame(); userData.chips -= crashBet; addProfit('crash', -crashBet); updateUI(); crashActive = true; crashMult = 1.00;
+        countGame(); const crBalBefore = userData.chips; userData.chips -= crashBet; addProfit('crash', -crashBet); updateUI(); crashActive = true; crashMult = 1.00;
         const display = document.getElementById('crash-display'); display.style.color = "white";
         document.getElementById('c-start').disabled = true;
         // Improved crash point for 94% RTP target
@@ -4460,7 +4463,7 @@
                 cashedOut = true;
                 let win = Math.floor(crashBet * targetMult); userData.chips += win;
                 display.style.color = "var(--green)";
-                play('win'); addHistory("Crash", crashBet, targetMult, win);
+                play('win'); addHistory("Crash", crashBet, targetMult, win, crBalBefore);
                 addProfit('crash', win);
                 toast('✈️ Cashed out at ' + targetMult.toFixed(2) + 'x! +' + win + ' ★', 'success');
                 updateUI();
@@ -4472,7 +4475,7 @@
                 display.style.color = cashedOut ? "var(--green)" : "var(--red)";
                 if (!cashedOut) {
                     play('boom');
-                    addHistory("Crash", crashBet, 0, -crashBet);
+                    addHistory("Crash", crashBet, 0, -crashBet, crBalBefore);
                     toast('💥 Crashed at ' + crashPoint.toFixed(2) + 'x! Target was ' + targetMult.toFixed(2) + 'x', 'error');
                     document.getElementById('c-start').disabled = false;
                 } else {
@@ -4493,7 +4496,7 @@
     // ROULETTE
     const rOrder = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
     const redNums = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
-    let currentBets = {}, isRSpinning = false;
+    let currentBets = {}, isRSpinning = false, rBalBefore = 0;
     function buildRoulette() {
         // Build spin strip
         const slider = document.getElementById('r-slider');
@@ -4523,6 +4526,7 @@
         if(isRSpinning || !userData) return; const amt = clampBet(document.getElementById('r-bet').value);
         document.getElementById('r-bet').value = amt;
         if(amt > userData.chips) { toast('Not enough ★!', 'error'); return; } if(!currentBets[type]) currentBets[type] = 0;
+        if(Object.keys(currentBets).length === 0 || Object.values(currentBets).every(v => v === 0)) rBalBefore = userData.chips;
         currentBets[type] += amt; userData.chips -= amt; updateUI(); saveGameState();
         let chip = el.querySelector('.chip-overlay'); if(!chip) { chip = document.createElement('div'); chip.className = 'chip-overlay'; el.appendChild(chip); }
         chip.innerText = currentBets[type]; el.classList.add('active');
@@ -4589,8 +4593,8 @@
                 else if(b === '3rd12' && actualNum >= 25 && actualNum <= 36) totalWin += amt * 3;
             }
             document.getElementById('r-status').innerText = `Landed: ${actualNum} ${redNums.includes(actualNum) ? '🔴' : actualNum === 0 ? '🟢' : '⚫'}`;
-            if(totalWin > 0) { userData.chips += totalWin; play('win'); addHistory("Roulette", totalBet, totalWin/totalBet, totalWin); addProfit('roulette', totalWin - totalBet); }
-            else { play('boom'); addHistory("Roulette", totalBet, 0, -totalBet); addProfit('roulette', -totalBet); }
+            if(totalWin > 0) { userData.chips += totalWin; play('win'); addHistory("Roulette", totalBet, totalWin/totalBet, totalWin, rBalBefore); addProfit('roulette', totalWin - totalBet); }
+            else { play('boom'); addHistory("Roulette", totalBet, 0, -totalBet, rBalBefore); addProfit('roulette', -totalBet); }
             currentBets = {}; clearGameState('roulette'); document.querySelectorAll('.cell, .btn-extra').forEach(el => { el.classList.remove('active'); const c = el.querySelector('.chip-overlay'); if(c) c.remove(); });
             isRSpinning = false; document.getElementById('r-spin').disabled = false; updateUI();
         }, 5200);
@@ -4683,7 +4687,7 @@
         }
         document.getElementById('keno-result-box').style.display = 'none';
 
-        countGame(); userData.chips -= bet; addProfit('keno', -bet); updateUI();
+        countGame(); const kenoBalBefore = userData.chips; userData.chips -= bet; addProfit('keno', -bet); updateUI();
 
         // Draw 5 unique numbers
         const pool = Array.from({length:20}, (_,i) => i+1);
@@ -4730,7 +4734,7 @@
             play('boom');
         }
 
-        addHistory('Keno', bet, mult, win - bet);
+        addHistory('Keno', bet, mult, win - bet, kenoBalBefore);
         updateUI();
 
         document.getElementById('keno-res-matches').textContent = matches + '/5';
@@ -4800,7 +4804,7 @@
         bjBet = clampBet(document.getElementById('bj-bet').value);
         document.getElementById('bj-bet').value = bjBet;
         if(bjBet > userData.chips) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
-        countGame(); userData.chips -= bjBet; addProfit('blackjack', -bjBet); updateUI(); bjActive=true; createDeck(); bjWinAmount=0; bjInsurance=0;
+        countGame(); const bjBalBefore = userData.chips; userData.chips -= bjBet; addProfit('blackjack', -bjBet); updateUI(); bjActive=true; createDeck(); bjWinAmount=0; bjInsurance=0;
         releaseBetLock();
         bjHand = [deck.pop(), deck.pop()]; bjDealer = [deck.pop(), deck.pop()];
         document.getElementById('bj-player-hand').innerHTML = ''; document.getElementById('bj-dealer-hand').innerHTML = '';
@@ -4873,7 +4877,7 @@
                 document.getElementById('bj-double-btn').style.visibility='hidden'; document.getElementById('bj-double-btn').style.pointerEvents='none';
                 if(ds === 21 && bjDealer.length === 2) {
                     // Both have blackjack — tie, return bet
-                    play('boom'); addHistory("Blackjack", bjBet, 0, 0);
+                    play('boom'); addHistory("Blackjack", bjBet, 0, 0, bjBalBefore);
                     document.getElementById('bj-status').textContent = '🤝 BOTH BLACKJACK — TIE';
                 } else {
                     // Player natural blackjack wins 1.5x (3:2 payout - STANDARD)
@@ -4881,7 +4885,7 @@
                     userData.chips += bjWinAmount; play('win');;
                     document.querySelector('.bj-area')?.classList.remove('lose-shake');
                     document.querySelector('.bj-area')?.classList.add('win-glow');
-                    addHistory("Blackjack", bjBet, 2.5, bjWinAmount); addProfit('blackjack', bjWinAmount);
+                    addHistory("Blackjack", bjBet, 2.5, bjWinAmount, bjBalBefore); addProfit('blackjack', bjWinAmount);
                     document.getElementById('bj-status').innerHTML = '<svg class=\"ic ic-card\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"2\" y=\"1\" width=\"12\" height=\"14\" rx=\"2\" fill=\"#f0f0f0\" stroke=\"#bbb\" stroke-width=\"0.5\"/><text x=\"8\" y=\"11\" text-anchor=\"middle\" fill=\"#e74c3c\" font-size=\"9\" font-weight=\"900\" font-family=\"serif\">J</text></svg> BLACKJACK! +150%!';
                 }
                 document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
@@ -4923,10 +4927,10 @@
             if(playerBJ) {
                 // Push on main bet
                 userData.chips += bjBet; addProfit('blackjack', bjBet);
-                addHistory("Blackjack", bjBet, 1, bjBet);
+                addHistory("Blackjack", bjBet, 1, bjBet, bjBalBefore);
                 msg = bjInsurance > 0 ? '🛡️ INSURED + TIE!' : '🤝 BOTH BLACKJACK — TIE';
             } else {
-                addHistory("Blackjack", bjBet, 0, -bjBet);
+                addHistory("Blackjack", bjBet, 0, -bjBet, bjBalBefore);
                 msg = bjInsurance > 0 ? '🛡️ INSURANCE SAVES YOU!' : '😞 DEALER BLACKJACK';
                 document.querySelector('.bj-area')?.classList.remove('win-glow');
                 document.querySelector('.bj-area')?.classList.add('lose-shake');
@@ -5025,25 +5029,25 @@
             bjWinAmount = bjBet * 2.5; // 2.5x payout for 5-card 21
             userData.chips += bjWinAmount; play('win');;
             document.querySelector('.bj-area')?.classList.remove('lose-shake'); document.querySelector('.bj-area')?.classList.add('win-glow');
-            addHistory("Blackjack", bjBet, 2.5, bjWinAmount); addProfit('blackjack', bjWinAmount);
+            addHistory("Blackjack", bjBet, 2.5, bjWinAmount, bjBalBefore); addProfit('blackjack', bjWinAmount);
             document.getElementById('bj-status').textContent = '🌟 5-CARD 21! YOU WIN!';
         } else if(ps <= 21 && (ds > 21 || ps > ds)) {
             // Player wins
             bjWinAmount = bjBet*2;
             userData.chips += bjWinAmount; play('win');;
             document.querySelector('.bj-area')?.classList.remove('lose-shake'); document.querySelector('.bj-area')?.classList.add('win-glow');
-            addHistory("Blackjack", bjBet, 2, bjWinAmount); addProfit('blackjack', bjWinAmount);
+            addHistory("Blackjack", bjBet, 2, bjWinAmount, bjBalBefore); addProfit('blackjack', bjWinAmount);
             document.getElementById('bj-status').textContent = '🏆 YOU WIN!';
         } else if(ps > 21) {
-            play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet);
+            play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet, bjBalBefore);
             document.getElementById('bj-status').textContent = '💥 BUST!';
             document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('lose-shake');
         } else if(ps === ds) {
-            play('boom'); addHistory("Blackjack", bjBet, 0, 0);
+            play('boom'); addHistory("Blackjack", bjBet, 0, 0, bjBalBefore);
             document.getElementById('bj-status').textContent = '🤝 TIE — BET RETURNED';
             document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('win-glow');
         } else {
-            play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet);
+            play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet, bjBalBefore);
             document.getElementById('bj-status').textContent = '😞 DEALER WINS';
             document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('lose-shake');
         }
@@ -5145,7 +5149,7 @@
         document.getElementById('t-bet').value = tBet;
         if(tBet > userData.chips || tBet < MIN_BET) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
         tCurrentRisk = document.getElementById('t-risk').value;
-        countGame(); userData.chips -= tBet; addProfit('tower', -tBet); updateUI();
+        countGame(); const twBalBefore = userData.chips; userData.chips -= tBet; addProfit('tower', -tBet); updateUI();
         releaseBetLock();
         tActive = true; tLevel = 0;
         document.getElementById('t-start').disabled = true;
@@ -5202,7 +5206,7 @@
             document.getElementById('t-risk').disabled = false;
             document.getElementById('t-bet').disabled = false;
             document.getElementById('t-cash').classList.add('hidden');
-            addHistory("Tower", tBet, 0, -tBet); clearGameState('tower');
+            addHistory("Tower", tBet, 0, -tBet, twBalBefore); clearGameState('tower');
         } else {
             // House edge: on every 10th game, secretly trigger a bomb on a "safe" tile
             if(houseEdge()) {
@@ -5224,7 +5228,7 @@
                 document.getElementById('t-risk').disabled = false;
                 document.getElementById('t-bet').disabled = false;
                 document.getElementById('t-cash').classList.add('hidden');
-                addHistory("Tower", tBet, 0, -tBet); clearGameState('tower');
+                addHistory("Tower", tBet, 0, -tBet, twBalBefore); clearGameState('tower');
                 return;
             }
             tile.innerHTML = '<svg class=\"ic ic-gem\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 14.5,5.5 8,15 1.5,5.5\" fill=\"#1abc9c\" stroke=\"#16a085\" stroke-width=\"0.4\"/><polygon points=\"8,1 14.5,5.5 8,7.5 1.5,5.5\" fill=\"#2ecc71\" opacity=\"0.55\"/></svg>';
@@ -5258,7 +5262,7 @@
         const win = Math.floor(tBet * m);
         userData.chips += win; play('win');
        ;
-        addHistory("Tower", tBet, m, win); clearGameState('tower');
+        addHistory("Tower", tBet, m, win, twBalBefore); clearGameState('tower');
         addProfit('tower', win);
         tActive = false; updateUI();
         document.getElementById('t-start').disabled = false;
@@ -5352,6 +5356,7 @@
     function bwBuyBeequip(bq, free=false) {
         if(!free) {
             if(userData.chips < bq.cost) { bwLog('Not enough ★ Stars!', 'bad'); return; }
+            bwState.balBefore = userData.chips;
             userData.chips -= bq.cost; updateUI();
         }
         bwState.beequip = bq;
@@ -5590,7 +5595,7 @@
             userData.chips += reward;
             play('win');
            ;
-            addHistory("Beequip Waxing", bwState.beequip.cost, reward/bwState.beequip.cost, reward);
+            addHistory("Beequip Waxing", bwState.beequip.cost, reward/bwState.beequip.cost, reward, bwState.balBefore);
             const modeStr = mode ? ` [${mode}, ${scp} SCP]` : '';
             bwLog(`$ Sold ${bwState.beequip.name} for ${reward} ★!${modeStr}`, 'good');
         } else {
@@ -6153,6 +6158,7 @@ async function spPrintSticker() {
   spResetSlot('player-slot', 'player-panel', 'player-rarity', 'player-sticker-name', 'READY TO PRINT');
   spResetSlot('bot-slot', 'bot-panel', 'bot-rarity', 'bot-sticker-name', 'WAITING...');
 
+  const spBalBefore = userData?.chips ?? 0;
   addChips(-bet);
   countGame();
   addProfit('sticker', -bet);
@@ -6250,7 +6256,7 @@ async function spPrintSticker() {
   // Use standard addHistory function like all other games
   const winAmount = result === 'win' ? coinsChange : result === 'lose' ? -bet : 0;
   const multiplier = result === 'win' ? 2 : result === 'lose' ? 0 : 1;
-  addHistory('Sticker Printer', bet, multiplier, winAmount);
+  addHistory('Sticker Printer', bet, multiplier, winAmount, spBalBefore);
   
   // Update UI
   updateUI();
