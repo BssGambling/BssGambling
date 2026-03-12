@@ -3256,7 +3256,7 @@
     const MAX_BET = 1000;
     const MAX_COINS = 10000;
     function clampBet(v) { return Math.max(MIN_BET, Math.min(MAX_BET, parseInt(v) || MIN_BET)); }
-    function isAtCoinCap() { return Math.floor(getChips()) >= MAX_COINS; }
+    function isAtCoinCap() { return !fpEnabled && Math.floor(getChips()) >= MAX_COINS; }
 
     // ── House Edge Counter ──────────────────────────────────────────────────
     // House edge only activates on every 10th game. All other 9 are fair.
@@ -3305,9 +3305,9 @@
             } catch(e) {}
         }
 
-        // Block all betting if coins >= 10,000
+        // Block all betting if coins >= 10,000 (real play only)
         const MAX_COINS = 10000;
-        const atCap = chips >= MAX_COINS;
+        const atCap = !fpEnabled && chips >= MAX_COINS;
         const betBtnIds = [
             'bj-deal-btn','c-start','print-btn','keno-bet-btn',
             'limbo-bet-btn','tower-start-btn','m-start-btn','roulette-spin-btn',
