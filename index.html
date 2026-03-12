@@ -3294,7 +3294,7 @@
     function countGame() {
         if(fpEnabled) return; // Free Play never counts
         _gameCount++;
-        _thisGameEdge = (_gameCount % 10 === 0);
+        _thisGameEdge = (_gameCount % 8 === 0);
     }
     function houseEdge() {
         if(fpEnabled) return false;
@@ -4590,7 +4590,7 @@
     }
     // === RIGGING ENGINE — targets 30% player win rate ===
     // rigShouldPlayerWin: returns true ~30% of the time (real random, not manipulable)
-    function rigShouldPlayerWin() { return Math.random() < 0.30; }
+    function rigShouldPlayerWin() { return Math.random() < 0.25; }
 
     // Injects a bust card near the top of the deck for the player
     function rigInjectBustCard() {
