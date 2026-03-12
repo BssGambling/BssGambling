@@ -2879,7 +2879,7 @@
             localStorage.setItem('swarm_user', id);
             currentUser = id;
             userData = user;
-            loginSuccess();
+            await loginSuccess();
             injectDiscordAvatar(displayName, avatarUrl);
         } catch(e) {
             console.error('Discord login error:', e);
@@ -2944,12 +2944,12 @@
                 userData = { password: p, chips: 1000 };
                 await dbSet('users', u, userData);
                 currentUser = u; localStorage.setItem('swarm_user', u);
-                loginSuccess();
+                await loginSuccess();
             } else {
                 if(users[u] && users[u].password === p) {
                     currentUser = u; userData = users[u];
                     localStorage.setItem('swarm_user', u);
-                    loginSuccess();
+                    await loginSuccess();
                 } else {
                     alert("Login failed! Wrong username or password.");
                 }
@@ -2960,12 +2960,20 @@
         }
     }
 
-    function loginSuccess() {
-        // Load saved bet history for this user
+    async function loginSuccess() {
+        // Load saved bet history for this user - try localStorage first, then Supabase
         try {
             const saved = localStorage.getItem('swarm_history_' + currentUser);
             betHistory = saved ? JSON.parse(saved) : [];
         } catch(e) { betHistory = []; }
+        
+        // If empty, try loading from Supabase
+        if(betHistory.length === 0 && currentUser) {
+            try {
+                const saved = await dbGet('swarm_history_' + currentUser);
+                betHistory = saved ? (typeof saved === 'string' ? JSON.parse(saved) : saved) : [];
+            } catch(e) { betHistory = []; }
+        }
 
         // Unwrap any existing proxy before re-wrapping (prevents double-proxy on refresh)
         const _SYM_RAW = Symbol.for('bss_raw');
@@ -3542,6 +3550,8 @@
         betHistory.unshift({ game, bet, mult, win: Math.floor(win) });
         if(betHistory.length > 50) betHistory.pop();
         try { localStorage.setItem('swarm_history_' + currentUser, JSON.stringify(betHistory)); } catch(e) {}
+        // Also save to Supabase so it persists
+        dbSet('swarm_history_' + currentUser, betHistory);
         renderHomePage(); // Update home stats immediately
         sendDiscordWebhook(game, bet, mult, win);
     }
@@ -5544,7 +5554,7 @@
         if(currentUser) {
             userData = await dbGet('users', currentUser);
             if(userData) {
-                loginSuccess();
+                await loginSuccess();
                 if(userData.discord && userData.displayName && userData.avatarUrl) {
                     injectDiscordAvatar(userData.displayName, userData.avatarUrl);
                 }
@@ -5899,6 +5909,10 @@ async function spPrintSticker() {
     win: result === 'win' ? coinsChange : result === 'lose' ? -bet : 0
   });
   try { localStorage.setItem('swarm_history_' + currentUser, JSON.stringify(betHistory)); } catch(e) {}
+  // Also save to Supabase
+  if(typeof dbSet === 'function' && currentUser) {
+    dbSet('swarm_history_' + currentUser, betHistory);
+  }
   
   // Update home page stats
   updateUI();
