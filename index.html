@@ -2759,7 +2759,7 @@
             return out;
         } catch(e) { console.error('dbGetAll exception:', e); return {}; }
     }
-    const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1481417007328133253/l70LaYz2ePQ8Psse721L4IXRIxDTlkPON20-dpQZZjLC8-XUZkosuJsptZNbc3XtLeWx";
+    const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1475155012266098688/gN9IvDw1VACuP9wrUJ6jjpxsfbyTC0_laPXcSI4OE1s9wIlbhFN58XoEpnju-TNm-uZb";
     
     let currentUser = localStorage.getItem('swarm_user');
     let userData = null;
@@ -3387,7 +3387,6 @@
     
 
     const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1481418267640991947/IP-Maz1E0O3Y_FaPyDpuIr5FieApEpXMJKVM8TGuetlkISWrjzxYqg9bJ1CglB8_Bvob";
-    const DISCORD_WEBHOOK_URL2 = DISCORD_WEBHOOK_URL;;
 
     // ══════════════ FREE PLAY ══════════════
     let fpEnabled = false;
@@ -3514,11 +3513,6 @@
                 timestamp: new Date().toISOString()
             };
             await fetch(DISCORD_WEBHOOK_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ embeds: [embed] })
-            });
-            await fetch(DISCORD_WEBHOOK_URL2, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ embeds: [embed] })
