@@ -2105,9 +2105,9 @@
                                     <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('bj-bet').value=Math.max(50,Math.floor(parseInt(document.getElementById('bj-bet').value||100)/2))">½</button>
                                     <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('bj-bet').value=Math.min(1000,parseInt(document.getElementById('bj-bet').value||100)*2)">2×</button>
                                     <button class="btn-play" id="bj-deal-btn" onclick="startBlackjack()">DEAL</button>
-                                    <button class="btn-play hidden" id="bj-hit-btn" onclick="bjHit()" style="background:#3498db; color:white;">HIT</button>
-                                    <button class="btn-play hidden" id="bj-stand-btn" onclick="bjStand()" style="background:#9b59b6; color:white;">STAND</button>
-                                    <button class="btn-play hidden" id="bj-double-btn" onclick="bjDouble()" style="background:#0aac6e; color:white;">DOUBLE ↕</button>
+                                    <button class="btn-play" id="bj-hit-btn" onclick="bjHit()" style="background:#3498db; color:white; visibility:hidden; pointer-events:none;">HIT</button>
+                                    <button class="btn-play" id="bj-stand-btn" onclick="bjStand()" style="background:#9b59b6; color:white; visibility:hidden; pointer-events:none;">STAND</button>
+                                    <button class="btn-play" id="bj-double-btn" onclick="bjDouble()" style="background:#0aac6e; color:white; visibility:hidden; pointer-events:none;">DOUBLE ↕</button>
                                 </div>
                             </div>
                         </div>
@@ -3159,9 +3159,9 @@
                     renderCard(bjDealer[0], 'bj-dealer-hand');
                     document.getElementById('bj-player-score').textContent = 'Score: ' + getBJScore(bjHand);
                     document.getElementById('bj-dealer-score').textContent = 'Shows: ' + bjDealer[0].v;
-                    document.getElementById('bj-deal-btn').classList.add('hidden');
-                    document.getElementById('bj-hit-btn').classList.remove('hidden');
-                    document.getElementById('bj-stand-btn').classList.remove('hidden');
+                    document.getElementById('bj-deal-btn').style.visibility='hidden'; document.getElementById('bj-deal-btn').style.pointerEvents='none';
+                    document.getElementById('bj-hit-btn').style.visibility='visible'; document.getElementById('bj-hit-btn').style.pointerEvents='auto';
+                    document.getElementById('bj-stand-btn').style.visibility='visible'; document.getElementById('bj-stand-btn').style.pointerEvents='auto';
                     document.getElementById('bj-status').textContent = 'VS — Hand restored';
                     bjUpdateCounters();
                     toast('♠ Blackjack restored! Your hand: ' + getBJScore(bjHand), 'success');
@@ -4378,7 +4378,7 @@
         bjHand.forEach(c => renderCard(c, 'bj-player-hand')); renderCard(bjDealer[0], 'bj-dealer-hand');
         document.getElementById('bj-player-score').textContent = 'Score: ' + getBJScore(bjHand);
         document.getElementById('bj-dealer-score').textContent = 'Shows: ' + bjDealer[0].v;
-        document.getElementById('bj-deal-btn').classList.add('hidden');
+        document.getElementById('bj-deal-btn').style.visibility='hidden'; document.getElementById('bj-deal-btn').style.pointerEvents='none';
         document.getElementById('bj-status').textContent = 'VS';
         bjUpdateCounters();
         // If dealer shows Ace, offer insurance before anything else
@@ -4388,19 +4388,19 @@
             document.getElementById('bj-ins-yes').innerHTML = `INSURE (${insAmt} <svg class=\"ic ic-star\" viewBox=\"0 0 16 16\" width=\"13\" height=\"13\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8\" fill=\"#0fd68a\" stroke=\"#c9a800\" stroke-width=\"0.4\"/></svg>)`;
             document.getElementById('bj-insurance-prompt').classList.remove('hidden');
             // Hide action buttons until insurance decision made
-            document.getElementById('bj-hit-btn').classList.add('hidden');
-            document.getElementById('bj-stand-btn').classList.add('hidden');
-            document.getElementById('bj-double-btn').classList.add('hidden');
+            document.getElementById('bj-hit-btn').style.visibility='hidden'; document.getElementById('bj-hit-btn').style.pointerEvents='none';
+            document.getElementById('bj-stand-btn').style.visibility='hidden'; document.getElementById('bj-stand-btn').style.pointerEvents='none';
+            document.getElementById('bj-double-btn').style.visibility='hidden'; document.getElementById('bj-double-btn').style.pointerEvents='none';
         } else {
             bjShowActionButtons();
             bjCheckNaturalBlackjack();
         }
     }
     function bjShowActionButtons() {
-        document.getElementById('bj-hit-btn').classList.remove('hidden');
-        document.getElementById('bj-stand-btn').classList.remove('hidden');
+        document.getElementById('bj-hit-btn').style.visibility='visible'; document.getElementById('bj-hit-btn').style.pointerEvents='auto';
+        document.getElementById('bj-stand-btn').style.visibility='visible'; document.getElementById('bj-stand-btn').style.pointerEvents='auto';
         if(userData.chips >= bjBet && bjHand.length === 2) {
-            document.getElementById('bj-double-btn').classList.remove('hidden');
+            document.getElementById('bj-double-btn').style.visibility='visible'; document.getElementById('bj-double-btn').style.pointerEvents='auto';
         }
     }
     function bjCheckNaturalBlackjack() {
@@ -4439,9 +4439,9 @@
                 document.getElementById('bj-dealer-score').textContent = 'Score: ' + ds;
                 bjUpdateCounters();
                 bjActive = false; clearGameState('blackjack');
-                document.getElementById('bj-hit-btn').classList.add('hidden');
-                document.getElementById('bj-stand-btn').classList.add('hidden');
-                document.getElementById('bj-double-btn').classList.add('hidden');
+                document.getElementById('bj-hit-btn').style.visibility='hidden'; document.getElementById('bj-hit-btn').style.pointerEvents='none';
+                document.getElementById('bj-stand-btn').style.visibility='hidden'; document.getElementById('bj-stand-btn').style.pointerEvents='none';
+                document.getElementById('bj-double-btn').style.visibility='hidden'; document.getElementById('bj-double-btn').style.pointerEvents='none';
                 if(ds === 21 && bjDealer.length === 2) {
                     // Both have blackjack — dealer wins (house edge)
                     play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet);
@@ -4455,7 +4455,7 @@
                     addHistory("Blackjack", bjBet, 2.2, bjWinAmount); addProfit('blackjack', bjWinAmount);
                     document.getElementById('bj-status').innerHTML = '<svg class=\"ic ic-card\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"2\" y=\"1\" width=\"12\" height=\"14\" rx=\"2\" fill=\"#f0f0f0\" stroke=\"#bbb\" stroke-width=\"0.5\"/><text x=\"8\" y=\"11\" text-anchor=\"middle\" fill=\"#e74c3c\" font-size=\"9\" font-weight=\"900\" font-family=\"serif\">J</text></svg> BLACKJACK! +120%!';
                 }
-                document.getElementById('bj-deal-btn').classList.remove('hidden');
+                document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
                 updateUI();
             }, 500);
         }
@@ -4504,7 +4504,7 @@
                 play('boom');
             }
             document.getElementById('bj-status').textContent = msg;
-            document.getElementById('bj-deal-btn').classList.remove('hidden');
+            document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
             bjUpdateCounters(); updateUI();
         } else {
             // No dealer blackjack — lose insurance (already deducted), continue play
@@ -4559,7 +4559,7 @@
 
     function bjHit() {
         if(!bjActive) return;
-        document.getElementById('bj-double-btn').classList.add('hidden');
+        document.getElementById('bj-double-btn').style.visibility='hidden'; document.getElementById('bj-double-btn').style.pointerEvents='none';
         // RIGGING: if player score is 12-16, 60% chance to inject a bust card
         const score = getBJScore(bjHand);
         if(score >= 12 && score <= 16 && Math.random() < 0.60) {
@@ -4618,10 +4618,10 @@
             document.getElementById('bj-status').textContent = '😞 DEALER WINS';
             document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('lose-shake');
         }
-        document.getElementById('bj-deal-btn').classList.remove('hidden');
-        document.getElementById('bj-hit-btn').classList.add('hidden');
-        document.getElementById('bj-stand-btn').classList.add('hidden');
-        document.getElementById('bj-double-btn').classList.add('hidden');
+        document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
+        document.getElementById('bj-hit-btn').style.visibility='hidden'; document.getElementById('bj-hit-btn').style.pointerEvents='none';
+        document.getElementById('bj-stand-btn').style.visibility='hidden'; document.getElementById('bj-stand-btn').style.pointerEvents='none';
+        document.getElementById('bj-double-btn').style.visibility='hidden'; document.getElementById('bj-double-btn').style.pointerEvents='none';
         updateUI();
     }
     function bjDouble() {
@@ -4634,7 +4634,7 @@
         updateUI();
         toast(`Bet doubled to ${bjBet} ★!`, 'success');
         // Hide double button
-        document.getElementById('bj-double-btn').classList.add('hidden');
+        document.getElementById('bj-double-btn').style.visibility='hidden'; document.getElementById('bj-double-btn').style.pointerEvents='none';
         // Deal exactly one card then stand
         let c = deck.pop(); bjHand.push(c); renderCard(c, 'bj-player-hand');
         document.getElementById('bj-player-score').textContent = 'Score: ' + getBJScore(bjHand);
