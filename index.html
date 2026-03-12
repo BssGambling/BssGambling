@@ -3222,11 +3222,19 @@
         const total = betHistory.length;
         const wins = betHistory.filter(b => b.win > 0).length;
         const biggest = betHistory.reduce((max, b) => b.win > max ? b.win : max, 0);
+        console.log('Updating stats:', { total, wins, biggest, betHistoryLength: betHistory.length });
         const statBets = document.getElementById('home-stat-bets');
         const statWins = document.getElementById('home-stat-wins');
         const statBig  = document.getElementById('home-stat-biggest');
-        if(statBets) statBets.innerText = total;
-        if(statWins) statWins.innerText = wins;
+        console.log('Found elements:', { statBets, statWins, statBig });
+        if(statBets) {
+            statBets.innerText = total;
+            console.log('Updated bets to:', total);
+        }
+        if(statWins) {
+            statWins.innerText = wins;
+            console.log('Updated wins to:', wins);
+        }
         if(statBig)  statBig.innerHTML = biggest > 0 ? '+' + biggest + ' <svg class=\"ic ic-star\" viewBox=\"0 0 16 16\" width=\"13\" height=\"13\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8\" fill=\"#0fd68a\" stroke=\"#c9a800\" stroke-width=\"0.4\"/></svg>' : '—';
 
         // Recent 5 bets preview
