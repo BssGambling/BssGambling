@@ -6257,11 +6257,6 @@ async function spPrintSticker() {
     banner.className = 'result-banner';
   }, 3000);
 
-  if (typeof sendDiscordWebhook === 'function' && typeof fpEnabled !== 'undefined' && !fpEnabled) {
-    const stickerWin = result === 'win' ? coinsChange : 0;
-    sendDiscordWebhook('Sticker Printer', bet, result === 'win' ? 2 : 0, stickerWin);
-  }
-
   history.unshift({ result, playerSticker, botSticker, coinsChange: result === 'win' ? coinsChange : result === 'lose' ? -bet : 0 });
   if (history.length > 5) history.pop();
   spRenderHistory();
