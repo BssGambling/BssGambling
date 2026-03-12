@@ -2900,15 +2900,20 @@
     }
     function playAndGetDuration(name) {
         return new Promise(resolve => {
-            if(!audioReady || !sfx[name]) { resolve({ audio: null, duration: 1500 }); return; }
+            const fallback = () => resolve({ audio: null, duration: 1500 });
+            if(!audioReady || !sfx[name]) { fallback(); return; }
             const a = new Audio(sfx[name]);
             a.volume = 0.4;
+            // Always resolve within 800ms so animation never hangs if audio URL is broken
+            const timer = setTimeout(fallback, 800);
             const onMeta = () => {
+                clearTimeout(timer);
                 const ms = isFinite(a.duration) && a.duration > 0 ? Math.round(a.duration * 1000) : 1500;
                 a.play().catch(()=>{});
                 resolve({ audio: a, duration: ms });
             };
-            if (isFinite(a.duration) && a.duration > 0) { onMeta(); }
+            a.addEventListener('error', () => { clearTimeout(timer); fallback(); }, { once: true });
+            if (isFinite(a.duration) && a.duration > 0) { clearTimeout(timer); onMeta(); }
             else { a.addEventListener('loadedmetadata', onMeta, { once: true }); }
         });
     }
