@@ -70,6 +70,7 @@
         flex-shrink: 0;
         position: relative;
         overflow: hidden;
+        z-index: 1000;
     }
     .sidebar::before {
         content: '';
@@ -905,13 +906,13 @@
     .bal-pulse { animation: balPulse 0.4s ease; }
 
     /* ── Toasts ── */
-    .toast-wrap { position:fixed; top:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:8px; pointer-events:none; }
+    .toast-wrap { position:fixed; top:20px; right:20px; z-index:100; display:flex; flex-direction:column; gap:8px; pointer-events:none; }
     .toast {
         background:var(--panel2);
         border:1px solid var(--border2);
         border-radius:999px;
-        padding:10px 20px;
-        font-size:13px;
+        padding:6px 12px;
+        font-size:11px;
         font-weight:600;
         color:var(--text);
         box-shadow:0 8px 32px rgba(0,0,0,0.5);
