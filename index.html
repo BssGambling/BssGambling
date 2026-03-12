@@ -4006,17 +4006,44 @@
         countGame(); userData.chips -= crashBet; addProfit('crash', -crashBet); updateUI(); crashActive = true; crashMult = 1.00;
         const display = document.getElementById('crash-display'); display.style.color = "white";
         document.getElementById('c-start').disabled = true;
-        let crashPoint = houseEdge() ? 1.00 : (0.99 / (1 - Math.random()));
+        // Generate a truly random crash point with a wide distribution
+        function generateCrashPoint() {
+            if (houseEdge()) return 1.00;
+            // Use a weighted random that gives:
+            // ~30% chance: 1.00–2.00 (early crash)
+            // ~35% chance: 2.00–5.00 (mid crash)
+            // ~20% chance: 5.00–15.00 (high crash)
+            // ~15% chance: 15.00–100.00+ (very high crash)
+            const r = Math.random();
+            if (r < 0.30) {
+                // 1.00 to 2.00
+                return 1.00 + Math.random() * 1.00;
+            } else if (r < 0.65) {
+                // 2.00 to 5.00
+                return 2.00 + Math.random() * 3.00;
+            } else if (r < 0.85) {
+                // 5.00 to 15.00
+                return 5.00 + Math.random() * 10.00;
+            } else {
+                // 15.00 to 100.00
+                return 15.00 + Math.random() * 85.00;
+            }
+        }
+        let crashPoint = generateCrashPoint();
         releaseBetLock();
         function getTickInterval() {
-            if (crashMult >= 20) return 5;
-            if (crashMult >= 10) return 10;
-            if (crashMult >= 5)  return 20;
-            if (crashMult >= 2)  return 35;
-            return 60;
+            // The higher the multiplier, the faster the tick — creates acceleration effect
+            if (crashMult >= 50) return 16;
+            if (crashMult >= 20) return 20;
+            if (crashMult >= 10) return 30;
+            if (crashMult >= 5)  return 50;
+            if (crashMult >= 3)  return 70;
+            if (crashMult >= 2)  return 90;
+            return 120;
         }
         function crashTick() {
-            crashMult += 0.01 + (crashMult * 0.005);
+            // Increment grows faster at higher multipliers = feels like acceleration
+            crashMult += 0.01 + (crashMult * 0.008);
             display.innerText = crashMult.toFixed(2) + "x";
             // Check crash FIRST — if it crashes before target, you lose
             if (crashMult >= crashPoint) {
