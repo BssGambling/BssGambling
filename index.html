@@ -476,7 +476,7 @@
 
     /* ── Mines ── */
     .m-grid { display: grid; gap: 8px; justify-content: center; }
-    .m-grid.g25 { grid-template-columns: repeat(5, 1fr); width: 460px; }
+    .m-grid.g25 { grid-template-columns: repeat(5, 1fr); width: 100%; }
     .tile {
         background: linear-gradient(145deg, #1e2128, #181c24);
         border: 1px solid #2a2f3a;
@@ -487,8 +487,8 @@
         justify-content: center;
         font-size: 22px;
         transition: all 0.14s;
-        width: 84px;
-        height: 84px;
+        aspect-ratio: 1;
+        width: 100%;
     }
     .tile:hover {
         background: linear-gradient(145deg, #242830, #1c2028);
@@ -496,6 +496,7 @@
         transform: scale(1.04);
         box-shadow: 0 0 12px rgba(15,214,138,0.1);
     }
+    .tile.inactive { cursor: not-allowed !important; opacity: 0.5; pointer-events: none; }
     .tile.gem { background: linear-gradient(145deg, #0a2e1f, #071e15); border-color: var(--green); box-shadow: 0 0 10px rgba(15,214,138,0.15); }
     .tile.bomb { background: linear-gradient(145deg, #2e0a14, #1e0710); border-color: var(--red); box-shadow: 0 0 10px rgba(255,77,109,0.15); }
     .m-panel { display:flex; gap:24px; padding:24px; align-items:flex-start; justify-content:center; flex-wrap:wrap; }
@@ -3322,7 +3323,7 @@
         if(g==='keno') initKenoGrid();
         if(g==='tower') buildTowerBoard();
         if(g==='sticker') spInitGame();
-        if(g==='mines' && !mActive) setTimeout(startMines, 50);
+        if(g==='mines') { setTimeout(buildEmptyMinesBoard, 50); }
     }
 
     function backToMenu() {
@@ -3754,6 +3755,19 @@
         return parseFloat(Math.pow(step, gemsFound).toFixed(3));
     }
 
+    function buildEmptyMinesBoard() {
+        const board = document.getElementById('m-board');
+        if(!board || board.children.length > 0) return;
+        board.innerHTML = ''; board.className = 'm-grid g25';
+        for(let i = 0; i < 25; i++) {
+            const t = document.createElement('div');
+            t.className = 'tile';
+            t.style.cursor = 'not-allowed';
+            t.style.opacity = '0.5';
+            board.appendChild(t);
+        }
+    }
+
     function startMines() {
         if(!acquireBetLock()) return;
         mBet = Math.max(50, Math.min(600, parseInt(document.getElementById('m-bet').value) || 50));
@@ -3994,7 +4008,14 @@
         document.getElementById('c-start').disabled = true;
         let crashPoint = houseEdge() ? 1.00 : (0.99 / (1 - Math.random()));
         releaseBetLock();
-        crashInterval = setInterval(() => {
+        function getTickInterval() {
+            if (crashMult >= 20) return 20;
+            if (crashMult >= 10) return 40;
+            if (crashMult >= 5)  return 60;
+            if (crashMult >= 2)  return 80;
+            return 100;
+        }
+        function crashTick() {
             crashMult += 0.01 + (crashMult * 0.005);
             display.innerText = crashMult.toFixed(2) + "x";
             // Auto cashout if target reached
@@ -4015,8 +4036,13 @@
                 addHistory("Crash", crashBet, 0, -crashBet);
                 toast('💥 Crashed at ' + crashMult.toFixed(2) + 'x! Target was ' + targetMult.toFixed(2) + 'x', 'error');
                 document.getElementById('c-start').disabled = false;
+                return;
             }
-        }, 100);
+            // Reschedule with dynamic interval based on current multiplier
+            clearInterval(crashInterval);
+            crashInterval = setInterval(crashTick, getTickInterval());
+        }
+        crashInterval = setInterval(crashTick, getTickInterval());
     }
     function cashoutCrash() { /* manual cashout disabled — use target multiplier */ }
 
