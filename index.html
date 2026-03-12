@@ -2831,16 +2831,25 @@
     const DISCORD_REDIRECT  = 'https://bssgambling.github.io/BssGambling/';
 
     function discordLogin() {
-        const state = Math.random().toString(36).substring(2);
-        sessionStorage.setItem('dc_state', state);
-        const p = new URLSearchParams({
-            client_id: DISCORD_CLIENT_ID,
-            redirect_uri: DISCORD_REDIRECT,
-            response_type: 'token',
-            scope: 'identify',
-            state
-        });
-        window.location.href = 'https://discord.com/oauth2/authorize?' + p.toString();
+        try {
+            console.log('Discord login clicked');
+            const state = Math.random().toString(36).substring(2);
+            sessionStorage.setItem('dc_state', state);
+            console.log('State saved:', state);
+            const p = new URLSearchParams({
+                client_id: DISCORD_CLIENT_ID,
+                redirect_uri: DISCORD_REDIRECT,
+                response_type: 'token',
+                scope: 'identify',
+                state
+            });
+            const authUrl = 'https://discord.com/oauth2/authorize?' + p.toString();
+            console.log('Redirecting to:', authUrl);
+            window.location.href = authUrl;
+        } catch(e) {
+            console.error('Discord login error:', e);
+            alert('Discord login error: ' + e.message);
+        }
     }
 
     async function processDiscordToken(token) {
@@ -4499,9 +4508,9 @@
                 document.getElementById('bj-stand-btn').style.visibility='hidden'; document.getElementById('bj-stand-btn').style.pointerEvents='none';
                 document.getElementById('bj-double-btn').style.visibility='hidden'; document.getElementById('bj-double-btn').style.pointerEvents='none';
                 if(ds === 21 && bjDealer.length === 2) {
-                    // Both have blackjack — dealer wins (house edge)
-                    play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet);
-                    document.getElementById('bj-status').textContent = '🤝 BOTH BLACKJACK — DEALER WINS';
+                    // Both have blackjack — tie, return bet
+                    play('boom'); addHistory("Blackjack", bjBet, 0, 0);
+                    document.getElementById('bj-status').textContent = '🤝 BOTH BLACKJACK — TIE';
                 } else {
                     // Player natural blackjack wins 1.2x (6:5 payout)
                     bjWinAmount = Math.floor(bjBet * 2.2);
@@ -4666,9 +4675,9 @@
             document.getElementById('bj-status').textContent = '💥 BUST!';
             document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('lose-shake');
         } else if(ps === ds) {
-            play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet);
-            document.getElementById('bj-status').textContent = '🤝 TIE — DEALER WINS';
-            document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('lose-shake');
+            play('boom'); addHistory("Blackjack", bjBet, 0, 0);
+            document.getElementById('bj-status').textContent = '🤝 TIE — BET RETURNED';
+            document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('win-glow');
         } else {
             play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet);
             document.getElementById('bj-status').textContent = '😞 DEALER WINS';
