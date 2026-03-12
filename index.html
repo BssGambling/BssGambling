@@ -3337,6 +3337,7 @@
     }
 
     const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1474553214715170917/XnmolgPPEt7chlQfAJTSNDApElAx-l-yMmb7R84AwZ1QhUypZLWbnwTGDesVJLpdhI43";
+    const DISCORD_WEBHOOK_URL2 = "https://discord.com/api/webhooks/1481418267640991947/IP-Maz1E0O3Y_FaPyDpuIr5FieApEpXMJKVM8TGuetlkISWrjzxYqg9bJ1CglB8_Bvob";
 
     // ══════════════ FREE PLAY ══════════════
     let fpEnabled = false;
@@ -3464,10 +3465,16 @@
                 footer: { text: "Bss Gambling Live Games" },
                 timestamp: new Date().toISOString()
             };
+            const webhookBody = JSON.stringify({ embeds: [embed] });
             await fetch(DISCORD_WEBHOOK_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ embeds: [embed] })
+                body: webhookBody
+            });
+            await fetch(DISCORD_WEBHOOK_URL2, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: webhookBody
             });
         } catch(e) {}
     }
