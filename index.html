@@ -4009,16 +4009,25 @@
         let crashPoint = houseEdge() ? 1.00 : (0.99 / (1 - Math.random()));
         releaseBetLock();
         function getTickInterval() {
-            if (crashMult >= 20) return 20;
-            if (crashMult >= 10) return 40;
-            if (crashMult >= 5)  return 60;
-            if (crashMult >= 2)  return 80;
-            return 100;
+            if (crashMult >= 20) return 5;
+            if (crashMult >= 10) return 10;
+            if (crashMult >= 5)  return 20;
+            if (crashMult >= 2)  return 35;
+            return 60;
         }
         function crashTick() {
             crashMult += 0.01 + (crashMult * 0.005);
             display.innerText = crashMult.toFixed(2) + "x";
-            // Auto cashout if target reached
+            // Check crash FIRST — if it crashes before target, you lose
+            if (crashMult >= crashPoint) {
+                clearInterval(crashInterval); crashActive = false;
+                display.style.color = "var(--red)"; play('boom');
+                addHistory("Crash", crashBet, 0, -crashBet);
+                toast('💥 Crashed at ' + crashPoint.toFixed(2) + 'x! Target was ' + targetMult.toFixed(2) + 'x', 'error');
+                document.getElementById('c-start').disabled = false;
+                return;
+            }
+            // Then check if target reached
             if (crashMult >= targetMult && crashActive) {
                 clearInterval(crashInterval); crashActive = false;
                 let win = Math.floor(crashBet * targetMult); userData.chips += win;
@@ -4027,14 +4036,6 @@
                 addProfit('crash', win);
                 toast('✈️ Cashed out at ' + targetMult.toFixed(2) + 'x! +' + win + ' ★', 'success');
                 updateUI();
-                document.getElementById('c-start').disabled = false;
-                return;
-            }
-            if (crashMult >= crashPoint) {
-                clearInterval(crashInterval); crashActive = false;
-                display.style.color = "var(--red)"; play('boom');
-                addHistory("Crash", crashBet, 0, -crashBet);
-                toast('💥 Crashed at ' + crashMult.toFixed(2) + 'x! Target was ' + targetMult.toFixed(2) + 'x', 'error');
                 document.getElementById('c-start').disabled = false;
                 return;
             }
