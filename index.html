@@ -1029,7 +1029,7 @@
     margin-bottom: 24px;
     display: none;
   }
-  #game-sticker .tierlist-content#game-sticker .open { display: block; }
+  #game-sticker .tierlist-content.open { display: block; }
 
   #game-sticker .tier-row {
     display: flex;
@@ -1081,11 +1081,11 @@
     position: relative;
     min-height: 260px;
   }
-  .player-panel#game-sticker .winner {
+  .player-panel.winner {
     border-color: var(--gold);
     box-shadow: 0 0 30px rgba(245,197,24,0.25);
   }
-  .player-panel#game-sticker .loser {
+  .player-panel.loser {
     border-color: var(--red);
     opacity: 0.7;
   }
@@ -1113,12 +1113,12 @@
     position: relative;
     overflow: hidden;
   }
-  #game-sticker .sticker-slot#game-sticker .rolling {
+  #game-sticker .sticker-slot.rolling {
     border-color: var(--gold);
     border-style: solid;
     background: rgba(245,197,24,0.04);
   }
-  #game-sticker .sticker-slot#game-sticker .revealed {
+  #game-sticker .sticker-slot.revealed {
     border-style: solid;
     background: rgba(0,0,0,0.4);
   }
@@ -1154,8 +1154,8 @@
     transition: opacity 0.2s;
     opacity: 0;
   }
-  #game-sticker .sticker-slot#game-sticker .rolling::before,
-  #game-sticker .sticker-slot#game-sticker .rolling::after { opacity: 1; }
+  #game-sticker .sticker-slot.rolling::before,
+  #game-sticker .sticker-slot.rolling::after { opacity: 1; }
   #game-sticker .sticker-slot::before {
     top: 0;
     background: linear-gradient(to bottom, rgba(10,26,10,0.95), transparent);
@@ -1165,7 +1165,7 @@
     background: linear-gradient(to top, rgba(10,26,10,0.95), transparent);
   }
 
-  #game-sticker .sticker-slot #game-sticker .final-img {
+  #game-sticker .sticker-slot .final-img {
     width: 110px;
     height: 110px;
     object-fit: contain;
@@ -1367,8 +1367,8 @@
     font-weight: 700;
   }
   #game-sticker .stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-  #game-sticker #game-sticker .stat-val { font-family: 'Fredoka One', cursive; font-size: 1.2rem; color: var(--gold); }
-  #game-sticker #game-sticker .stat-key { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.5px; }
+  #game-sticker .stat-val { font-family: 'Fredoka One', cursive; font-size: 1.2rem; color: var(--gold); }
+  #game-sticker .stat-key { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.5px; }
 
   /* Animations */
   @keyframes popIn {
@@ -1434,10 +1434,10 @@
     font-size: 0.82rem;
     font-weight: 700;
   }
-  #game-sticker .history-item #game-sticker .hi-result { font-family: 'Fredoka One', cursive; }
-  #game-sticker .history-item.win #game-sticker .hi-result { color: var(--green); }
-  #game-sticker .history-item.lose #game-sticker .hi-result { color: var(--red); }
-  #game-sticker .history-item.tie #game-sticker .hi-result { color: var(--gold); }
+  #game-sticker .history-item .hi-result { font-family: 'Fredoka One', cursive; }
+  #game-sticker .history-item.win .hi-result { color: var(--green); }
+  #game-sticker .history-item.lose .hi-result { color: var(--red); }
+  #game-sticker .history-item.tie .hi-result { color: var(--gold); }
   #game-sticker .hi-stickers { color: #aaa; }
   #game-sticker .hi-coins { color: var(--gold); }
 
@@ -2434,7 +2434,7 @@
                                         <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="1" y="1" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.9"/><rect x="10.5" y="1" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.6"/><rect x="20" y="1" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.9"/><rect x="1" y="10.5" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.6"/><rect x="10.5" y="10.5" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.3"/><rect x="20" y="10.5" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.6"/><rect x="1" y="20" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.9"/><rect x="10.5" y="20" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.6"/><rect x="20" y="20" width="7" height="7" rx="1.5" fill="#0fd68a" opacity="0.3"/></svg>
                                         Keno
                                     </div>
-                                    <div class="keno-sub">Pick 1–5 numbers (1–20). Draw 5.</div>
+                                    <div class="keno-sub">Pick 3–5 numbers (1–20). Draw 5.</div>
                                     <div class="keno-grid" id="keno-grid"></div>
                                 </div>
                                 <div class="keno-panel">
@@ -2461,15 +2461,12 @@
                                         <div class="keno-result-row"><span>Payout</span><span id="keno-res-payout">—</span></div>
                                     </div>
                                     <div class="keno-panel-box">
-                                        <div class="keno-label">Payout Table</div>
-                                        <table class="keno-payout-table">
-                                            <tr><td>Matches</td><td>Mult</td></tr>
-                                            <tr><td>0</td><td>0×</td></tr>
-                                            <tr><td>1</td><td>0.5×</td></tr>
-                                            <tr><td>2</td><td>1.5×</td></tr>
-                                            <tr><td>3</td><td>3×</td></tr>
-                                            <tr><td>4</td><td>6×</td></tr>
-                                            <tr><td>5</td><td class="keno-pt-highlight">20×</td></tr>
+                                        <div class="keno-label">Potential Payouts</div>
+                                        <table class="keno-payout-table" id="keno-payout-table">
+                                            <tr><td>Hits</td><td>Mult</td></tr>
+                                            <tr><td>1 Hits</td><td>1.10×</td></tr>
+                                            <tr><td>2 Hits</td><td>3.00×</td></tr>
+                                            <tr><td>3 Hits</td><td class="keno-pt-highlight">6.00×</td></tr>
                                         </table>
                                     </div>
                                 </div>
@@ -4179,7 +4176,26 @@
     let kenoSelected = new Set();
     let kenoPlaying = false;
 
-    const KENO_PAYOUTS = [0, 0.5, 1.5, 3, 6, 20]; // index = matches (0-5)
+    // Payouts per [pickCount][matches] — index 0 unused
+    const KENO_PAYOUTS = {
+        3: [0, 1.10, 3.00, 6.00],
+        4: [0, 0.70, 2.20, 5.00, 12.00],
+        5: [0, 0.50, 1.50, 4.00, 10.00, 30.00]
+    };
+
+    function updateKenoPayoutTable() {
+        const count = kenoSelected.size;
+        const table = document.getElementById('keno-payout-table');
+        if(!table) return;
+        const picks = Math.max(3, Math.min(5, count || 3));
+        const payouts = KENO_PAYOUTS[picks];
+        let rows = '<tr><td>Hits</td><td>Mult</td></tr>';
+        for(let i = 1; i < payouts.length; i++) {
+            const isTop = (i === payouts.length - 1);
+            rows += `<tr><td>${i} Hit${i>1?'s':''}</td><td${isTop?' class="keno-pt-highlight"':''}>${payouts[i].toFixed(2)}×</td></tr>`;
+        }
+        table.innerHTML = rows;
+    }
 
     function initKenoGrid() {
         const grid = document.getElementById('keno-grid');
@@ -4193,6 +4209,7 @@
             cell.onclick = () => toggleKenoNum(i);
             grid.appendChild(cell);
         }
+        updateKenoPayoutTable();
     }
 
     function toggleKenoNum(n) {
@@ -4202,11 +4219,12 @@
             kenoSelected.delete(n);
             el.classList.remove('keno-selected');
         } else {
-            if(kenoSelected.size >= 5) return toast('Max 5 numbers!', 'error');
+            if(kenoSelected.size >= 5) return;
             kenoSelected.add(n);
             el.classList.add('keno-selected');
         }
         document.getElementById('keno-sel-count').textContent = kenoSelected.size;
+        updateKenoPayoutTable();
     }
 
     function clearKeno() {
@@ -4218,14 +4236,15 @@
         }
         document.getElementById('keno-sel-count').textContent = 0;
         document.getElementById('keno-result-box').style.display = 'none';
+        updateKenoPayoutTable();
     }
 
     async function startKeno() {
         if(kenoPlaying) return;
-        if(kenoSelected.size === 0) return toast('Pick at least 1 number!', 'error');
+        if(kenoSelected.size < 3) return;
         const bet = clampBet(document.getElementById('keno-bet').value);
         document.getElementById('keno-bet').value = bet;
-        if(bet > userData.chips) return toast('Not enough ★!', 'error');
+        if(bet > userData.chips) return;
 
         kenoPlaying = true;
         document.getElementById('keno-bet-btn').disabled = true;
@@ -4269,8 +4288,10 @@
             }
         });
 
-        const clampedMatches = Math.min(matches, KENO_PAYOUTS.length - 1);
-        const mult = KENO_PAYOUTS[clampedMatches];
+        const picks = kenoSelected.size;
+        const payoutTable = KENO_PAYOUTS[picks] || KENO_PAYOUTS[5];
+        const clampedMatches = Math.min(matches, payoutTable.length - 1);
+        const mult = payoutTable[clampedMatches];
         const win = Math.floor(bet * mult);
 
         if(win > 0) {
