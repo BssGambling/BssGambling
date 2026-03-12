@@ -5873,6 +5873,17 @@ async function spPrintSticker() {
   if (history.length > 5) history.pop();
   spRenderHistory();
 
+  // Also add to global betHistory so home stats update
+  betHistory.unshift({
+    game: 'Sticker Printer',
+    bet: bet,
+    win: result === 'win' ? coinsChange : result === 'lose' ? -bet : 0
+  });
+  try { localStorage.setItem('swarm_history_' + currentUser, JSON.stringify(betHistory)); } catch(e) {}
+  
+  // Update home page stats
+  updateUI();
+
   if (getChips() < 50) {
     await delay(1000);
     if (confirm('You\'re out of coins! Reset to 1000?')) {
