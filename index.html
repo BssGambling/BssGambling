@@ -6509,11 +6509,14 @@
             let _serverData = null;
             try { _serverData = await dbGet('users', currentUser); } catch(e) {}
 
-            if(_cachedData && _serverData) {
-                // Use whichever has higher chips (protects against server overwriting local wins)
-                userData = (_cachedData.chips >= _serverData.chips) ? _cachedData : _serverData;
+            if(_serverData) {
+                // Always trust server value — it reflects the true balance after wins/losses
+                userData = _serverData;
+                // Update localStorage cache to match server so it stays in sync
+                try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
             } else {
-                userData = _cachedData || _serverData;
+                // Server unavailable — fall back to local cache only
+                userData = _cachedData;
             }
 
             // If bot updated the balance, clear the flag
