@@ -6290,7 +6290,27 @@
 
         // Step 3: Already logged in — restore session.
         if(currentUser) {
+            // Read localStorage BEFORE dbGet (dbGet overwrites it with server data)
+            // This lets us detect when the server has a stale balance (e.g. Edge Function
+            // save hadn't completed before the user refreshed the page).
+            const _cachedRaw = localStorage.getItem('swarm_userdata_' + currentUser);
+            const _cachedData = _cachedRaw ? (() => { try { return JSON.parse(_cachedRaw); } catch(e) { return null; } })() : null;
+
             userData = await dbGet('users', currentUser);
+
+            // If localStorage had a different chip count than what the server returned,
+            // the server save was still in-flight when the page was refreshed.
+            // Restore the local (correct) chip count and re-save to the server.
+            if(_cachedData && userData &&
+               typeof _cachedData.chips === 'number' &&
+               typeof userData.chips === 'number' &&
+               _cachedData.chips !== userData.chips) {
+                console.log('[onload] Balance mismatch — server:', userData.chips, '/ local:', _cachedData.chips, '— using local value');
+                userData.chips = _cachedData.chips;
+                // Re-save so the server catches up
+                dbSet('users', currentUser, userData);
+            }
+
             if(userData) {
                 await loginSuccess();
                 if(userData.discord && userData.displayName && userData.avatarUrl) {
