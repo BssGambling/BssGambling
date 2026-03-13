@@ -2624,7 +2624,7 @@
 
                                     <div class="tw-profit-box">
                                         <span style="color:#888; font-size:12px;">Session Profit</span>
-                                        <span class="profit-val zero" id="t-profit" style="font-weight:700;">+0 <svg class="ic ic-star" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#f1c40f" stroke="#c9a800" stroke-width="0.4"/></svg></span>
+                                        <span class="profit-val zero" id="t-profit" style="font-weight:700;">+0 <svg class="ic ic-star" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8" fill="#0fd68a" stroke="#c9a800" stroke-width="0.4"/></svg></span>
                                     </div>
 
                                     <div>
@@ -3807,7 +3807,7 @@
         function addProfit(game, amount) {
         if(!sessionProfit.hasOwnProperty(game)) return;
         sessionProfit[game] += amount;
-        const map = { mines:'m-profit', dice:'d-profit', coinflip:'cf-profit', roulette:'r-profit', blackjack:'bj-profit', tower:'tw-profit', crash:'c-profit', keno:'keno-profit' };
+        const map = { mines:'m-profit', dice:'d-profit', coinflip:'cf-profit', roulette:'r-profit', blackjack:'bj-profit', tower:'t-profit', crash:'c-profit', keno:'keno-profit' };
         const el = document.getElementById(map[game]);
         if(!el) return;
         const v = sessionProfit[game];
@@ -5323,7 +5323,7 @@
         userData.chips += win; play('win');
         showWinOverlay(m, win);
         addHistory("Tower", tBet, m, win); clearGameState('tower');
-        addProfit('tower', win - tBet);
+        addProfit('tower', win);
         tActive = false; updateUI();
         document.getElementById('t-start').disabled = false;
         document.getElementById('t-risk').disabled = false;
