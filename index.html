@@ -4806,8 +4806,9 @@
                 else if(!tie) { document.getElementById('d-card-comp').classList.add('dg-card-win'); }
 
                 if(tie) {
-                    play('boom'); addHistory('Dice', b, 0, 0, dBalBefore);
-                    toast('Tie! No winner.', 'error');
+                    userData.chips += b; addProfit('dice', b);
+                    play('boom'); addHistory('Dice', b, 1, b, dBalBefore);
+                    toast('Tie! Your bet has been refunded. 🎲', 'success');
                     updateUI();
                 } else if(playerWins) {
                     const win = Math.floor(b * 2.00); // Updated to 2.00x for 94% RTP
