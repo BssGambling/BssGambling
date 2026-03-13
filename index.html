@@ -3540,7 +3540,20 @@
                 await loginSuccess();
             } else {
                 if(users[u] && users[u].password === p) {
-                    currentUser = u; userData = users[u];
+                    currentUser = u;
+                    // Prefer localStorage chips over stale server data
+                    const _loginCached = localStorage.getItem('swarm_userdata_' + u);
+                    let _loginCachedData = null;
+                    try { _loginCachedData = _loginCached ? JSON.parse(_loginCached) : null; } catch(e) {}
+                    if(_loginCachedData && typeof _loginCachedData.chips === 'number' && typeof users[u].chips === 'number' && _loginCachedData.chips < users[u].chips) {
+                        // Server has MORE chips (admin deposit) — use server
+                        userData = users[u];
+                    } else if(_loginCachedData) {
+                        // localStorage has same or MORE chips — trust it, but keep password from server
+                        userData = Object.assign({}, users[u], { chips: _loginCachedData.chips });
+                    } else {
+                        userData = users[u];
+                    }
                     localStorage.setItem('swarm_user', u);
                     await loginSuccess();
                 } else {
@@ -6520,9 +6533,14 @@
             }
 
             if(_isDiscordUser) {
-                // Discord users: server is authoritative (Edge Function writes succeed)
-                userData = _serverData || _cachedData;
-                if(_serverData) {
+                // Discord users: use server data only if chips are HIGHER (e.g. admin deposit),
+                // otherwise trust localStorage so a stale server value never overwrites a local balance.
+                if(_serverData && _cachedData && typeof _serverData.chips === 'number' && typeof _cachedData.chips === 'number') {
+                    userData = _serverData.chips > _cachedData.chips ? _serverData : _cachedData;
+                } else {
+                    userData = _serverData || _cachedData;
+                }
+                if(_serverData && userData === _serverData) {
                     try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
                 }
             } else {
@@ -6557,7 +6575,8 @@
                 if(fresh && fresh.chips !== undefined) {
                     const _SYM_RAW = Symbol.for('bss_raw');
                     const raw = (userData && userData[_SYM_RAW]) ? userData[_SYM_RAW] : userData;
-                    if(Math.abs((raw.chips || 0) - fresh.chips) > 0) {
+                    // Only update if server has MORE chips (e.g. admin deposit) — never overwrite with a lower value
+                    if(fresh.chips > (raw.chips || 0)) {
                         raw.chips = fresh.chips;
                         updateUI();
                     }
