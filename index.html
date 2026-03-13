@@ -6882,15 +6882,6 @@ async function spPrintSticker() {
   // Update UI
   updateUI();
 
-  if (getChips() < 50) {
-    await delay(1000);
-    if (confirm('You\'re out of coins! Reset to 1000?')) {
-      setChips(1000);
-      spUpdateCoins();
-      updateUI();
-    }
-  }
-
   isRolling = false;
   btn.disabled = isAtCoinCap(); // only keep disabled if at real-play cap
   if(isAtCoinCap()) {
