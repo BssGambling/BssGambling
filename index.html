@@ -3289,8 +3289,9 @@
             const rows = await res.json();
             if (!Array.isArray(rows)) { console.error('dbGet error:', JSON.stringify(rows)); return null; }
             const val = rows[0] ? (table === 'users' ? rows[0].data : rows[0].val) : null;
-            // Update local cache with fresh data
-            if(table === 'users' && val) {
+            // Only update local cache for Discord users — username/password users can't write to
+            // Supabase (RLS blocks it), so their server value is stale and must NOT overwrite localStorage.
+            if(table === 'users' && val && id.startsWith('discord_')) {
                 try { localStorage.setItem('swarm_userdata_' + id, JSON.stringify(val)); } catch(e) {}
             }
             return val;
@@ -6508,11 +6509,16 @@
             let _cachedData = null;
             try { _cachedData = _cachedRaw ? JSON.parse(_cachedRaw) : null; } catch(e) {}
 
+            const _isDiscordUser = currentUser.startsWith('discord_');
+
             // Fetch from server too, but only use it if chips are HIGHER (admin deposit etc.)
             let _serverData = null;
-            try { _serverData = await dbGet('users', currentUser); } catch(e) {}
+            // Username/password users can't write to Supabase (RLS blocks it), so the server
+            // value is always stale — don't fetch it at all, just use localStorage.
+            if(_isDiscordUser) {
+                try { _serverData = await dbGet('users', currentUser); } catch(e) {}
+            }
 
-            const _isDiscordUser = currentUser.startsWith('discord_');
             if(_isDiscordUser) {
                 // Discord users: server is authoritative (Edge Function writes succeed)
                 userData = _serverData || _cachedData;
@@ -6520,10 +6526,13 @@
                     try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
                 }
             } else {
-                // Username/password users: Supabase RLS blocks their writes, so
-                // localStorage IS the source of truth — always use it.
-                // Only use server if no local cache exists at all (first ever load).
-                userData = _cachedData || _serverData;
+                // Username/password users: localStorage IS the source of truth.
+                // Only fall back to server if no local cache at all (brand new device).
+                userData = _cachedData;
+                if(!userData) {
+                    try { _serverData = await dbGet('users', currentUser); } catch(e) {}
+                    userData = _serverData;
+                }
             }
 
             // If bot updated the balance, clear the flag
