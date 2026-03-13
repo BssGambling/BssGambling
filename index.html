@@ -2793,7 +2793,6 @@
   <div class="bet-info" id="bet-info">Min: 50 | Max: 1000 | Potential Win: <span id="potential-win">98</span> COINS</div>
   <div class="checkboxes">
     <label><input type="checkbox" id="roll-second"> Roll Second</label>
-    <label><input type="checkbox" id="lowest-wins"> Lowest Wins</label>
   </div>
   <button class="btn-print" id="print-btn" onclick="spPrintSticker()">🖨️ PRINT STICKER</button>
 </div>
@@ -6677,7 +6676,7 @@ async function spPrintSticker() {
   if (bet < 50 || bet > 1000) { alert('Bet must be between 50 and 1000 coins!'); return; }
   if (bet > getChips()) { alert('Not enough coins!'); return; }
 
-  const lowestWins = document.getElementById('lowest-wins').checked;
+  const lowestWins = false; // higher rarity always wins
   const rollSecond = document.getElementById('roll-second').checked;
 
   isRolling = true;
