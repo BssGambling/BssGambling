@@ -2485,10 +2485,11 @@
                             <!-- Bet controls row — moved to bottom -->
                             <div style="display:flex; gap:8px; margin-top:18px; align-items:center; flex-wrap:wrap; justify-content:center;">
                                 <span style="color:#888; font-size:13px;">Chip:</span>
-                                <input type="number" id="r-bet" value="50" min="50" max="1000" style="width:80px;">
-                                <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('r-bet').value=Math.max(50,Math.floor(parseInt(document.getElementById('r-bet').value||50)/2))">½</button>
-                                <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('r-bet').value=Math.min(1000,parseInt(document.getElementById('r-bet').value||50)*2)">2×</button>
+                                <input type="number" id="r-bet" value="10" min="0.1" max="1000" step="0.1" style="width:80px;">
+                                <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('r-bet').value=Math.max(0.1,parseFloat((parseFloat(document.getElementById('r-bet').value||10)/2).toFixed(1)))">½</button>
+                                <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('r-bet').value=Math.min(1000,parseFloat((parseFloat(document.getElementById('r-bet').value||10)*2).toFixed(1)))">2×</button>
                                 <button class="btn-play" id="r-spin" onclick="spinRoulette()">SPIN</button>
+                                <button class="btn-play" style="background:#1a3a2a; color:#0fd68a; border:1px solid #0fd68a;" onclick="rebetRoulette()" id="r-rebet" title="Place same bets as last round">↺ REBET</button>
                                 <button class="btn-play" style="background:#333; color:#aaa;" onclick="clearRouletteBets()">CLEAR</button>
                             </div>
                         </div>
@@ -2814,19 +2815,38 @@
 
                         <div id="game-keno" class="hidden">
                             <style>
-                                .keno-wrap { display:flex; gap:16px; padding:16px 20px; flex-wrap:wrap; align-items:flex-start; justify-content:center; max-width:900px; margin:0 auto; }
-                                .keno-board-area { flex:1; min-width:220px; max-width:300px; }
+                                .keno-wrap { display:flex; gap:20px; padding:16px 20px; flex-wrap:wrap; align-items:flex-start; justify-content:center; max-width:1000px; margin:0 auto; }
+                                .keno-board-area { flex:1; min-width:320px; max-width:520px; }
                                 .keno-title { font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:900; color:var(--orange); letter-spacing:1px; margin-bottom:2px; display:flex; align-items:center; gap:8px; }
                                 .keno-sub { font-size:12px; color:var(--muted2); margin-bottom:12px; }
-                                .keno-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:5px; }
-                                .keno-num { background:var(--panel2); border:1px solid var(--border2); border-radius:7px; aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:var(--muted2); cursor:pointer; transition:all 0.15s; user-select:none; position:relative; overflow:hidden; }
-                                .keno-num:hover:not(.keno-drawn):not(.keno-hit):not(.keno-miss) { border-color:rgba(15,214,138,0.4); color:var(--text); background:rgba(15,214,138,0.06); }
-                                .keno-num.keno-selected { background:rgba(15,214,138,0.12); border-color:var(--orange); color:var(--orange); box-shadow:0 0 10px rgba(15,214,138,0.2); }
-                                .keno-num.keno-hit { background:rgba(15,214,138,0.2); border-color:var(--green); color:var(--green); box-shadow:0 0 14px rgba(15,214,138,0.3); animation:kenoHit 0.35s ease; }
-                                .keno-num.keno-miss { background:rgba(255,77,109,0.08); border-color:rgba(255,77,109,0.3); color:var(--red); }
+                                .keno-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:7px; }
+                                .keno-num {
+                                    background:var(--panel2); border:2px solid var(--border2); border-radius:10px;
+                                    aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+                                    font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:700;
+                                    color:var(--muted2); cursor:pointer; transition:all 0.15s; user-select:none;
+                                    position:relative; overflow:hidden; min-height:52px;
+                                }
+                                .keno-num:hover:not(.keno-drawn):not(.keno-hit):not(.keno-miss) {
+                                    border-color:rgba(15,214,138,0.5); color:var(--text); background:rgba(15,214,138,0.08); transform:scale(1.04);
+                                }
+                                .keno-num.keno-selected {
+                                    background:rgba(15,214,138,0.18); border-color:var(--orange); color:#fff;
+                                    box-shadow:0 0 14px rgba(15,214,138,0.4), inset 0 0 8px rgba(15,214,138,0.1);
+                                    transform:scale(1.06); animation:kenoPulse 1.8s ease-in-out infinite;
+                                }
+                                @keyframes kenoPulse {
+                                    0%,100% { box-shadow:0 0 10px rgba(15,214,138,0.3), inset 0 0 6px rgba(15,214,138,0.08); }
+                                    50% { box-shadow:0 0 26px rgba(15,214,138,0.7), inset 0 0 14px rgba(15,214,138,0.2); }
+                                }
+                                .keno-num.keno-hit {
+                                    background:rgba(15,214,138,0.25); border-color:var(--green); color:#fff;
+                                    box-shadow:0 0 22px rgba(15,214,138,0.6); animation:kenoHit 0.4s cubic-bezier(0.34,1.56,0.64,1);
+                                }
+                                .keno-num.keno-miss { background:rgba(255,77,109,0.1); border-color:rgba(255,77,109,0.4); color:var(--red); }
                                 .keno-num.keno-drawn { background:rgba(255,255,255,0.04); border-color:var(--border2); color:var(--muted); }
-                                @keyframes kenoHit { 0%{transform:scale(1);} 50%{transform:scale(1.15);} 100%{transform:scale(1);} }
-                                .keno-panel { width:200px; flex-shrink:0; display:flex; flex-direction:column; gap:10px; }
+                                @keyframes kenoHit { 0%{transform:scale(1);} 40%{transform:scale(1.28);} 70%{transform:scale(0.96);} 100%{transform:scale(1);} }
+                                .keno-panel { width:215px; flex-shrink:0; display:flex; flex-direction:column; gap:10px; }
                                 .keno-panel-box { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; }
                                 .keno-label { font-size:10px; font-weight:700; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; margin-bottom:8px; font-family:'Barlow Condensed',sans-serif; }
                                 .keno-bet-row { display:flex; align-items:center; background:var(--dark); border:1px solid var(--border2); border-radius:10px; overflow:hidden; }
@@ -2849,7 +2869,13 @@
                                 .keno-payout-table { width:100%; border-collapse:collapse; margin-top:8px; font-size:11px; }
                                 .keno-payout-table td { padding:4px 6px; color:var(--muted2); font-family:'JetBrains Mono',monospace; }
                                 .keno-payout-table tr:first-child td { color:var(--muted); font-size:9px; letter-spacing:1px; text-transform:uppercase; font-family:'Barlow Condensed',sans-serif; }
-                                .keno-payout-table .keno-pt-highlight { color:var(--orange); font-weight:700; }
+                                .keno-pt-highlight { color:var(--orange); font-weight:700; }
+                                .keno-mode-row { display:flex; gap:6px; margin-bottom:12px; }
+                                .keno-mode-btn { flex:1; padding:7px 4px; border-radius:8px; border:2px solid var(--border2); background:var(--panel2); color:var(--muted2); font-size:11px; font-weight:700; cursor:pointer; font-family:'Sora',sans-serif; transition:0.15s; text-align:center; }
+                                .keno-mode-btn:hover { border-color:rgba(15,214,138,0.4); color:var(--text); }
+                                .keno-mode-btn.km-easy.active { border-color:#2ecc71; color:#2ecc71; background:rgba(46,204,113,0.12); }
+                                .keno-mode-btn.km-medium.active { border-color:#f39c12; color:#f39c12; background:rgba(243,156,18,0.12); }
+                                .keno-mode-btn.km-hard.active { border-color:#e74c3c; color:#e74c3c; background:rgba(231,76,60,0.12); }
                             </style>
                             <div class="keno-wrap">
                                 <div class="keno-board-area">
@@ -2862,6 +2888,12 @@
                                 </div>
                                 <div class="keno-panel">
                                     <div class="keno-panel-box">
+                                        <div class="keno-label">Risk Mode</div>
+                                        <div class="keno-mode-row">
+                                            <button class="keno-mode-btn km-easy active" id="keno-mode-easy" onclick="setKenoMode('easy')">Easy</button>
+                                            <button class="keno-mode-btn km-medium" id="keno-mode-medium" onclick="setKenoMode('medium')">Medium</button>
+                                            <button class="keno-mode-btn km-hard" id="keno-mode-hard" onclick="setKenoMode('hard')">Hard</button>
+                                        </div>
                                         <div class="keno-label">Bet Amount</div>
                                         <div class="keno-bet-row">
                                             <input type="number" id="keno-bet" value="100" min="50" max="1000">
@@ -2887,15 +2919,11 @@
                                         <div class="keno-label">Potential Payouts</div>
                                         <table class="keno-payout-table" id="keno-payout-table">
                                             <tr><td>Hits</td><td>Mult</td></tr>
-                                            <tr><td>1 Hits</td><td>1.10×</td></tr>
-                                            <tr><td>2 Hits</td><td>3.00×</td></tr>
-                                            <tr><td>3 Hits</td><td class="keno-pt-highlight">6.00×</td></tr>
                                         </table>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
 
                         <div id="game-beequip" class="hidden">
                             <style>
@@ -4319,14 +4347,38 @@
 
     // Rainbet/Stake exact formula: running product of (remaining / remaining_safe) * 0.99 per gem
     // mult = product for k=0..gems-1 of: ((25-k) / (25-bombs-k)) * 0.99
+    // Exact multiplier lookup table from official odds
+    // MINES_MULT[bombs][gems] — bombs 1-24, gems 1-max
+    const MINES_MULT = {
+        1:  [,1.03,1.08,1.12,1.18,1.24,1.30,1.37,1.46,1.55,1.65,1.77,1.90,2.06,2.25,2.47,2.75,3.09,3.54,4.12,4.95,6.19,8.25,12.38,24.75],
+        2:  [,1.08,1.17,1.29,1.41,1.56,1.74,1.94,2.18,2.47,2.83,3.26,3.81,4.50,5.40,6.60,8.25,10.61,14.14,19.80,29.70,49.50,99,297],
+        3:  [,1.12,1.29,1.48,1.71,2.00,2.35,2.79,3.35,4.07,5.00,6.26,7.96,10.35,13.80,18.97,27.11,40.66,65.06,113.85,227.70,569.25,2277],
+        4:  [,1.18,1.41,1.71,2.09,2.58,3.23,4.09,5.26,6.88,9.17,12.51,17.52,25.30,37.95,59.64,99.39,178.91,357.81,834.90,2504.70,12523.50],
+        5:  [,1.24,1.56,2.00,2.58,3.39,4.52,6.14,8.50,12.04,17.52,26.27,40.87,66.41,113.85,208.72,417.45,939.26,2504.70,8766.45,52598.70],
+        6:  [,1.30,1.74,2.35,3.23,4.52,6.46,9.44,14.17,21.89,35.03,58.38,102.17,189.75,379.50,834.90,2087.25,6261.75,25047,175329],
+        7:  [,1.37,1.94,2.79,4.09,6.14,9.44,14.95,24.47,41.60,73.95,138.66,277.33,600.87,1442.10,3965.77,13219.25,59486.62,475893],
+        8:  [,1.46,2.18,3.35,5.26,8.50,14.17,24.47,44.05,83.20,166.40,356.56,831.98,2163.15,6489.45,23794.65,118973.25,1070759.25],
+        9:  [,1.55,2.47,4.07,6.88,12.04,21.89,41.60,83.20,176.80,404.10,1010.26,2828.73,9193.39,36773.55,202254.52,2022545.25],
+        10: [,1.65,2.83,5.00,9.17,17.52,35.03,73.95,166.40,404.10,1077.61,3232.84,11314.94,49031.40,294188.40,3236072.40],
+        11: [,1.77,3.26,6.26,12.51,26.27,58.38,138.66,356.56,1010.26,3232.84,12123.15,56574.69,367735.50,4412826],
+        12: [,1.90,3.81,7.96,17.52,40.87,102.17,277.33,831.98,2828.73,11314.94,56574.69,396022.85,5148297],
+        13: [,2.06,4.50,10.35,25.30,66.41,189.75,600.87,2163.15,9193.39,49031.40,367735.50,5148297],
+        14: [,2.25,5.40,13.80,37.95,113.85,379.50,1442.10,6489.45,36773.55,294188.40,4412826],
+        15: [,2.47,6.60,18.97,59.64,208.72,834.90,3965.77,23794.65,202254.52,3236072.40],
+        16: [,2.75,8.25,27.11,99.39,417.45,2087.25,13219.25,118973.25,2022545.25],
+        17: [,3.09,10.61,40.66,178.91,939.26,6261.75,59486.62,1070759.25],
+        18: [,3.54,14.14,65.06,357.81,2504.70,25047,475893],
+        19: [,4.12,19.80,113.85,834.90,8766.45,175329],
+        20: [,4.95,29.70,227.70,2504.70,52598.70],
+        21: [,6.19,49.50,569.25,12523.50],
+        22: [,8.25,99,2277],
+        23: [,12.37,297],
+        24: [,24.75]
+    };
     function mCalcMult(bombs, gems) {
-        const total = 25;
-        const safe = total - bombs;
-        let mult = 1.0;
-        for (let k = 0; k < gems; k++) {
-            mult *= ((total - k) / (safe - k)) * 0.99;
-        }
-        return parseFloat(mult.toFixed(4));
+        const row = MINES_MULT[bombs];
+        if(!row || gems < 1) return 1.0;
+        return row[gems] || row[row.length - 1] || 1.0;
     }
 
     function mUpdatePreviewMult() {
@@ -4772,7 +4824,7 @@
     // ROULETTE
     const rOrder = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
     const redNums = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
-    let currentBets = {}, isRSpinning = false, rBalBefore = 0;
+    let currentBets = {}, isRSpinning = false, rBalBefore = 0, lastBets = {};
     function buildRoulette() {
         // Build spin strip
         const slider = document.getElementById('r-slider');
@@ -4799,7 +4851,9 @@
     function handleRClick(val, el) { setExtraBet(val, el); }
     function setExtraBet(type, el) {
         if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
-        if(isRSpinning || !userData) return; const amt = clampBet(document.getElementById('r-bet').value);
+        if(isRSpinning || !userData) return;
+        const raw = parseFloat(document.getElementById('r-bet').value) || 10;
+        const amt = Math.max(0.1, Math.round(raw * 10) / 10);
         document.getElementById('r-bet').value = amt;
         if(amt > userData.chips) { toast('Not enough ★!', 'error'); return; } if(!currentBets[type]) currentBets[type] = 0;
         const totalSoFar = Object.values(currentBets).reduce((a, b) => a + b, 0);
@@ -4807,7 +4861,30 @@
         if(Object.keys(currentBets).length === 0 || Object.values(currentBets).every(v => v === 0)) rBalBefore = userData.chips;
         currentBets[type] += amt; userData.chips -= amt; updateUI(); saveGameState();
         let chip = el.querySelector('.chip-overlay'); if(!chip) { chip = document.createElement('div'); chip.className = 'chip-overlay'; el.appendChild(chip); }
-        chip.innerText = currentBets[type]; el.classList.add('active');
+        chip.innerText = currentBets[type] >= 1 ? Math.round(currentBets[type]) : currentBets[type].toFixed(1); el.classList.add('active');
+    }
+    function rebetRoulette() {
+        if(isRSpinning || !userData) return;
+        if(Object.keys(lastBets).length === 0) { toast('No previous bet to repeat!', 'error'); return; }
+        // Clear current bets first
+        clearRouletteBets();
+        // Re-apply last bets
+        const savedChip = document.getElementById('r-bet').value;
+        for(const [type, amt] of Object.entries(lastBets)) {
+            if(amt <= 0) continue;
+            if(amt > userData.chips) { toast('Not enough ★ to rebet!', 'error'); clearRouletteBets(); return; }
+            if(!currentBets[type]) currentBets[type] = 0;
+            if(Object.keys(currentBets).length === 0 || Object.values(currentBets).every(v => v === 0)) rBalBefore = userData.chips;
+            currentBets[type] += amt; userData.chips -= amt; updateUI();
+            // Find and update the UI element
+            const el = document.querySelector(`[onclick*="'${type}'"]`) || document.querySelector(`[onclick*='"${type}"']`);
+            if(el) {
+                let chip = el.querySelector('.chip-overlay'); if(!chip) { chip = document.createElement('div'); chip.className = 'chip-overlay'; el.appendChild(chip); }
+                chip.innerText = currentBets[type] >= 1 ? Math.round(currentBets[type]) : currentBets[type].toFixed(1); el.classList.add('active');
+            }
+        }
+        saveGameState();
+        toast('↺ Last bets placed!', 'success', 1200);
     }
     function clearRouletteBets() {
         if(isRSpinning) return; let refund = 0; for(let key in currentBets) { refund += currentBets[key]; userData.chips += currentBets[key]; } clearGameState('roulette');
@@ -4873,33 +4950,57 @@
             document.getElementById('r-status').innerText = `Landed: ${actualNum} ${redNums.includes(actualNum) ? '🔴' : actualNum === 0 ? '🟢' : '⚫'}`;
             if(totalWin > 0) { userData.chips += totalWin; play('win'); showWinOverlay(parseFloat((totalWin/totalBet).toFixed(2)), totalWin); addHistory("Roulette", totalBet, totalWin/totalBet, totalWin, rBalBefore); addProfit('roulette', totalWin - totalBet); }
             else { play('boom'); addHistory("Roulette", totalBet, 0, -totalBet, rBalBefore); addProfit('roulette', -totalBet); }
+            lastBets = {...currentBets};
             currentBets = {}; clearGameState('roulette'); document.querySelectorAll('.cell, .btn-extra').forEach(el => { el.classList.remove('active'); const c = el.querySelector('.chip-overlay'); if(c) c.remove(); });
             isRSpinning = false; document.getElementById('r-spin').disabled = false; updateUI();
         }, 5200);
     }
 
     // KENO
-    // KENO
     let kenoSelected = new Set();
     let kenoPlaying = false;
+    let kenoMode = 'easy'; // 'easy' | 'medium' | 'hard'
 
-    // Payouts per [pickCount][matches] — index 0 unused
-    const KENO_PAYOUTS = {
-        3: [0, 1.00, 2.70, 5.50],
-        4: [0, 0.60, 2.00, 4.50, 11.00],
-        5: [0, 0.45, 1.35, 3.60, 9.00, 27.00]
+    // Payouts per mode → pickCount → [0-matches] (index 0 = 0 hits)
+    const KENO_PAYOUTS_ALL = {
+        easy: {
+            3: [0, 1.20, 3.00,  7.00],
+            4: [0, 0.80, 2.20,  5.50, 13.00],
+            5: [0, 0.60, 1.60,  4.00, 10.00, 30.00]
+        },
+        medium: {
+            3: [0, 0.80, 2.70,  9.00],
+            4: [0, 0.50, 1.80,  6.00, 18.00],
+            5: [0, 0.35, 1.20,  4.50, 13.00, 50.00]
+        },
+        hard: {
+            3: [0, 0.00, 2.00, 15.00],
+            4: [0, 0.00, 1.20,  8.00, 35.00],
+            5: [0, 0.00, 0.80,  5.00, 20.00, 100.00]
+        }
     };
+
+    function setKenoMode(mode) {
+        if(kenoPlaying) return;
+        kenoMode = mode;
+        ['easy','medium','hard'].forEach(m => {
+            const btn = document.getElementById('keno-mode-' + m);
+            if(btn) btn.classList.toggle('active', m === mode);
+        });
+        updateKenoPayoutTable();
+    }
 
     function updateKenoPayoutTable() {
         const count = kenoSelected.size;
         const table = document.getElementById('keno-payout-table');
         if(!table) return;
         const picks = Math.max(3, Math.min(5, count || 3));
-        const payouts = KENO_PAYOUTS[picks];
+        const payouts = (KENO_PAYOUTS_ALL[kenoMode] || KENO_PAYOUTS_ALL.easy)[picks];
         let rows = '<tr><td>Hits</td><td>Mult</td></tr>';
         for(let i = 1; i < payouts.length; i++) {
             const isTop = (i === payouts.length - 1);
-            rows += `<tr><td>${i} Hit${i>1?'s':''}</td><td${isTop?' class="keno-pt-highlight"':''}>${payouts[i].toFixed(2)}×</td></tr>`;
+            const isZero = payouts[i] === 0;
+            rows += `<tr><td>${i} Hit${i>1?'s':''}</td><td${isTop?' class="keno-pt-highlight"':isZero?' style="color:#666"':''}>${payouts[i].toFixed(2)}×</td></tr>`;
         }
         table.innerHTML = rows;
     }
@@ -4998,7 +5099,7 @@
         });
 
         const picks = kenoSelected.size;
-        const payoutTable = KENO_PAYOUTS[picks] || KENO_PAYOUTS[5];
+        const payoutTable = (KENO_PAYOUTS_ALL[kenoMode] || KENO_PAYOUTS_ALL.easy)[picks] || KENO_PAYOUTS_ALL.easy[5];
         const clampedMatches = Math.min(matches, payoutTable.length - 1);
         const mult = payoutTable[clampedMatches];
         const win = Math.floor(bet * mult);
@@ -5211,7 +5312,7 @@
         userData.chips += win; play('win');
         showWinOverlay(m, win);
         addHistory("Tower", tBet, m, win); clearGameState('tower');
-        addProfit('tower', win);
+        addProfit('tower', win - tBet);
         tActive = false; updateUI();
         document.getElementById('t-start').disabled = false;
         document.getElementById('t-risk').disabled = false;
