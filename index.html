@@ -6533,20 +6533,12 @@
             }
 
             if(_isDiscordUser) {
-                // Discord users: localStorage is ALWAYS the source of truth for chips.
-                // updateUI() saves there synchronously on every bet/win, so it is always current.
-                // Only use server data when there is no local cache (first time on this device).
-                // Admin deposits set the _bot_updated flag which is handled below — do NOT use
-                // raw server chips here or a stale server copy will overwrite valid local data.
-                if(_cachedData) {
-                    // Merge: keep localhost chips, but pull latest profile fields (avatar, name, etc.) from server
-                    userData = _serverData ? Object.assign({}, _serverData, { chips: _cachedData.chips }) : _cachedData;
-                } else {
-                    // No local cache — new device, trust server
-                    userData = _serverData;
-                    if(_serverData) {
-                        try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
-                    }
+                // Discord users: server IS authoritative because dbSet() calls the Edge Function
+                // which successfully writes chips to Supabase on every bet/win.
+                // The bot and admin panel also read/write Supabase, so server must stay primary.
+                userData = _serverData || _cachedData;
+                if(_serverData) {
+                    try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
                 }
             } else {
                 // Username/password users: localStorage IS the source of truth.
@@ -6580,8 +6572,9 @@
                 if(fresh && fresh.chips !== undefined) {
                     const _SYM_RAW = Symbol.for('bss_raw');
                     const raw = (userData && userData[_SYM_RAW]) ? userData[_SYM_RAW] : userData;
-                    // Only update if server has MORE chips (e.g. admin deposit) — never overwrite with a lower value
-                    if(fresh.chips > (raw.chips || 0)) {
+                    // Server is authoritative for Discord users (Edge Function keeps it current).
+                    // Update local balance whenever server differs — this reflects bot withdrawals/deposits.
+                    if(Math.abs((raw.chips || 0) - fresh.chips) > 0) {
                         raw.chips = fresh.chips;
                         updateUI();
                     }
