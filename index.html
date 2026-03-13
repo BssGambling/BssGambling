@@ -6407,14 +6407,21 @@
 
             // If localStorage had a different chip count than what the server returned,
             // the server save was still in-flight when the page was refreshed.
-            // Restore the local (correct) chip count and re-save to the server.
+            // BUT only restore local value if the server was NOT updated by the bot.
+            // If _bot_updated is present on server data, the bot made a legitimate change — use server value.
             if(_cachedData && userData &&
                typeof _cachedData.chips === 'number' &&
                typeof userData.chips === 'number' &&
-               _cachedData.chips !== userData.chips) {
+               _cachedData.chips !== userData.chips &&
+               !userData._bot_updated) {
                 console.log('[onload] Balance mismatch — server:', userData.chips, '/ local:', _cachedData.chips, '— using local value');
                 userData.chips = _cachedData.chips;
                 // Re-save so the server catches up
+                dbSet('users', currentUser, userData);
+            } else if(userData && userData._bot_updated) {
+                console.log('[onload] Bot-updated balance detected — using server value:', userData.chips);
+                // Clear the flag so future normal mismatches work correctly
+                delete userData._bot_updated;
                 dbSet('users', currentUser, userData);
             }
 
