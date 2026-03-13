@@ -3541,17 +3541,17 @@
             } else {
                 if(users[u] && users[u].password === p) {
                     currentUser = u;
-                    // Prefer localStorage chips over stale server data
+                    // localStorage is ALWAYS the source of truth for username/password users
+                    // because Supabase RLS blocks chip writes — the server value never updates
+                    // during gameplay, so it's always stale. Use local chips if they exist.
                     const _loginCached = localStorage.getItem('swarm_userdata_' + u);
                     let _loginCachedData = null;
                     try { _loginCachedData = _loginCached ? JSON.parse(_loginCached) : null; } catch(e) {}
-                    if(_loginCachedData && typeof _loginCachedData.chips === 'number' && typeof users[u].chips === 'number' && _loginCachedData.chips < users[u].chips) {
-                        // Server has MORE chips (admin deposit) — use server
-                        userData = users[u];
-                    } else if(_loginCachedData) {
-                        // localStorage has same or MORE chips — trust it, but keep password from server
+                    if(_loginCachedData && typeof _loginCachedData.chips === 'number') {
+                        // Use local chips; merge other fields (password etc.) from server
                         userData = Object.assign({}, users[u], { chips: _loginCachedData.chips });
                     } else {
+                        // No local cache (new device) — use server value
                         userData = users[u];
                     }
                     localStorage.setItem('swarm_user', u);
@@ -6533,15 +6533,20 @@
             }
 
             if(_isDiscordUser) {
-                // Discord users: use server data only if chips are HIGHER (e.g. admin deposit),
-                // otherwise trust localStorage so a stale server value never overwrites a local balance.
-                if(_serverData && _cachedData && typeof _serverData.chips === 'number' && typeof _cachedData.chips === 'number') {
-                    userData = _serverData.chips > _cachedData.chips ? _serverData : _cachedData;
+                // Discord users: localStorage is ALWAYS the source of truth for chips.
+                // updateUI() saves there synchronously on every bet/win, so it is always current.
+                // Only use server data when there is no local cache (first time on this device).
+                // Admin deposits set the _bot_updated flag which is handled below — do NOT use
+                // raw server chips here or a stale server copy will overwrite valid local data.
+                if(_cachedData) {
+                    // Merge: keep localhost chips, but pull latest profile fields (avatar, name, etc.) from server
+                    userData = _serverData ? Object.assign({}, _serverData, { chips: _cachedData.chips }) : _cachedData;
                 } else {
-                    userData = _serverData || _cachedData;
-                }
-                if(_serverData && userData === _serverData) {
-                    try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
+                    // No local cache — new device, trust server
+                    userData = _serverData;
+                    if(_serverData) {
+                        try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
+                    }
                 }
             } else {
                 // Username/password users: localStorage IS the source of truth.
