@@ -1758,10 +1758,94 @@
     }
     #mobile-nav { display: none; }
 
+    /* ── Cashout Win Overlay (Stake-style) ── */
+    #cashout-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    #cashout-overlay.visible { opacity: 1; }
+    .co-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(2px);
+    }
+    .co-card {
+        position: relative;
+        background: linear-gradient(145deg, #0d1a12 0%, #071510 100%);
+        border: 2px solid #0fd68a;
+        box-shadow: 0 0 60px rgba(15,214,138,0.5), 0 0 120px rgba(15,214,138,0.15), inset 0 1px 0 rgba(15,214,138,0.2);
+        border-radius: 20px;
+        padding: 36px 56px;
+        text-align: center;
+        min-width: 240px;
+        animation: co-pop 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards;
+    }
+    @keyframes co-pop {
+        from { transform: scale(0.5) translateY(40px); opacity:0; }
+        to   { transform: scale(1)   translateY(0);    opacity:1; }
+    }
+    .co-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #0fd68a;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+        opacity: 0.75;
+    }
+    .co-mult {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 80px;
+        font-weight: 900;
+        color: #c9a800;
+        line-height: 1;
+        text-shadow: 0 0 40px rgba(201,168,0,0.7);
+        letter-spacing: -2px;
+    }
+    .co-amount {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 24px;
+        font-weight: 800;
+        color: #888;
+        margin-top: 8px;
+        letter-spacing: 1px;
+    }
+    .co-amount b { color: #0fd68a; }
+    .co-spark {
+        position: absolute;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #0fd68a;
+        pointer-events: none;
+        animation: co-spark-fly 0.9s ease-out forwards;
+    }
+    @keyframes co-spark-fly {
+        from { opacity:1; transform: translate(0,0) scale(1.2); }
+        to   { opacity:0; transform: var(--co-t) scale(0); }
+    }
 
     </style>
 </head>
 <body onclick="typeof initAudio === 'function' && initAudio()">
+
+<!-- Stake-style cashout overlay -->
+<div id="cashout-overlay">
+    <div class="co-backdrop" onclick="hideCashoutOverlay()"></div>
+    <div class="co-card" id="co-card">
+        <div class="co-label">CASHED OUT</div>
+        <div class="co-mult" id="co-mult">1.05x</div>
+        <div class="co-amount">+<b id="co-amount">52</b> ★</div>
+    </div>
+</div>
 
 <div id="auth-screen" style="display:flex; justify-content:center; align-items:center; width: 100vw; height: 100vh; background: var(--dark); position:fixed; z-index: 1000;">
     <div class="card" style="width: 360px; text-align: center; border: 2px solid var(--orange);">
@@ -3621,8 +3705,49 @@
 
     // Profit trackers per game session
     const sessionProfit = { mines:0, dice:0, coinflip:0, roulette:0, blackjack:0, tower:0, crash:0, keno:0 };
+
+    let _coTimer = null;
     function showWinOverlay(mult, amount) {
-        toast('🏆 You won ' + Math.floor(amount) + ' ★ (' + (typeof mult === 'number' ? mult.toFixed(2) : mult) + '×)!', 'success', 3500);
+        const overlay = document.getElementById('cashout-overlay');
+        const card = document.getElementById('co-card');
+        const multEl = document.getElementById('co-mult');
+        const amountEl = document.getElementById('co-amount');
+        if(!overlay) { toast('🏆 You won ' + Math.floor(amount) + ' ★ (' + (typeof mult === 'number' ? mult.toFixed(2) : mult) + '×)!', 'success', 3500); return; }
+
+        // Set values
+        const multStr = typeof mult === 'number' ? mult.toFixed(2) + 'x' : mult;
+        multEl.textContent = multStr;
+        amountEl.textContent = Math.floor(amount);
+
+        // Restart animation by cloning card
+        const newCard = card.cloneNode(true);
+        card.parentNode.replaceChild(newCard, card);
+
+        // Spawn sparks
+        const positions = [
+            'translate(-80px,-90px)','translate(80px,-90px)','translate(-100px,-30px)',
+            'translate(100px,-30px)','translate(-60px,80px)','translate(60px,80px)',
+            'translate(0px,-100px)','translate(-90px,50px)','translate(90px,50px)'
+        ];
+        positions.forEach((t, i) => {
+            const spark = document.createElement('div');
+            spark.className = 'co-spark';
+            spark.style.setProperty('--co-t', t);
+            spark.style.left = (40 + Math.random()*20) + '%';
+            spark.style.top = (40 + Math.random()*20) + '%';
+            spark.style.animationDelay = (i * 0.05) + 's';
+            spark.style.background = i % 3 === 0 ? '#c9a800' : '#0fd68a';
+            newCard.appendChild(spark);
+        });
+
+        overlay.classList.add('visible');
+        if(_coTimer) clearTimeout(_coTimer);
+        _coTimer = setTimeout(hideCashoutOverlay, 2200);
+    }
+    function hideCashoutOverlay() {
+        const overlay = document.getElementById('cashout-overlay');
+        if(overlay) overlay.classList.remove('visible');
+        if(_coTimer) { clearTimeout(_coTimer); _coTimer = null; }
     }
 
         function addProfit(game, amount) {
@@ -4177,7 +4302,9 @@
         if(btn) btn.style.display = playing ? 'none' : 'block';
         document.getElementById('m-bet').disabled = playing;
         var sl = document.getElementById('m-mine-slider'); if(sl) sl.disabled = playing;
-        document.getElementById('m-cash').classList.toggle('hidden', !playing);
+        // Cash button only shown when playing AND at least 1 gem found
+        var cashBtn = document.getElementById('m-cash');
+        if(cashBtn) cashBtn.classList.toggle('hidden', !playing || mGemsFound < 1);
         var md = document.getElementById('m-mult-disp');
         if(md) md.style.display = playing ? 'block' : 'none';
     }
@@ -4239,6 +4366,8 @@
                     play('star'); mGemsFound++;
                     mMult = mCalcMult(mGridSize, bombs, mGemsFound);
                     mUpdateMult(); saveGameState();
+                    // Show cash button only after first gem
+                    var cb = document.getElementById('m-cash'); if(cb) cb.classList.remove('hidden');
                 }
             };
             board.appendChild(t);
@@ -4246,13 +4375,14 @@
     }
 
     function cashoutMines() {
-        if(!mActive) return;
+        if(!mActive || mGemsFound < 1) return;
+        mActive = false; // set immediately to prevent double-cashout
         const win = Math.floor(mBet * mMult);
         userData.chips += win; play('win');
-       ;
+        showWinOverlay(mMult, win);
         addHistory('Mines', mBet, mMult, win, mBalBefore); clearGameState('mines');
         addProfit('mines', win);
-        mActive = false; updateUI();
+        updateUI();
         mSetUI(false);
         const tiles = document.querySelectorAll('#m-board .tile');
         tiles.forEach(function(tile, idx) {
@@ -4395,7 +4525,7 @@
                 } else if(playerWins) {
                     const win = Math.floor(b * 2.00); // Updated to 2.00x for 94% RTP
                     userData.chips += win; play('win');
-                   ;
+                    showWinOverlay(2.00, win);
                     addHistory('Dice', b, 2.00, win, dBalBefore); addProfit('dice', win);
                     toast('You win! +' + win + ' ★', 'success');
                     updateUI();
@@ -4428,6 +4558,8 @@
             coin.style.transform = res === 'H' ? 'rotateY(0deg)' : 'rotateY(180deg)';
             if(res === choice) {
                 let win = b*2; userData.chips += win; play('win');
+                showWinOverlay(2, win);
+                toast((res==='H'?'👑 Heads':'★ Tails') + '! You win +' + win + ' ★', 'success');
                 addHistory("CoinFlip", b, 2, win, cfBalBefore); addProfit('coinflip', win);
                 toast((res==='H'?'👑 Heads':'★ Tails') + '! You win +' + win + ' ★', 'success');
             } else {
@@ -4484,6 +4616,7 @@
                 cashedOut = true;
                 let win = Math.floor(crashBet * targetMult); userData.chips += win;
                 display.style.color = "var(--green)";
+                showWinOverlay(targetMult, win);
                 play('win'); addHistory("Crash", crashBet, targetMult, win, crBalBefore);
                 addProfit('crash', win);
                 toast('✈️ Cashed out at ' + targetMult.toFixed(2) + 'x! +' + win + ' ★', 'success');
@@ -4616,7 +4749,7 @@
                 else if(b === '3rd12' && actualNum >= 25 && actualNum <= 36) totalWin += amt * 3;
             }
             document.getElementById('r-status').innerText = `Landed: ${actualNum} ${redNums.includes(actualNum) ? '🔴' : actualNum === 0 ? '🟢' : '⚫'}`;
-            if(totalWin > 0) { userData.chips += totalWin; play('win'); addHistory("Roulette", totalBet, totalWin/totalBet, totalWin, rBalBefore); addProfit('roulette', totalWin - totalBet); }
+            if(totalWin > 0) { userData.chips += totalWin; play('win'); showWinOverlay(parseFloat((totalWin/totalBet).toFixed(2)), totalWin); addHistory("Roulette", totalBet, totalWin/totalBet, totalWin, rBalBefore); addProfit('roulette', totalWin - totalBet); }
             else { play('boom'); addHistory("Roulette", totalBet, 0, -totalBet, rBalBefore); addProfit('roulette', -totalBet); }
             currentBets = {}; clearGameState('roulette'); document.querySelectorAll('.cell, .btn-extra').forEach(el => { el.classList.remove('active'); const c = el.querySelector('.chip-overlay'); if(c) c.remove(); });
             isRSpinning = false; document.getElementById('r-spin').disabled = false; updateUI();
@@ -4751,7 +4884,7 @@
         if(win > 0) {
             userData.chips += win;
             addProfit('keno', win);
-           ;
+            showWinOverlay(mult, win);
             play('win');
         } else {
             play('boom');
