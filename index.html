@@ -730,6 +730,16 @@
     .nav-item.pf-nav { color:var(--green) !important; }
     .nav-item.pf-nav:hover { border-color:rgba(15,214,138,0.2) !important; }
 
+    .nav-game-item {
+        font-size: 12px !important;
+        padding: 7px 14px !important;
+        color: #aaa !important;
+        gap: 10px !important;
+    }
+    .nav-game-item:hover { color: #0fd68a !important; }
+    .nav-game-item svg { opacity: 0.7; }
+    .nav-game-item:hover svg { opacity: 1; }
+
     /* ── PF Float Button ── */
     .pf-float-btn {
         position:fixed; bottom:18px; right:18px; z-index:4000;
@@ -1842,8 +1852,50 @@
     }
 
     </style>
+
+    <style>
+        #ptr-indicator {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            height: 0;
+            overflow: hidden;
+            background: #0d0f12;
+            z-index: 9999;
+            transition: height 0.15s ease;
+            color: #0fd68a;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: 'Sora', sans-serif;
+            letter-spacing: 0.5px;
+        }
+        #ptr-indicator.ptr-visible {
+            border-bottom: 1px solid #1a2a1a;
+        }
+        #ptr-spinner {
+            width: 20px; height: 20px;
+            border: 2px solid #1a3a1a;
+            border-top-color: #0fd68a;
+            border-radius: 50%;
+            transition: transform 0.1s linear;
+        }
+        #ptr-spinner.ptr-spinning {
+            animation: ptr-spin 0.6s linear infinite;
+        }
+        @keyframes ptr-spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body onclick="typeof initAudio === 'function' && initAudio()">
+
+<div id="ptr-indicator">
+    <div id="ptr-spinner"></div>
+    <span id="ptr-label">Pull to refresh</span>
+</div>
 
 <!-- Win overlay — centered transparent float -->
 <div id="cashout-overlay">
@@ -1946,6 +1998,97 @@
   <ellipse cx="13" cy="34" rx="5" ry="3" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2"/>
   <ellipse cx="35" cy="34" rx="5" ry="3" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2"/>
 </svg> Games</div>
+
+        <!-- Game Shortcuts -->
+        <div style="padding: 4px 10px 2px; font-size:10px; color:#555; text-transform:uppercase; letter-spacing:1px; font-weight:700;">Games</div>
+
+        <div class="nav-item nav-game-item" onclick="backToMenu(); selectGame('dice')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="18" height="18">
+            <rect x="6" y="6" width="36" height="36" rx="7" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
+            <circle cx="16" cy="16" r="3" fill="#0fd68a"/><circle cx="32" cy="32" r="3" fill="#0fd68a"/>
+            <circle cx="32" cy="16" r="3" fill="#0fd68a"/><circle cx="16" cy="32" r="3" fill="#0fd68a"/>
+            <circle cx="24" cy="24" r="3" fill="#0fd68a"/>
+          </svg> Dice
+        </div>
+
+        <div class="nav-item nav-game-item" onclick="backToMenu(); selectGame('coinflip')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="18" height="18">
+            <circle cx="24" cy="24" r="17" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
+            <text x="24" y="30" text-anchor="middle" font-size="18" font-weight="bold" fill="#0fd68a">✦</text>
+          </svg> Coin Flip
+        </div>
+
+        <div class="nav-item nav-game-item" onclick="backToMenu(); selectGame('mines')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="18" height="18">
+            <circle cx="24" cy="24" r="12" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
+            <line x1="24" y1="6" x2="24" y2="12" stroke="#0fd68a" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="24" y1="36" x2="24" y2="42" stroke="#0fd68a" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="6" y1="24" x2="12" y2="24" stroke="#0fd68a" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="36" y1="24" x2="42" y2="24" stroke="#0fd68a" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="24" cy="24" r="4" fill="#0fd68a"/>
+          </svg> Mines
+        </div>
+
+        <div class="nav-item nav-game-item" onclick="backToMenu(); selectGame('blackjack')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="18" height="18">
+            <rect x="8" y="6" width="22" height="30" rx="3" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
+            <rect x="18" y="12" width="22" height="30" rx="3" fill="#111" stroke="#0fd68a" stroke-width="2"/>
+            <text x="14" y="24" font-size="13" font-weight="bold" fill="#0fd68a">A</text>
+            <text x="24" y="32" font-size="10" fill="#e74c3c">♥</text>
+          </svg> Blackjack
+        </div>
+
+        <div class="nav-item nav-game-item" onclick="backToMenu(); selectGame('crash')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="18" height="18">
+            <polyline points="6,38 14,28 22,20 30,14 38,8" stroke="#0fd68a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="38" cy="8" r="4" fill="#e74c3c"/>
+            <line x1="6" y1="38" x2="42" y2="38" stroke="#0fd68a" stroke-width="1.5" opacity="0.3"/>
+          </svg> Crash
+        </div>
+
+        <div class="nav-item nav-game-item" onclick="backToMenu(); selectGame('roulette')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="18" height="18">
+            <circle cx="24" cy="24" r="17" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
+            <circle cx="24" cy="24" r="8" fill="#111" stroke="#0fd68a" stroke-width="1.5"/>
+            <line x1="24" y1="7" x2="24" y2="41" stroke="#0fd68a" stroke-width="1" opacity="0.4"/>
+            <line x1="7" y1="24" x2="41" y2="24" stroke="#0fd68a" stroke-width="1" opacity="0.4"/>
+            <line x1="12" y1="12" x2="36" y2="36" stroke="#0fd68a" stroke-width="1" opacity="0.4"/>
+            <line x1="36" y1="12" x2="12" y2="36" stroke="#0fd68a" stroke-width="1" opacity="0.4"/>
+            <circle cx="24" cy="24" r="3" fill="#0fd68a"/>
+          </svg> Roulette
+        </div>
+
+        <div class="nav-item nav-game-item" onclick="backToMenu(); selectGame('tower')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="18" height="18">
+            <rect x="16" y="6" width="16" height="8" rx="2" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2"/>
+            <rect x="12" y="16" width="24" height="8" rx="2" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2"/>
+            <rect x="8" y="26" width="32" height="8" rx="2" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2"/>
+            <rect x="4" y="36" width="40" height="6" rx="2" fill="#0fd68a" opacity="0.3" stroke="#0fd68a" stroke-width="2"/>
+          </svg> Tower
+        </div>
+
+        <div class="nav-item nav-game-item" onclick="backToMenu(); selectGame('keno')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="18" height="18">
+            <rect x="6" y="6" width="36" height="36" rx="4" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
+            <circle cx="16" cy="16" r="4" fill="#0fd68a" opacity="0.8"/>
+            <circle cx="24" cy="16" r="4" fill="#0fd68a" opacity="0.3"/>
+            <circle cx="32" cy="16" r="4" fill="#0fd68a" opacity="0.8"/>
+            <circle cx="16" cy="24" r="4" fill="#0fd68a" opacity="0.3"/>
+            <circle cx="24" cy="24" r="4" fill="#0fd68a" opacity="0.8"/>
+            <circle cx="32" cy="24" r="4" fill="#0fd68a" opacity="0.3"/>
+            <circle cx="16" cy="32" r="4" fill="#0fd68a" opacity="0.8"/>
+            <circle cx="24" cy="32" r="4" fill="#0fd68a" opacity="0.3"/>
+            <circle cx="32" cy="32" r="4" fill="#0fd68a" opacity="0.8"/>
+          </svg> Keno
+        </div>
+
+        <div class="nav-item nav-game-item" onclick="backToMenu(); selectGame('sticker')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="18" height="18">
+            <circle cx="24" cy="24" r="17" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
+            <path d="M16 20 Q24 12 32 20 Q36 26 24 36 Q12 26 16 20Z" fill="#0fd68a" opacity="0.7"/>
+          </svg> Stickers
+        </div>
+
         <div class="nav-item" id="nav-history" onclick="showPage('history')"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="22" height="22">
   <rect x="10" y="8" width="28" height="34" rx="3" fill="#1a1a1a" stroke="#0fd68a" stroke-width="2.5"/>
   <line x1="16" y1="16" x2="32" y2="16" stroke="#0fd68a" stroke-width="2" stroke-linecap="round"/>
@@ -6397,30 +6540,11 @@
 
         // Step 3: Already logged in — restore session.
         if(currentUser) {
-            // Read localStorage BEFORE dbGet (dbGet overwrites it with server data)
-            // This lets us detect when the server has a stale balance (e.g. Edge Function
-            // save hadn't completed before the user refreshed the page).
-            const _cachedRaw = localStorage.getItem('swarm_userdata_' + currentUser);
-            const _cachedData = _cachedRaw ? (() => { try { return JSON.parse(_cachedRaw); } catch(e) { return null; } })() : null;
-
             userData = await dbGet('users', currentUser);
 
-            // If localStorage had a different chip count than what the server returned,
-            // the server save was still in-flight when the page was refreshed.
-            // BUT only restore local value if the server was NOT updated by the bot.
-            // If _bot_updated is present on server data, the bot made a legitimate change — use server value.
-            if(_cachedData && userData &&
-               typeof _cachedData.chips === 'number' &&
-               typeof userData.chips === 'number' &&
-               _cachedData.chips !== userData.chips &&
-               !userData._bot_updated) {
-                console.log('[onload] Balance mismatch — server:', userData.chips, '/ local:', _cachedData.chips, '— using local value');
-                userData.chips = _cachedData.chips;
-                // Re-save so the server catches up
-                dbSet('users', currentUser, userData);
-            } else if(userData && userData._bot_updated) {
+            // If bot updated the balance, clear the flag
+            if(userData && userData._bot_updated) {
                 console.log('[onload] Bot-updated balance detected — using server value:', userData.chips);
-                // Clear the flag so future normal mismatches work correctly
                 delete userData._bot_updated;
                 dbSet('users', currentUser, userData);
             }
@@ -6828,6 +6952,66 @@ function spRenderHistory() {
     </div>
   `).join('');
 }
+
+// ===== PULL TO REFRESH =====
+(function() {
+    const THRESHOLD = 80;   // px to pull before release triggers refresh
+    const MAX_PULL  = 110;  // max indicator height in px
+
+    let startY = 0, pulling = false, currentY = 0;
+    const indicator = document.getElementById('ptr-indicator');
+    const spinner   = document.getElementById('ptr-spinner');
+    const label     = document.getElementById('ptr-label');
+
+    function setHeight(h) {
+        indicator.style.height = h + 'px';
+        if(h > 0) indicator.classList.add('ptr-visible');
+        else indicator.classList.remove('ptr-visible');
+        // Rotate spinner proportionally while pulling
+        const pct = Math.min(h / THRESHOLD, 1);
+        if(!spinner.classList.contains('ptr-spinning'))
+            spinner.style.transform = `rotate(${pct * 300}deg)`;
+    }
+
+    document.addEventListener('touchstart', e => {
+        // Only start pull if already at the very top of the page
+        if(window.scrollY > 0) return;
+        startY = e.touches[0].clientY;
+        pulling = true;
+    }, { passive: true });
+
+    document.addEventListener('touchmove', e => {
+        if(!pulling) return;
+        currentY = e.touches[0].clientY;
+        const dist = Math.max(0, currentY - startY);
+        if(dist <= 0) return;
+        const h = Math.min(dist * 0.5, MAX_PULL); // dampen so it feels native
+        setHeight(h);
+        if(h >= THRESHOLD * 0.5) {
+            label.textContent = h >= THRESHOLD ? '↑ Release to refresh' : '↓ Pull to refresh';
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+        if(!pulling) return;
+        pulling = false;
+        const dist = Math.max(0, currentY - startY);
+        const h = Math.min(dist * 0.5, MAX_PULL);
+        if(h >= THRESHOLD) {
+            // Trigger refresh
+            setHeight(52);
+            label.textContent = 'Refreshing…';
+            spinner.classList.add('ptr-spinning');
+            setTimeout(() => location.reload(), 600);
+        } else {
+            // Snap back
+            indicator.style.transition = 'height 0.25s ease';
+            setHeight(0);
+            setTimeout(() => { indicator.style.transition = 'height 0.15s ease'; }, 260);
+        }
+        startY = 0; currentY = 0;
+    }, { passive: true });
+})();
 
 // ===== INIT =====
 spUpdatePotential();
