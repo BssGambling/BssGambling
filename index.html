@@ -3573,7 +3573,7 @@
                     }
                     mGameUI();
                     if(mGemsFound > 0) mShowCashBtn();
-                    toast('Mines restored! ' + m.gemsFound + ' gems found at ' + mMult.toFixed(3) + '×', 'success');
+                    toast('Mines restored! ' + m.gemsFound + ' gems found at ' + mMult.toFixed(2) + '×', 'success');
                 }, 600);
             }
 
@@ -4304,15 +4304,20 @@
     }
 
     function mGetRisk(bombs) {
-        if (bombs <= 3)  return 1.05;
-        if (bombs <= 7)  return 1.10;
-        if (bombs <= 12) return 1.18;
-        if (bombs <= 18) return 1.28;
-        return 1.45;
+        // kept for compatibility but not used in multiplier calc
+        return 1.0;
     }
 
+    // Rainbet/Stake exact formula: running product of (remaining / remaining_safe) * 0.99 per gem
+    // mult = product for k=0..gems-1 of: ((25-k) / (25-bombs-k)) * 0.99
     function mCalcMult(bombs, gems) {
-        return parseFloat(Math.pow(mGetRisk(bombs), gems).toFixed(3));
+        const total = 25;
+        const safe = total - bombs;
+        let mult = 1.0;
+        for (let k = 0; k < gems; k++) {
+            mult *= ((total - k) / (safe - k)) * 0.99;
+        }
+        return parseFloat(mult.toFixed(4));
     }
 
     function mUpdatePreviewMult() {
@@ -4320,7 +4325,7 @@
         const bombs = parseInt(document.getElementById('m-mine-slider')?.value || 3);
         const preview = mCalcMult(bombs, 1);
         const md = document.getElementById('m-mult-disp');
-        if (md && !mActive) { md.style.display = 'block'; md.innerText = preview.toFixed(3) + '×'; }
+        if (md && !mActive) { md.style.display = 'block'; md.innerText = preview.toFixed(2) + '×'; }
     }
 
     function mResetUI() {
@@ -4350,15 +4355,20 @@
 
     function mShowCashBtn() {
         const cashBtn = document.getElementById('m-cash');
-        if (cashBtn) { cashBtn.classList.remove('hidden'); cashBtn.disabled = false; }
+        const win = Math.floor(mBet * mMult);
+        if (cashBtn) {
+            cashBtn.classList.remove('hidden');
+            cashBtn.disabled = false;
+            cashBtn.textContent = 'CASH OUT  ' + win + ' ★';
+        }
         // Update mult display
         const md = document.getElementById('m-mult-disp');
-        if (md) { md.style.display = 'block'; md.innerText = mMult.toFixed(3) + '×'; }
+        if (md) { md.style.display = 'block'; md.innerText = mMult.toFixed(2) + '×'; }
     }
 
     function mUpdateMultDisplay() {
         const md = document.getElementById('m-mult-disp');
-        if (md) md.innerText = mMult.toFixed(3) + '×';
+        if (md) md.innerText = mMult.toFixed(2) + '×';
     }
 
     function buildEmptyMinesBoard() {
