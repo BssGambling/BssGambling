@@ -3141,18 +3141,27 @@
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvaG1zaHhheXBvZmJkbnVhaXdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNjY2NDQsImV4cCI6MjA4ODc0MjY0NH0.32yA_vM19i_0K-e95qdXrY4dR6m_fTDsJaNXqfi7T4I";
 
     async function dbGet(table, id) {
-        if(table === 'users') {
-            const cached = localStorage.getItem('swarm_userdata_' + id);
-            if(cached) { try { return JSON.parse(cached); } catch(e) {} }
-        }
         try {
             const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}&select=*`, {
                 headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
             });
             const rows = await res.json();
             if (!Array.isArray(rows)) { console.error('dbGet error:', JSON.stringify(rows)); return null; }
-            return rows[0] ? (table === 'users' ? rows[0].data : rows[0].val) : null;
-        } catch(e) { console.error('dbGet exception:', e); return null; }
+            const val = rows[0] ? (table === 'users' ? rows[0].data : rows[0].val) : null;
+            // Update local cache with fresh data
+            if(table === 'users' && val) {
+                try { localStorage.setItem('swarm_userdata_' + id, JSON.stringify(val)); } catch(e) {}
+            }
+            return val;
+        } catch(e) {
+            console.error('dbGet exception:', e);
+            // Only fall back to cache if network fails
+            if(table === 'users') {
+                const cached = localStorage.getItem('swarm_userdata_' + id);
+                if(cached) { try { return JSON.parse(cached); } catch(e2) {} }
+            }
+            return null;
+        }
     }
 
     const EDGE_BASE = "https://uohmshxaypofbdnuaiwj.supabase.co/functions/v1";
@@ -6188,6 +6197,21 @@
                 }
             }
         }
+
+        // Auto-refresh balance when tab becomes visible again (bot may have updated it)
+        document.addEventListener('visibilitychange', async () => {
+            if(document.visibilityState === 'visible' && currentUser && userData && !mActive && !tActive && !bjActive && !crashActive) {
+                const fresh = await dbGet('users', currentUser);
+                if(fresh && fresh.chips !== undefined) {
+                    const _SYM_RAW = Symbol.for('bss_raw');
+                    const raw = (userData && userData[_SYM_RAW]) ? userData[_SYM_RAW] : userData;
+                    if(Math.abs((raw.chips || 0) - fresh.chips) > 0) {
+                        raw.chips = fresh.chips;
+                        updateUI();
+                    }
+                }
+            }
+        });
     };
     
     // ====================================================
