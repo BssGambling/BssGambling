@@ -2514,9 +2514,20 @@
                                     <button class="btn-play" id="bj-ins-no" onclick="bjDeclineInsurance()" style="background:#555; color:#fff;">NO THANKS</button>
                                 </div>
                                 <div class="bj-hand-wrap">
-                                    <div id="bj-player-hand" class="bj-hand"></div>
-                                    <div id="bj-player-score" class="bj-score" style="text-align:center;"></div>
-                                    <div style="text-align:center; font-size:12px; color:#666;">YOU <span id="bj-player-count" style="color:#888; font-size:11px;"></span></div>
+                                    <div id="bj-hand-indicator" style="display:none; text-align:center; font-size:13px; font-weight:800; color:#e67e22; margin-bottom:4px; letter-spacing:1px;"></div>
+                                    <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+                                        <div style="flex:1; min-width:120px;">
+                                            <div id="bj-hand1-label" style="display:none; text-align:center; font-size:11px; color:#e67e22; font-weight:700; margin-bottom:2px;">HAND 1</div>
+                                            <div id="bj-player-hand" class="bj-hand"></div>
+                                            <div id="bj-player-score" class="bj-score" style="text-align:center;"></div>
+                                        </div>
+                                        <div id="bj-split-area" style="display:none; flex:1; min-width:120px; border-left:2px dashed #444; padding-left:12px;">
+                                            <div style="text-align:center; font-size:11px; color:#e67e22; font-weight:700; margin-bottom:2px;">HAND 2</div>
+                                            <div id="bj-split-hand" class="bj-hand"></div>
+                                            <div id="bj-split-score" class="bj-score" style="text-align:center;"></div>
+                                        </div>
+                                    </div>
+                                    <div style="text-align:center; font-size:12px; color:#666; margin-top:4px;">YOU <span id="bj-player-count" style="color:#888; font-size:11px;"></span></div>
                                 </div>
                                 <!-- Deck counter -->
                                 <div style="background:#111; border:1px solid #333; border-radius:8px; padding:8px 16px; display:flex; gap:20px; font-size:12px; margin:4px 0;">
@@ -2532,6 +2543,7 @@
                                     <button class="btn-play" id="bj-hit-btn" onclick="bjHit()" style="background:#3498db; color:white; visibility:hidden; pointer-events:none;">HIT</button>
                                     <button class="btn-play" id="bj-stand-btn" onclick="bjStand()" style="background:#9b59b6; color:white; visibility:hidden; pointer-events:none;">STAND</button>
                                     <button class="btn-play" id="bj-double-btn" onclick="bjDouble()" style="background:#0aac6e; color:white; visibility:hidden; pointer-events:none;">DOUBLE ↕</button>
+                                    <button class="btn-play" id="bj-split-btn" onclick="bjSplit()" style="background:#e67e22; color:white; visibility:hidden; pointer-events:none;">SPLIT ✂</button>
                                 </div>
                             </div>
                         </div>
@@ -5361,6 +5373,7 @@
     }
 
     let bjActive=false, bjHand=[], bjDealer=[], bjBet=0, bjWinAmount=0, bjInsurance=0;
+    let bjSplitHand=[], bjSplitBet=0, bjSplitPhase=0; // 0=normal, 1=playing hand1 of split, 2=playing hand2 of split
     function bjUpdateCounters() {
         const pScore = getBJScore(bjHand);
         const dScore = bjDealer.length > 0 ? getBJScore([bjDealer[0]]) : 0;
@@ -5376,6 +5389,10 @@
         document.getElementById('bj-bet').value = bjBet;
         if(bjBet > userData.chips) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
         countGame(); userData.chips -= bjBet; addProfit('blackjack', -bjBet); updateUI(); bjActive=true; createDeck(); bjWinAmount=0; bjInsurance=0;
+        bjSplitPhase=0; bjSplitHand=[]; bjSplitBet=0;
+        document.getElementById('bj-split-area').style.display='none';
+        document.getElementById('bj-hand-indicator').style.display='none';
+        document.getElementById('bj-hand1-label').style.display='none';
         releaseBetLock();
         bjHand = [deck.pop(), deck.pop()]; bjDealer = [deck.pop(), deck.pop()];
         document.getElementById('bj-player-hand').innerHTML = ''; document.getElementById('bj-dealer-hand').innerHTML = '';
@@ -5402,21 +5419,36 @@
         const hitBtn = document.getElementById('bj-hit-btn');
         const standBtn = document.getElementById('bj-stand-btn');
         const dblBtn = document.getElementById('bj-double-btn');
+        const splitBtn = document.getElementById('bj-split-btn');
         hitBtn.classList.remove('hidden'); hitBtn.style.visibility='visible'; hitBtn.style.pointerEvents='auto';
         standBtn.classList.remove('hidden'); standBtn.style.visibility='visible'; standBtn.style.pointerEvents='auto';
-        if(userData.chips >= bjBet && bjHand.length === 2) {
+        const activeHand = bjSplitPhase === 2 ? bjSplitHand : bjHand;
+        if(userData.chips >= bjBet && activeHand.length === 2 && bjSplitPhase !== 2) {
             dblBtn.classList.remove('hidden'); dblBtn.style.visibility='visible'; dblBtn.style.pointerEvents='auto';
         } else {
             dblBtn.classList.remove('hidden'); dblBtn.style.visibility='hidden'; dblBtn.style.pointerEvents='none';
+        }
+        // Show split button only on initial 2 cards with matching ranks and not already splitting
+        if(bjSplitPhase === 0 && bjHand.length === 2 && userData.chips >= bjBet) {
+            const valOf = c => ['10','J','Q','K'].includes(c.v) ? '10' : c.v;
+            if(valOf(bjHand[0]) === valOf(bjHand[1])) {
+                splitBtn.style.visibility='visible'; splitBtn.style.pointerEvents='auto';
+            } else {
+                splitBtn.style.visibility='hidden'; splitBtn.style.pointerEvents='none';
+            }
+        } else {
+            splitBtn.style.visibility='hidden'; splitBtn.style.pointerEvents='none';
         }
     }
     function bjHideActionButtons() {
         const hitBtn = document.getElementById('bj-hit-btn');
         const standBtn = document.getElementById('bj-stand-btn');
         const dblBtn = document.getElementById('bj-double-btn');
+        const splitBtn = document.getElementById('bj-split-btn');
         hitBtn.style.visibility='hidden'; hitBtn.style.pointerEvents='none';
         standBtn.style.visibility='hidden'; standBtn.style.pointerEvents='none';
         dblBtn.style.visibility='hidden'; dblBtn.style.pointerEvents='none';
+        splitBtn.style.visibility='hidden'; splitBtn.style.pointerEvents='none';
     }
     function bjCheckNaturalBlackjack() {
         // Natural blackjack: 21 on first two cards
@@ -5575,23 +5607,71 @@
 
     function bjHit() {
         if(!bjActive) return;
+        const activeHand = bjSplitPhase === 2 ? bjSplitHand : bjHand;
+        const handEl = bjSplitPhase === 2 ? 'bj-split-hand' : 'bj-player-hand';
+        const scoreEl = bjSplitPhase === 2 ? 'bj-split-score' : 'bj-player-score';
         document.getElementById('bj-double-btn').style.visibility='hidden'; document.getElementById('bj-double-btn').style.pointerEvents='none';
+        document.getElementById('bj-split-btn').style.visibility='hidden'; document.getElementById('bj-split-btn').style.pointerEvents='none';
         // RIGGING: if player score is 12-16, 60% chance to inject a bust card
-        const score = getBJScore(bjHand);
+        const score = getBJScore(activeHand);
         if(score >= 12 && score <= 16 && Math.random() < 0.60) {
             rigInjectBustCard();
         }
-        let c = deck.pop(); bjHand.push(c); renderCard(c, 'bj-player-hand');
-        document.getElementById('bj-player-score').textContent = 'Score: ' + getBJScore(bjHand);
+        let c = deck.pop(); activeHand.push(c); renderCard(c, handEl);
+        document.getElementById(scoreEl).textContent = 'Score: ' + getBJScore(activeHand);
         bjUpdateCounters(); saveGameState();
-        let newScore = getBJScore(bjHand);
-        if(newScore === 21 && bjHand.length >= 5) {
+        let newScore = getBJScore(activeHand);
+        if(newScore === 21 && activeHand.length >= 5) {
             bjStand();
         } else if(newScore > 21) {
             bjStand();
         }
     }
     function bjStand() {
+        // If in first split hand, switch to second hand
+        if(bjSplitPhase === 1) {
+            bjSplitPhase = 2;
+            document.getElementById('bj-hand-indicator').textContent = '▶ HAND 2';
+            document.getElementById('bj-player-score').textContent = 'Score: ' + getBJScore(bjHand) + ' ✓';
+            document.getElementById('bj-status').textContent = 'Playing Hand 2';
+            bjShowActionButtons();
+            return;
+        }
+        // If in second split hand, resolve both
+        if(bjSplitPhase === 2) {
+            bjActive=false; clearGameState('blackjack');
+            document.getElementById('bj-insurance-prompt').classList.add('hidden');
+            renderCard(bjDealer[1], 'bj-dealer-hand');
+            let ds = getBJScore(bjDealer);
+            if(!rigShouldPlayerWin()) { rigInjectDealerWinCards(bjDealer, Math.max(getBJScore(bjHand), getBJScore(bjSplitHand))); }
+            while(ds < 17 || (ds === 17 && isSoftHand(bjDealer))) { let c = deck.pop(); bjDealer.push(c); renderCard(c, 'bj-dealer-hand', false); ds = getBJScore(bjDealer); }
+            document.getElementById('bj-dealer-score').textContent = 'Score: ' + ds;
+            bjUpdateCounters();
+            const ps1 = getBJScore(bjHand), ps2 = getBJScore(bjSplitHand);
+            let win1=0, win2=0, r1='', r2='';
+            // Hand 1
+            if(ps1 > 21) { r1='H1:💥'; }
+            else if(ds > 21 || ps1 > ds) { win1=bjBet*2; userData.chips+=win1; addProfit('blackjack',win1); r1='H1:🏆'; }
+            else if(ps1===ds) { userData.chips+=bjBet; addProfit('blackjack',bjBet); r1='H1:🤝'; }
+            else { r1='H1:❌'; }
+            // Hand 2
+            if(ps2 > 21) { r2='H2:💥'; }
+            else if(ds > 21 || ps2 > ds) { win2=bjSplitBet*2; userData.chips+=win2; addProfit('blackjack',win2); r2='H2:🏆'; }
+            else if(ps2===ds) { userData.chips+=bjSplitBet; addProfit('blackjack',bjSplitBet); r2='H2:🤝'; }
+            else { r2='H2:❌'; }
+            document.getElementById('bj-player-score').textContent = 'Score: ' + ps1;
+            document.getElementById('bj-split-score').textContent = 'Score: ' + ps2;
+            document.getElementById('bj-status').textContent = r1 + '  ' + r2;
+            const totalBet = bjBet + bjSplitBet, totalWin = win1 + win2;
+            if(totalWin > 0) { play('win'); showWinOverlay(totalWin/totalBet, totalWin); document.querySelector('.bj-area')?.classList.remove('lose-shake'); document.querySelector('.bj-area')?.classList.add('win-glow'); }
+            else { play('boom'); document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('lose-shake'); }
+            addHistory("Blackjack Split", totalBet, totalWin > 0 ? totalWin/totalBet : 0, totalWin > 0 ? totalWin : -totalBet);
+            bjSplitPhase=0; bjSplitHand=[]; bjSplitBet=0;
+            document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
+            bjHideActionButtons(); updateUI();
+            return;
+        }
+        // Normal (no split) stand
         bjActive=false; clearGameState('blackjack');
         document.getElementById('bj-insurance-prompt').classList.add('hidden');
         renderCard(bjDealer[1], 'bj-dealer-hand');
@@ -5639,6 +5719,34 @@
         document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
         bjHideActionButtons();
         updateUI();
+    }
+    function bjSplit() {
+        if(!bjActive || bjHand.length !== 2 || bjSplitPhase !== 0) return;
+        const valOf = c => ['10','J','Q','K'].includes(c.v) ? '10' : c.v;
+        if(valOf(bjHand[0]) !== valOf(bjHand[1])) { toast('Cards must match to split!', 'error'); return; }
+        if(userData.chips < bjBet) { toast('Not enough ★ to split!', 'error'); return; }
+        userData.chips -= bjBet; addProfit('blackjack', -bjBet); bjSplitBet = bjBet; updateUI();
+        // Split: move second card to split hand, deal one to each
+        bjSplitHand = [bjHand.pop()];
+        bjHand.push(deck.pop());
+        bjSplitHand.push(deck.pop());
+        bjSplitPhase = 1;
+        // Show split UI
+        document.getElementById('bj-split-area').style.display = 'block';
+        document.getElementById('bj-hand1-label').style.display = 'block';
+        document.getElementById('bj-hand-indicator').style.display = 'block';
+        document.getElementById('bj-hand-indicator').textContent = '▶ HAND 1';
+        // Re-render both hands
+        document.getElementById('bj-player-hand').innerHTML = '';
+        bjHand.forEach(c => renderCard(c, 'bj-player-hand'));
+        document.getElementById('bj-split-hand').innerHTML = '';
+        bjSplitHand.forEach(c => renderCard(c, 'bj-split-hand'));
+        document.getElementById('bj-player-score').textContent = 'Score: ' + getBJScore(bjHand);
+        document.getElementById('bj-split-score').textContent = 'Score: ' + getBJScore(bjSplitHand);
+        document.getElementById('bj-status').textContent = 'Playing Hand 1';
+        bjUpdateCounters();
+        bjShowActionButtons();
+        toast(`Split! Playing Hand 1. Hand 2 bet: ${bjSplitBet} ★`, 'success');
     }
     function bjDouble() {
         if(!bjActive || bjHand.length !== 2) return;
