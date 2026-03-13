@@ -3470,7 +3470,7 @@
                 bet: mBet, mult: mMult, bombs: mBombs,
                 gridSize: mGridSize, gemsFound: mGemsFound,
                 revealed: revealedIdx,
-                bombCount: getMines()
+                bombCount: mBombCount
             };
         }
 
@@ -3537,36 +3537,42 @@
                 const m = state.mines;
                 mBet = m.bet; mMult = m.mult; mBombs = m.bombs;
                 mGridSize = m.gridSize; mGemsFound = m.gemsFound; mActive = true;
-                const rBC = m.bombCount || m.bombs.length;
+                mBombCount = m.bombCount || m.bombs.length;
                 setTimeout(function() {
                     showPage('games'); selectGame('mines');
                     var sl = document.getElementById('m-mine-slider');
-                    if(sl) { sl.value = rBC; sl.disabled = true; }
-                    document.getElementById('m-mine-lbl').innerText = rBC + ' Mines';
+                    if(sl) { sl.value = mBombCount; sl.disabled = true; }
+                    document.getElementById('m-mine-lbl').innerText = mBombCount + ' Mines';
                     const board = document.getElementById('m-board');
                     board.innerHTML = ''; board.className = 'm-grid g25';
                     for(let i = 0; i < mGridSize; i++) {
                         const t = document.createElement('div'); t.className = 'tile';
                         if(m.revealed.includes(i)) {
-                            t.dataset.revealed = '1'; t.innerHTML = mBombs.includes(i) ? `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='36' height='36'><defs><radialGradient id='bG' cx='38%' cy='35%' r='60%'><stop offset='0%' stop-color='#7a5af8'/><stop offset='60%' stop-color='#4c1d95'/><stop offset='100%' stop-color='#1e0a3c'/></radialGradient></defs><circle cx='18' cy='20' r='13' fill='url(#bG)' stroke='#6d28d9' stroke-width='1'/><ellipse cx='14' cy='14' rx='3' ry='2' fill='rgba(255,255,255,0.18)' transform='rotate(-30 14 14)'/><rect x='17' y='5' width='3' height='6' rx='1.5' fill='#a78bfa' transform='rotate(15 18 8)'/><circle cx='24' cy='4' r='2' fill='#f59e0b'/><line x1='20' y1='6' x2='23' y2='4' stroke='#fbbf24' stroke-width='1.5' stroke-linecap='round'/><circle cx='25' cy='3' r='1.5' fill='#fde68a' opacity='0.9'/><circle cx='27' cy='2' r='1' fill='white' opacity='0.7'/></svg>` : `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='38' height='38'><defs><linearGradient id='gG' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='#a8ffdf'/><stop offset='50%' stop-color='#0fd68a'/><stop offset='100%' stop-color='#07855a'/></linearGradient><linearGradient id='gT' x1='0%' y1='0%' x2='0%' y2='100%'><stop offset='0%' stop-color='#d4fff0'/><stop offset='100%' stop-color='#0fd68a'/></linearGradient></defs><polygon points='18,2 32,12 26,34 10,34 4,12' fill='url(#gG)' stroke='#0fd68a' stroke-width='1'/><polygon points='18,2 32,12 18,8 4,12' fill='url(#gT)' opacity='0.7'/><polygon points='18,8 32,12 26,34 10,34 4,12' fill='none' stroke='rgba(255,255,255,0.15)' stroke-width='0.5'/><polygon points='18,2 24,10 18,8 12,10' fill='white' opacity='0.4'/></svg>`;
+                            t.dataset.revealed = '1';
+                            t.innerHTML = mBombs.includes(i) ? BOMB_SVG : GEM_SVG;
                             t.classList.add(mBombs.includes(i) ? 'bomb' : 'gem');
                         } else {
                             t.onclick = function() {
                                 if(!mActive || t.dataset.revealed) return;
                                 t.dataset.revealed = '1';
                                 if(mBombs.includes(i)) {
-                                    t.innerHTML=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='36' height='36'><defs><radialGradient id='bG' cx='38%' cy='35%' r='60%'><stop offset='0%' stop-color='#7a5af8'/><stop offset='60%' stop-color='#4c1d95'/><stop offset='100%' stop-color='#1e0a3c'/></radialGradient></defs><circle cx='18' cy='20' r='13' fill='url(#bG)' stroke='#6d28d9' stroke-width='1'/><ellipse cx='14' cy='14' rx='3' ry='2' fill='rgba(255,255,255,0.18)' transform='rotate(-30 14 14)'/><rect x='17' y='5' width='3' height='6' rx='1.5' fill='#a78bfa' transform='rotate(15 18 8)'/><circle cx='24' cy='4' r='2' fill='#f59e0b'/><line x1='20' y1='6' x2='23' y2='4' stroke='#fbbf24' stroke-width='1.5' stroke-linecap='round'/><circle cx='25' cy='3' r='1.5' fill='#fde68a' opacity='0.9'/><circle cx='27' cy='2' r='1' fill='white' opacity='0.7'/></svg>`; t.classList.add('bomb'); play('boom'); mActive=false;
-                                    document.querySelectorAll('#m-board .tile').forEach(function(tile,idx){ if(mBombs.includes(idx)&&!tile.dataset.revealed){tile.innerHTML=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='36' height='36'><defs><radialGradient id='bG' cx='38%' cy='35%' r='60%'><stop offset='0%' stop-color='#7a5af8'/><stop offset='60%' stop-color='#4c1d95'/><stop offset='100%' stop-color='#1e0a3c'/></radialGradient></defs><circle cx='18' cy='20' r='13' fill='url(#bG)' stroke='#6d28d9' stroke-width='1'/><ellipse cx='14' cy='14' rx='3' ry='2' fill='rgba(255,255,255,0.18)' transform='rotate(-30 14 14)'/><rect x='17' y='5' width='3' height='6' rx='1.5' fill='#a78bfa' transform='rotate(15 18 8)'/><circle cx='24' cy='4' r='2' fill='#f59e0b'/><line x1='20' y1='6' x2='23' y2='4' stroke='#fbbf24' stroke-width='1.5' stroke-linecap='round'/><circle cx='25' cy='3' r='1.5' fill='#fde68a' opacity='0.9'/><circle cx='27' cy='2' r='1' fill='white' opacity='0.7'/></svg>`;tile.classList.add('bomb');tile.dataset.revealed='1';}});
-                                    mSetUI(false); addHistory('Mines',mBet,0,-mBet,mBalBefore); clearGameState('mines');
+                                    t.innerHTML = BOMB_SVG; t.classList.add('bomb'); play('boom'); mActive = false;
+                                    document.querySelectorAll('#m-board .tile').forEach(function(tile,idx){
+                                        if(mBombs.includes(idx)&&!tile.dataset.revealed){tile.innerHTML=BOMB_SVG;tile.classList.add('bomb');tile.dataset.revealed='1';}
+                                    });
+                                    addHistory('Mines',mBet,0,-mBet,mBalBefore); clearGameState('mines');
+                                    mRevealTimeout = setTimeout(function(){ mGemsFound=0;mMult=1;mBombs=[];buildEmptyMinesBoard();mResetUI(); },1800);
                                 } else {
-                                    t.innerHTML=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='38' height='38'><defs><linearGradient id='gG' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='#a8ffdf'/><stop offset='50%' stop-color='#0fd68a'/><stop offset='100%' stop-color='#07855a'/></linearGradient><linearGradient id='gT' x1='0%' y1='0%' x2='0%' y2='100%'><stop offset='0%' stop-color='#d4fff0'/><stop offset='100%' stop-color='#0fd68a'/></linearGradient></defs><polygon points='18,2 32,12 26,34 10,34 4,12' fill='url(#gG)' stroke='#0fd68a' stroke-width='1'/><polygon points='18,2 32,12 18,8 4,12' fill='url(#gT)' opacity='0.7'/><polygon points='18,8 32,12 26,34 10,34 4,12' fill='none' stroke='rgba(255,255,255,0.15)' stroke-width='0.5'/><polygon points='18,2 24,10 18,8 12,10' fill='white' opacity='0.4'/></svg>`; t.classList.add('gem'); play('star'); mGemsFound++;
-                                    mMult=parseFloat((mCalcMult(mGridSize, mBombs.length, mGemsFound)).toFixed(3)); mUpdateMult(); saveGameState();
+                                    t.innerHTML = GEM_SVG; t.classList.add('gem'); play('star'); mGemsFound++;
+                                    mMult = mCalcMult(mBombCount, mGemsFound);
+                                    mShowCashBtn(); saveGameState();
                                 }
                             };
                         }
                         board.appendChild(t);
                     }
-                    mUpdateMult(); mSetUI(true);
+                    mGameUI();
+                    if(mGemsFound > 0) mShowCashBtn();
                     toast('Mines restored! ' + m.gemsFound + ' gems found at ' + mMult.toFixed(3) + '×', 'success');
                 }, 600);
             }
@@ -4275,99 +4281,182 @@
     // --- GAMES LOGIC (COPY FROM SOURCE) ---
     // [cite: 153-264] - Tu vložena veškerá původní logika pro Mines, Roulette, Blackjack atd.
 
-    // MINES
-    // MINES
     // ── MINES ───────────────────────────────────────────────────────────────────
-    let mActive = false, mMult = 1, mBet = 0, mBombs = [], mGridSize = 25, mGemsFound = 0;
+    let mActive = false;
+    let mMult = 1;
+    let mBet = 0;
+    let mBombs = [];
+    let mGridSize = 25;
+    let mGemsFound = 0;
+    let mBalBefore = 0;
+    let mBombCount = 3;
     let mRevealTimeout = null;
+
+    const BOMB_SVG = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='32' height='32'><defs><radialGradient id='bG2' cx='38%' cy='35%' r='60%'><stop offset='0%' stop-color='#7a5af8'/><stop offset='60%' stop-color='#4c1d95'/><stop offset='100%' stop-color='#1e0a3c'/></radialGradient></defs><circle cx='18' cy='20' r='13' fill='url(#bG2)' stroke='#6d28d9' stroke-width='1'/><ellipse cx='14' cy='14' rx='3' ry='2' fill='rgba(255,255,255,0.18)' transform='rotate(-30 14 14)'/><rect x='17' y='5' width='3' height='6' rx='1.5' fill='#a78bfa' transform='rotate(15 18 8)'/><circle cx='24' cy='4' r='2' fill='#f59e0b'/><line x1='20' y1='6' x2='23' y2='4' stroke='#fbbf24' stroke-width='1.5' stroke-linecap='round'/></svg>`;
+    const GEM_SVG  = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='32' height='32'><defs><linearGradient id='gG2' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='#a8ffdf'/><stop offset='50%' stop-color='#0fd68a'/><stop offset='100%' stop-color='#07855a'/></linearGradient></defs><polygon points='18,2 32,12 26,34 10,34 4,12' fill='url(#gG2)' stroke='#0fd68a' stroke-width='1'/><polygon points='18,2 32,12 18,8 4,12' fill='#d4fff0' opacity='0.5'/><polygon points='18,2 24,10 18,8 12,10' fill='white' opacity='0.4'/></svg>`;
 
     function mSliderUpdate(v) {
         v = parseInt(v);
-        if(mActive) { document.getElementById('m-mine-slider').value = mBombs.length; return; }
+        if (mActive) { document.getElementById('m-mine-slider').value = mBombCount; return; }
+        mBombCount = v;
         document.getElementById('m-mine-lbl').innerText = v + ' Mines';
+        mUpdatePreviewMult();
     }
-    function getMines() { return parseInt(document.getElementById('m-mine-slider')?.value || 3); }
-    // Risk-tier multiplier steps (from dfsg)
-    const mMultStep = { easy:1.05, medium:1.10, hard:1.18, expert:1.28, master:1.45 };
+
     function mGetRisk(bombs) {
-        if(bombs <= 3)  return 'easy';
-        if(bombs <= 7)  return 'medium';
-        if(bombs <= 12) return 'hard';
-        if(bombs <= 18) return 'expert';
-        return 'master';
+        if (bombs <= 3)  return 1.05;
+        if (bombs <= 7)  return 1.10;
+        if (bombs <= 12) return 1.18;
+        if (bombs <= 18) return 1.28;
+        return 1.45;
     }
 
-    function mSetUI(playing) {
-        var btn = document.getElementById('m-start');
-        if(btn) btn.style.display = playing ? 'none' : 'block';
-        document.getElementById('m-bet').disabled = playing;
-        var sl = document.getElementById('m-mine-slider'); if(sl) sl.disabled = playing;
-        // Cash button only shown when playing AND at least 1 gem found
-        var cashBtn = document.getElementById('m-cash');
-        if(cashBtn) cashBtn.classList.toggle('hidden', !playing || mGemsFound < 1);
-        var md = document.getElementById('m-mult-disp');
-        if(md) md.style.display = playing ? 'block' : 'none';
-    }
-    function mUpdateMult() {
-        var md = document.getElementById('m-mult-disp');
-        if(md) md.innerText = mMult.toFixed(3) + '×';
+    function mCalcMult(bombs, gems) {
+        return parseFloat(Math.pow(mGetRisk(bombs), gems).toFixed(3));
     }
 
-    // Step-based multiplier: each gem multiplies by the risk-tier step
-    function mCalcMult(total, bombs, gemsFound) {
-        const step = mMultStep[mGetRisk(bombs)];
-        return parseFloat(Math.pow(step, gemsFound).toFixed(3));
+    function mUpdatePreviewMult() {
+        // Show what 1-gem mult would be before game starts
+        const bombs = parseInt(document.getElementById('m-mine-slider')?.value || 3);
+        const preview = mCalcMult(bombs, 1);
+        const md = document.getElementById('m-mult-disp');
+        if (md && !mActive) { md.style.display = 'block'; md.innerText = preview.toFixed(3) + '×'; }
+    }
+
+    function mResetUI() {
+        // Show PLAY, hide CASH OUT, enable inputs
+        const startBtn = document.getElementById('m-start');
+        const cashBtn  = document.getElementById('m-cash');
+        const betInput = document.getElementById('m-bet');
+        const slider   = document.getElementById('m-mine-slider');
+        if (startBtn) startBtn.style.display = 'block';
+        if (cashBtn)  { cashBtn.classList.add('hidden'); cashBtn.disabled = false; }
+        if (betInput) betInput.disabled = false;
+        if (slider)   slider.disabled = false;
+        mUpdatePreviewMult();
+    }
+
+    function mGameUI() {
+        // Hide PLAY, hide CASH OUT (until gem found), disable inputs
+        const startBtn = document.getElementById('m-start');
+        const cashBtn  = document.getElementById('m-cash');
+        const betInput = document.getElementById('m-bet');
+        const slider   = document.getElementById('m-mine-slider');
+        if (startBtn) startBtn.style.display = 'none';
+        if (cashBtn)  { cashBtn.classList.add('hidden'); cashBtn.disabled = true; }
+        if (betInput) betInput.disabled = true;
+        if (slider)   slider.disabled = true;
+    }
+
+    function mShowCashBtn() {
+        const cashBtn = document.getElementById('m-cash');
+        if (cashBtn) { cashBtn.classList.remove('hidden'); cashBtn.disabled = false; }
+        // Update mult display
+        const md = document.getElementById('m-mult-disp');
+        if (md) { md.style.display = 'block'; md.innerText = mMult.toFixed(3) + '×'; }
+    }
+
+    function mUpdateMultDisplay() {
+        const md = document.getElementById('m-mult-disp');
+        if (md) md.innerText = mMult.toFixed(3) + '×';
     }
 
     function buildEmptyMinesBoard() {
         const board = document.getElementById('m-board');
-        if(!board) return;
-        board.innerHTML = ''; board.className = 'm-grid g25';
-        for(let i = 0; i < 25; i++) {
+        if (!board) return;
+        board.innerHTML = '';
+        board.className = 'm-grid g25';
+        for (let i = 0; i < 25; i++) {
             const t = document.createElement('div');
             t.className = 'tile';
-            t.style.cursor = 'not-allowed';
             t.style.opacity = '0.5';
+            t.style.cursor = 'not-allowed';
             board.appendChild(t);
         }
     }
 
     function startMines() {
-        if(isAtCoinCap()) return;
-        if(!acquireBetLock()) return;
+        if (isAtCoinCap()) return;
+        if (!acquireBetLock()) return;
+        if (mActive) { releaseBetLock(); return; }
+
+        // Cancel any pending reset timer
+        if (mRevealTimeout) { clearTimeout(mRevealTimeout); mRevealTimeout = null; }
+
         mBet = Math.max(50, Math.min(600, parseInt(document.getElementById('m-bet').value) || 50));
         document.getElementById('m-bet').value = mBet;
-        if(mBet > userData.chips) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
-        const bombs = getMines();
-        if(bombs >= mGridSize) { toast('Too many mines!', 'error'); releaseBetLock(); return; }
+
+        if (!userData || mBet > userData.chips) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
+
+        mBombCount = parseInt(document.getElementById('m-mine-slider')?.value || 3);
+        if (mBombCount >= mGridSize) { toast('Too many mines!', 'error'); releaseBetLock(); return; }
+
         countGame();
-        const mBalBefore = userData.chips;
-        userData.chips -= mBet; mActive = true; mMult = 1; mBombs = []; mGemsFound = 0;
-        updateUI(); addProfit('mines', -mBet);
-        if(mRevealTimeout) { clearTimeout(mRevealTimeout); mRevealTimeout = null; }
+        mBalBefore  = userData.chips;
+        userData.chips -= mBet;
+        mActive     = true;
+        mMult       = 1;
+        mBombs      = [];
+        mGemsFound  = 0;
+
+        updateUI();
+        addProfit('mines', -mBet);
         releaseBetLock();
-        mSetUI(true); mUpdateMult();
+        mGameUI();
+
+        // Place bombs
+        while (mBombs.length < mBombCount) {
+            const r = Math.floor(Math.random() * mGridSize);
+            if (!mBombs.includes(r)) mBombs.push(r);
+        }
+
+        // Build clickable board
         const board = document.getElementById('m-board');
-        board.innerHTML = ''; board.className = 'm-grid g25';
-        while(mBombs.length < bombs) { let r = Math.floor(Math.random()*mGridSize); if(!mBombs.includes(r)) mBombs.push(r); }
-        for(let i = 0; i < mGridSize; i++) {
-            const t = document.createElement('div'); t.className = 'tile';
-            t.onclick = function() {
-                if(!mActive || t.dataset.revealed) return;
+        board.innerHTML = '';
+        board.className = 'm-grid g25';
+
+        for (let i = 0; i < mGridSize; i++) {
+            const t = document.createElement('div');
+            t.className = 'tile';
+            t.onclick = function () {
+                if (!mActive || t.dataset.revealed) return;
                 t.dataset.revealed = '1';
-                if(mBombs.includes(i)) {
-                    t.innerHTML = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='36' height='36'><defs><radialGradient id='bG' cx='38%' cy='35%' r='60%'><stop offset='0%' stop-color='#7a5af8'/><stop offset='60%' stop-color='#4c1d95'/><stop offset='100%' stop-color='#1e0a3c'/></radialGradient></defs><circle cx='18' cy='20' r='13' fill='url(#bG)' stroke='#6d28d9' stroke-width='1'/><ellipse cx='14' cy='14' rx='3' ry='2' fill='rgba(255,255,255,0.18)' transform='rotate(-30 14 14)'/><rect x='17' y='5' width='3' height='6' rx='1.5' fill='#a78bfa' transform='rotate(15 18 8)'/><circle cx='24' cy='4' r='2' fill='#f59e0b'/><line x1='20' y1='6' x2='23' y2='4' stroke='#fbbf24' stroke-width='1.5' stroke-linecap='round'/><circle cx='25' cy='3' r='1.5' fill='#fde68a' opacity='0.9'/><circle cx='27' cy='2' r='1' fill='white' opacity='0.7'/></svg>`; t.classList.add('bomb'); play('boom'); mActive = false;
-                    document.querySelectorAll('#m-board .tile').forEach(function(tile, idx) {
-                        if(mBombs.includes(idx) && !tile.dataset.revealed) { tile.innerHTML=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='36' height='36'><defs><radialGradient id='bG' cx='38%' cy='35%' r='60%'><stop offset='0%' stop-color='#7a5af8'/><stop offset='60%' stop-color='#4c1d95'/><stop offset='100%' stop-color='#1e0a3c'/></radialGradient></defs><circle cx='18' cy='20' r='13' fill='url(#bG)' stroke='#6d28d9' stroke-width='1'/><ellipse cx='14' cy='14' rx='3' ry='2' fill='rgba(255,255,255,0.18)' transform='rotate(-30 14 14)'/><rect x='17' y='5' width='3' height='6' rx='1.5' fill='#a78bfa' transform='rotate(15 18 8)'/><circle cx='24' cy='4' r='2' fill='#f59e0b'/><line x1='20' y1='6' x2='23' y2='4' stroke='#fbbf24' stroke-width='1.5' stroke-linecap='round'/><circle cx='25' cy='3' r='1.5' fill='#fde68a' opacity='0.9'/><circle cx='27' cy='2' r='1' fill='white' opacity='0.7'/></svg>`; tile.classList.add('bomb'); tile.dataset.revealed='1'; }
+
+                if (mBombs.includes(i)) {
+                    // Hit a bomb
+                    t.innerHTML = BOMB_SVG;
+                    t.classList.add('bomb');
+                    play('boom');
+                    mActive = false;
+
+                    // Reveal all other bombs
+                    document.querySelectorAll('#m-board .tile').forEach(function (tile, idx) {
+                        if (!tile.dataset.revealed && mBombs.includes(idx)) {
+                            tile.innerHTML = BOMB_SVG;
+                            tile.classList.add('bomb');
+                            tile.dataset.revealed = '1';
+                        }
                     });
-                    mSetUI(false); addHistory('Mines', mBet, 0, -mBet, mBalBefore); clearGameState('mines');
+
+                    addHistory('Mines', mBet, 0, -mBet, mBalBefore);
+                    clearGameState('mines');
+                    // Reset after short pause
+                    mRevealTimeout = setTimeout(function () {
+                        mRevealTimeout = null;
+                        mGemsFound = 0; mMult = 1; mBombs = [];
+                        buildEmptyMinesBoard();
+                        mResetUI();
+                    }, 1800);
+
                 } else {
-                    t.innerHTML = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='38' height='38'><defs><linearGradient id='gG' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='#a8ffdf'/><stop offset='50%' stop-color='#0fd68a'/><stop offset='100%' stop-color='#07855a'/></linearGradient><linearGradient id='gT' x1='0%' y1='0%' x2='0%' y2='100%'><stop offset='0%' stop-color='#d4fff0'/><stop offset='100%' stop-color='#0fd68a'/></linearGradient></defs><polygon points='18,2 32,12 26,34 10,34 4,12' fill='url(#gG)' stroke='#0fd68a' stroke-width='1'/><polygon points='18,2 32,12 18,8 4,12' fill='url(#gT)' opacity='0.7'/><polygon points='18,8 32,12 26,34 10,34 4,12' fill='none' stroke='rgba(255,255,255,0.15)' stroke-width='0.5'/><polygon points='18,2 24,10 18,8 12,10' fill='white' opacity='0.4'/></svg>`; t.classList.add('gem');
-                    play('star'); mGemsFound++;
-                    mMult = mCalcMult(mGridSize, bombs, mGemsFound);
-                    mUpdateMult(); saveGameState();
-                    // Show cash button only after first gem
-                    var cb = document.getElementById('m-cash'); if(cb) cb.classList.remove('hidden');
+                    // Found a gem
+                    t.innerHTML = GEM_SVG;
+                    t.classList.add('gem');
+                    play('star');
+                    mGemsFound++;
+                    mMult = mCalcMult(mBombCount, mGemsFound);
+                    mShowCashBtn();
+                    saveGameState();
                 }
             };
             board.appendChild(t);
@@ -4375,32 +4464,42 @@
     }
 
     function cashoutMines() {
-        if(!mActive || mGemsFound < 1) return;
-        // Kill all ability to cashout again immediately
+        if (!mActive || mGemsFound < 1) return;
+
+        // Lock immediately — no double cashout possible
         mActive = false;
         const cashBtn = document.getElementById('m-cash');
-        if(cashBtn) { cashBtn.classList.add('hidden'); cashBtn.disabled = true; }
+        if (cashBtn) { cashBtn.classList.add('hidden'); cashBtn.disabled = true; }
+
         const win = Math.floor(mBet * mMult);
-        userData.chips += win; play('win');
+        userData.chips += win;
+        play('win');
         showWinOverlay(mMult, win);
-        addHistory('Mines', mBet, mMult, win, mBalBefore); clearGameState('mines');
+        addHistory('Mines', mBet, mMult, win, mBalBefore);
+        clearGameState('mines');
         addProfit('mines', win);
         updateUI();
-        const tiles = document.querySelectorAll('#m-board .tile');
-        tiles.forEach(function(tile, idx) {
-            if(tile.dataset.revealed) return;
-            if(mBombs.includes(idx)) { tile.innerHTML=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='36' height='36'><defs><radialGradient id='bG' cx='38%' cy='35%' r='60%'><stop offset='0%' stop-color='#7a5af8'/><stop offset='60%' stop-color='#4c1d95'/><stop offset='100%' stop-color='#1e0a3c'/></radialGradient></defs><circle cx='18' cy='20' r='13' fill='url(#bG)' stroke='#6d28d9' stroke-width='1'/><ellipse cx='14' cy='14' rx='3' ry='2' fill='rgba(255,255,255,0.18)' transform='rotate(-30 14 14)'/><rect x='17' y='5' width='3' height='6' rx='1.5' fill='#a78bfa' transform='rotate(15 18 8)'/><circle cx='24' cy='4' r='2' fill='#f59e0b'/><line x1='20' y1='6' x2='23' y2='4' stroke='#fbbf24' stroke-width='1.5' stroke-linecap='round'/><circle cx='25' cy='3' r='1.5' fill='#fde68a' opacity='0.9'/><circle cx='27' cy='2' r='1' fill='white' opacity='0.7'/></svg>`; tile.classList.add('bomb'); }
-            else { tile.innerHTML=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='38' height='38'><defs><linearGradient id='gG' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='#a8ffdf'/><stop offset='50%' stop-color='#0fd68a'/><stop offset='100%' stop-color='#07855a'/></linearGradient><linearGradient id='gT' x1='0%' y1='0%' x2='0%' y2='100%'><stop offset='0%' stop-color='#d4fff0'/><stop offset='100%' stop-color='#0fd68a'/></linearGradient></defs><polygon points='18,2 32,12 26,34 10,34 4,12' fill='url(#gG)' stroke='#0fd68a' stroke-width='1'/><polygon points='18,2 32,12 18,8 4,12' fill='url(#gT)' opacity='0.7'/><polygon points='18,8 32,12 26,34 10,34 4,12' fill='none' stroke='rgba(255,255,255,0.15)' stroke-width='0.5'/><polygon points='18,2 24,10 18,8 12,10' fill='white' opacity='0.4'/></svg>`; tile.classList.add('gem'); tile.style.opacity='0.35'; }
+
+        // Reveal unrevealed tiles briefly
+        document.querySelectorAll('#m-board .tile').forEach(function (tile, idx) {
+            if (tile.dataset.revealed) return;
+            if (mBombs.includes(idx)) {
+                tile.innerHTML = BOMB_SVG;
+                tile.classList.add('bomb');
+            } else {
+                tile.innerHTML = GEM_SVG;
+                tile.classList.add('gem');
+                tile.style.opacity = '0.3';
+            }
         });
-        const snap = Array.from(tiles);
-        if(mRevealTimeout) { clearTimeout(mRevealTimeout); mRevealTimeout = null; }
-        mRevealTimeout = setTimeout(function() {
+
+        // After 2.5s: full reset so player can press PLAY again
+        if (mRevealTimeout) { clearTimeout(mRevealTimeout); mRevealTimeout = null; }
+        mRevealTimeout = setTimeout(function () {
             mRevealTimeout = null;
-            // Full reset: clear board state and show PLAY so player can go again
             mGemsFound = 0; mMult = 1; mBombs = [];
             buildEmptyMinesBoard();
-            if(cashBtn) cashBtn.disabled = false;
-            mSetUI(false); // shows PLAY, hides CASH OUT, re-enables inputs
+            mResetUI();
         }, 2500);
     }
 
