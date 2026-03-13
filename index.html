@@ -3308,9 +3308,9 @@
     const EDGE_BASE = "https://uohmshxaypofbdnuaiwj.supabase.co/functions/v1";
 
     async function dbSet(table, id, value) {
-        const rawVal = (value && value.__raw) ? value.__raw : value;
+        const rawVal = (value && value[Symbol.for('bss_raw')]) ? value[Symbol.for('bss_raw')] : (value && value.__raw ? value.__raw : value);
 
-        // Always cache locally
+        // Always cache locally first — this is the primary persistence for username/password users
         if(table === 'users') {
             try { localStorage.setItem('swarm_userdata_' + id, JSON.stringify(rawVal)); } catch(e) {}
         }
@@ -6500,7 +6500,21 @@
 
         // Step 3: Already logged in — restore session.
         if(currentUser) {
-            userData = await dbGet('users', currentUser);
+            // First try localStorage cache for instant load with correct balance
+            const _cachedRaw = localStorage.getItem('swarm_userdata_' + currentUser);
+            let _cachedData = null;
+            try { _cachedData = _cachedRaw ? JSON.parse(_cachedRaw) : null; } catch(e) {}
+
+            // Fetch from server too, but only use it if chips are HIGHER (admin deposit etc.)
+            let _serverData = null;
+            try { _serverData = await dbGet('users', currentUser); } catch(e) {}
+
+            if(_cachedData && _serverData) {
+                // Use whichever has higher chips (protects against server overwriting local wins)
+                userData = (_cachedData.chips >= _serverData.chips) ? _cachedData : _serverData;
+            } else {
+                userData = _cachedData || _serverData;
+            }
 
             // If bot updated the balance, clear the flag
             if(userData && userData._bot_updated) {
