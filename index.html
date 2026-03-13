@@ -3328,6 +3328,9 @@
                 } catch(e) { console.error('save-user edge function error:', e); }
                 return;
             }
+            // Username/password users: Supabase RLS blocks direct writes.
+            // localStorage (already saved above) is their source of truth — skip Supabase.
+            if(!id.startsWith('discord_')) return;
         }
 
         // All other tables (history, promos etc) use direct Supabase — not sensitive
@@ -6509,14 +6512,18 @@
             let _serverData = null;
             try { _serverData = await dbGet('users', currentUser); } catch(e) {}
 
-            if(_serverData) {
-                // Always trust server value — it reflects the true balance after wins/losses
-                userData = _serverData;
-                // Update localStorage cache to match server so it stays in sync
-                try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
+            const _isDiscordUser = currentUser.startsWith('discord_');
+            if(_isDiscordUser) {
+                // Discord users: server is authoritative (Edge Function writes succeed)
+                userData = _serverData || _cachedData;
+                if(_serverData) {
+                    try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
+                }
             } else {
-                // Server unavailable — fall back to local cache only
-                userData = _cachedData;
+                // Username/password users: Supabase RLS blocks their writes, so
+                // localStorage IS the source of truth — always use it.
+                // Only use server if no local cache exists at all (first ever load).
+                userData = _cachedData || _serverData;
             }
 
             // If bot updated the balance, clear the flag
