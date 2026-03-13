@@ -4321,7 +4321,7 @@
 
     function buildEmptyMinesBoard() {
         const board = document.getElementById('m-board');
-        if(!board || board.children.length > 0) return;
+        if(!board) return;
         board.innerHTML = ''; board.className = 'm-grid g25';
         for(let i = 0; i < 25; i++) {
             const t = document.createElement('div');
@@ -4376,14 +4376,16 @@
 
     function cashoutMines() {
         if(!mActive || mGemsFound < 1) return;
-        mActive = false; // set immediately to prevent double-cashout
+        // Kill all ability to cashout again immediately
+        mActive = false;
+        const cashBtn = document.getElementById('m-cash');
+        if(cashBtn) { cashBtn.classList.add('hidden'); cashBtn.disabled = true; }
         const win = Math.floor(mBet * mMult);
         userData.chips += win; play('win');
         showWinOverlay(mMult, win);
         addHistory('Mines', mBet, mMult, win, mBalBefore); clearGameState('mines');
         addProfit('mines', win);
         updateUI();
-        mSetUI(false);
         const tiles = document.querySelectorAll('#m-board .tile');
         tiles.forEach(function(tile, idx) {
             if(tile.dataset.revealed) return;
@@ -4391,13 +4393,15 @@
             else { tile.innerHTML=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='38' height='38'><defs><linearGradient id='gG' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='#a8ffdf'/><stop offset='50%' stop-color='#0fd68a'/><stop offset='100%' stop-color='#07855a'/></linearGradient><linearGradient id='gT' x1='0%' y1='0%' x2='0%' y2='100%'><stop offset='0%' stop-color='#d4fff0'/><stop offset='100%' stop-color='#0fd68a'/></linearGradient></defs><polygon points='18,2 32,12 26,34 10,34 4,12' fill='url(#gG)' stroke='#0fd68a' stroke-width='1'/><polygon points='18,2 32,12 18,8 4,12' fill='url(#gT)' opacity='0.7'/><polygon points='18,8 32,12 26,34 10,34 4,12' fill='none' stroke='rgba(255,255,255,0.15)' stroke-width='0.5'/><polygon points='18,2 24,10 18,8 12,10' fill='white' opacity='0.4'/></svg>`; tile.classList.add('gem'); tile.style.opacity='0.35'; }
         });
         const snap = Array.from(tiles);
+        if(mRevealTimeout) { clearTimeout(mRevealTimeout); mRevealTimeout = null; }
         mRevealTimeout = setTimeout(function() {
             mRevealTimeout = null;
-            snap.forEach(function(tile) {
-                if(tile.dataset.revealed) return;
-                tile.innerHTML=''; tile.classList.remove('bomb','gem'); tile.style.opacity='';
-            });
-        }, 3000);
+            // Full reset: clear board state and show PLAY so player can go again
+            mGemsFound = 0; mMult = 1; mBombs = [];
+            buildEmptyMinesBoard();
+            if(cashBtn) cashBtn.disabled = false;
+            mSetUI(false); // shows PLAY, hides CASH OUT, re-enables inputs
+        }, 2500);
     }
 
     // ── DICE ────────────────────────────────────────────────────────────────────
