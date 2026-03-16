@@ -3313,8 +3313,11 @@
 
         // Always cache locally first — this is the primary persistence for username/password users
         if(table === 'users') {
-            console.log('[DEBUG] dbSet saving to localStorage:', id, 'chips:', rawVal.chips);
-            try { localStorage.setItem('swarm_userdata_' + id, JSON.stringify(rawVal)); } catch(e) {}
+            // Strip _bot_updated before saving so it never gets permanently baked into localStorage
+            const saveVal = Object.assign({}, rawVal);
+            delete saveVal._bot_updated;
+            console.log('[DEBUG] dbSet saving to localStorage:', id, 'chips:', saveVal.chips);
+            try { localStorage.setItem('swarm_userdata_' + id, JSON.stringify(saveVal)); } catch(e) {}
         }
 
         // For users table — route through Edge Function so anon key can't write chips directly
@@ -6573,9 +6576,18 @@
                 }
             }
 
-            // Clear _bot_updated flag now that it has been acted on above
+            // Clear _bot_updated flag from memory, localStorage AND server now that it has been acted on
             if(userData && userData._bot_updated) {
                 delete userData._bot_updated;
+                // Also manually scrub from localStorage right now so a failed dbSet can't leave it behind
+                try {
+                    const _scrub = localStorage.getItem('swarm_userdata_' + currentUser);
+                    if(_scrub) {
+                        const _scrubObj = JSON.parse(_scrub);
+                        delete _scrubObj._bot_updated;
+                        localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_scrubObj));
+                    }
+                } catch(e) {}
                 dbSet('users', currentUser, userData);
             }
 
