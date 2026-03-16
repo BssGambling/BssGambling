@@ -3322,12 +3322,17 @@
             const token = sessionStorage.getItem('dc_token_live');
             if(token) {
                 try {
-                    await fetch(`${EDGE_BASE}/save-user`, {
+                    console.log('[DEBUG] Attempting Edge Function save for Discord user, chips:', rawVal.chips);
+                    const response = await fetch(`${EDGE_BASE}/save-user`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ discord_token: token, data: rawVal })
                     });
-                } catch(e) { console.error('save-user edge function error:', e); }
+                    const result = await response.json();
+                    console.log('[DEBUG] Edge Function save result:', response.status, result);
+                } catch(e) { 
+                    console.error('[DEBUG] Edge Function save FAILED:', e); 
+                }
                 return;
             }
             // Username/password users: Supabase RLS blocks direct writes.
@@ -6493,12 +6498,29 @@
             }
 
             if(_isDiscordUser) {
-                // Discord users: server IS authoritative because dbSet() calls the Edge Function
-                // which successfully writes chips to Supabase on every bet/win.
-                // The bot and admin panel also read/write Supabase, so server must stay primary.
-                userData = _serverData || _cachedData;
-                if(_serverData) {
-                    try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
+                // Discord users: Try server first, but if server data is OLDER than localStorage,
+                // use localStorage (happens when Edge Function save fails)
+                console.log('[DEBUG] Discord user - server data:', _serverData);
+                console.log('[DEBUG] Discord user - cached data:', _cachedData);
+                
+                if(_serverData && _cachedData) {
+                    // Compare timestamps or chip values - use whichever is higher/newer
+                    if(_cachedData.chips > _serverData.chips) {
+                        console.log('[DEBUG] localStorage has MORE chips than server - using localStorage');
+                        userData = _cachedData;
+                        // Try to sync back to server
+                        try { await dbSet('users', currentUser, _cachedData); } catch(e) {}
+                    } else {
+                        userData = _serverData;
+                        // Update localStorage with server data
+                        try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
+                    }
+                } else {
+                    // Fallback: use whichever exists
+                    userData = _serverData || _cachedData;
+                    if(_serverData) {
+                        try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
+                    }
                 }
             } else {
                 // Username/password users: localStorage IS the ONLY source of truth.
