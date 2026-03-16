@@ -3320,7 +3320,10 @@
         // For users table — route through Edge Function so anon key can't write chips directly
         if(table === 'users') {
             const token = sessionStorage.getItem('dc_token_live');
-            if(token) {
+            console.log('[DEBUG] Discord token exists:', !!token);
+            
+            if(token && id.startsWith('discord_')) {
+                // Try Edge Function first (proper way for Discord users)
                 try {
                     console.log('[DEBUG] Attempting Edge Function save for Discord user, chips:', rawVal.chips);
                     const response = await fetch(`${EDGE_BASE}/save-user`, {
@@ -3328,13 +3331,42 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ discord_token: token, data: rawVal })
                     });
+                    
+                    if(!response.ok) {
+                        console.error('[DEBUG] Edge Function returned error:', response.status);
+                        throw new Error('Edge Function failed: ' + response.status);
+                    }
+                    
                     const result = await response.json();
-                    console.log('[DEBUG] Edge Function save result:', response.status, result);
+                    console.log('[DEBUG] Edge Function save SUCCESS:', result);
+                    return; // Success - exit here
                 } catch(e) { 
-                    console.error('[DEBUG] Edge Function save FAILED:', e); 
+                    console.error('[DEBUG] Edge Function save FAILED, trying direct write:', e); 
+                    // Fall through to direct write below
+                }
+            }
+            
+            // Fallback: Try direct Supabase write (may fail due to RLS, but worth trying)
+            if(id.startsWith('discord_')) {
+                try {
+                    console.log('[DEBUG] Attempting direct Supabase write for Discord user');
+                    await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(id)}`, {
+                        method: 'PATCH',
+                        headers: {
+                            apikey: SUPABASE_KEY,
+                            Authorization: `Bearer ${SUPABASE_KEY}`,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=minimal'
+                        },
+                        body: JSON.stringify({ data: rawVal })
+                    });
+                    console.log('[DEBUG] Direct Supabase write completed');
+                } catch(e) {
+                    console.error('[DEBUG] Direct Supabase write also failed:', e);
                 }
                 return;
             }
+            
             // Username/password users: Supabase RLS blocks direct writes.
             // localStorage (already saved above) is their source of truth — skip Supabase.
             if(!id.startsWith('discord_')) return;
@@ -6498,28 +6530,23 @@
             }
 
             if(_isDiscordUser) {
-                // Discord users: Try server first, but if server data is OLDER than localStorage,
-                // use localStorage (happens when Edge Function save fails)
+                // Discord users: Server is PRIMARY (bot needs to read it)
+                // But use localStorage as immediate backup if server fetch fails
                 console.log('[DEBUG] Discord user - server data:', _serverData);
                 console.log('[DEBUG] Discord user - cached data:', _cachedData);
                 
-                if(_serverData && _cachedData) {
-                    // Compare timestamps or chip values - use whichever is higher/newer
-                    if(_cachedData.chips > _serverData.chips) {
-                        console.log('[DEBUG] localStorage has MORE chips than server - using localStorage');
-                        userData = _cachedData;
-                        // Try to sync back to server
-                        try { await dbSet('users', currentUser, _cachedData); } catch(e) {}
-                    } else {
-                        userData = _serverData;
-                        // Update localStorage with server data
-                        try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
-                    }
+                if(_serverData) {
+                    // Server data exists - this is the source of truth for Discord users
+                    userData = _serverData;
+                    // Update localStorage to match server
+                    try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
                 } else {
-                    // Fallback: use whichever exists
-                    userData = _serverData || _cachedData;
-                    if(_serverData) {
-                        try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
+                    // Server fetch failed - use localStorage as emergency fallback
+                    console.warn('[DEBUG] Server fetch failed for Discord user - using localStorage backup');
+                    userData = _cachedData;
+                    // Try to push localStorage data back to server
+                    if(_cachedData) {
+                        try { await dbSet('users', currentUser, _cachedData); } catch(e) {}
                     }
                 }
             } else {
