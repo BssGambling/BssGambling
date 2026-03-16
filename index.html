@@ -6489,6 +6489,22 @@
     function pfOverlayClick(e){ if(e.target===document.getElementById('pf-overlay')) pfClose(); }
 
     window.onload = async () => {
+        // ONE-TIME CLEANUP: scrub any stuck _bot_updated flag from localStorage right now,
+        // before any balance logic runs. This prevents it from ever triggering a server
+        // balance override on refresh.
+        try {
+            const _cleanKey = 'swarm_userdata_' + localStorage.getItem('swarm_user');
+            const _cleanRaw = localStorage.getItem(_cleanKey);
+            if(_cleanRaw) {
+                const _cleanObj = JSON.parse(_cleanRaw);
+                if(_cleanObj && _cleanObj._bot_updated) {
+                    console.log('[CLEANUP] Removing stuck _bot_updated from localStorage');
+                    delete _cleanObj._bot_updated;
+                    localStorage.setItem(_cleanKey, JSON.stringify(_cleanObj));
+                }
+            }
+        } catch(e) {}
+
         pfInit();
 
         // Step 1: If Discord just redirected back with a token in the URL,
