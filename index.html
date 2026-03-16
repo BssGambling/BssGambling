@@ -6510,27 +6510,32 @@
             }
 
             if(_isDiscordUser) {
-                // Discord users: Server should be authoritative, BUT if localStorage has
-                // MORE chips than server, it means the last save didn't reach the server.
-                // In that case, use localStorage and try to sync it back to server.
-                
+                // localStorage is kept in sync on every updateUI() call during gameplay.
+                // It is always the most up-to-date source for chip balance.
+                // The server value can be STALE if the Edge Function save failed after a loss
+                // (server still holds the pre-loss balance), so we must NOT blindly prefer
+                // the server when it has more chips — that would restore lost coins on refresh.
+                //
+                // The ONLY time the server should override localStorage is when an admin/bot
+                // explicitly updated the balance (_bot_updated flag), which is handled below.
+
                 if(_serverData && _cachedData) {
-                    // Both exist - compare chip values
-                    if(_cachedData.chips > _serverData.chips) {
-                        // localStorage is ahead - server save must have failed
-                        console.warn('localStorage has newer data than server, using localStorage');
-                        userData = _cachedData;
-                        // Try to sync back to server
-                        dbSet('users', currentUser, _cachedData);
-                    } else {
-                        // Server is equal or ahead - use server (normal case)
+                    if(_serverData._bot_updated) {
+                        // Admin/bot deposit: server is authoritative
                         userData = _serverData;
                         localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
+                    } else {
+                        // Gameplay save: localStorage chips are the source of truth.
+                        // Merge server fields (displayName, avatarUrl, etc.) but keep local chips.
+                        userData = Object.assign({}, _serverData, { chips: _cachedData.chips });
+                        localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(userData));
+                        // Sync corrected balance back to server in case it was stale
+                        dbSet('users', currentUser, userData);
                     }
                 } else {
-                    // Only one exists - use whichever is available
-                    userData = _serverData || _cachedData;
-                    if(_serverData) {
+                    // Only one source exists — use whichever is available
+                    userData = _cachedData || _serverData;
+                    if(_serverData && !_cachedData) {
                         localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
                     }
                 }
