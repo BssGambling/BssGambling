@@ -3313,48 +3313,63 @@
 
         // Always cache locally first — this is the primary persistence for username/password users
         if(table === 'users') {
+            console.log('[DEBUG] dbSet saving to localStorage:', id, 'chips:', rawVal.chips);
             try { localStorage.setItem('swarm_userdata_' + id, JSON.stringify(rawVal)); } catch(e) {}
         }
 
         // For users table — route through Edge Function so anon key can't write chips directly
         if(table === 'users') {
             const token = sessionStorage.getItem('dc_token_live');
+            console.log('[DEBUG] Discord token exists:', !!token);
             
-            // Try Edge Function for Discord users (preferred method)
             if(token && id.startsWith('discord_')) {
+                // Try Edge Function first (proper way for Discord users)
                 try {
+                    console.log('[DEBUG] Attempting Edge Function save for Discord user, chips:', rawVal.chips);
                     const response = await fetch(`${EDGE_BASE}/save-user`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ discord_token: token, data: rawVal })
                     });
-                    if(response.ok) return; // Success, exit here
-                    console.warn('Edge Function failed, falling back to direct write');
+                    
+                    if(!response.ok) {
+                        console.error('[DEBUG] Edge Function returned error:', response.status);
+                        throw new Error('Edge Function failed: ' + response.status);
+                    }
+                    
+                    const result = await response.json();
+                    console.log('[DEBUG] Edge Function save SUCCESS:', result);
+                    return; // Success - exit here
                 } catch(e) { 
-                    console.error('Edge Function error, falling back to direct write:', e); 
+                    console.error('[DEBUG] Edge Function save FAILED, trying direct write:', e); 
+                    // Fall through to direct write below
                 }
             }
             
-            // Username/password users: localStorage only (RLS blocks writes)
-            if(!id.startsWith('discord_')) return;
-            
-            // Fallback for Discord users: try direct Supabase write via upsert
-            try {
-                await fetch(`${SUPABASE_URL}/rest/v1/users`, {
-                    method: 'POST',
-                    headers: {
-                        apikey: SUPABASE_KEY, 
-                        Authorization: `Bearer ${SUPABASE_KEY}`,
-                        'Content-Type': 'application/json', 
-                        'Prefer': 'resolution=merge-duplicates'
-                    },
-                    body: JSON.stringify({ id, data: rawVal })
-                });
-                return; // Exit after Discord user save
-            } catch(e) { 
-                console.error('Direct Supabase write also failed:', e); 
+            // Fallback: Try direct Supabase write (may fail due to RLS, but worth trying)
+            if(id.startsWith('discord_')) {
+                try {
+                    console.log('[DEBUG] Attempting direct Supabase write for Discord user');
+                    await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(id)}`, {
+                        method: 'PATCH',
+                        headers: {
+                            apikey: SUPABASE_KEY,
+                            Authorization: `Bearer ${SUPABASE_KEY}`,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=minimal'
+                        },
+                        body: JSON.stringify({ data: rawVal })
+                    });
+                    console.log('[DEBUG] Direct Supabase write completed');
+                } catch(e) {
+                    console.error('[DEBUG] Direct Supabase write also failed:', e);
+                }
+                return;
             }
-            return;
+            
+            // Username/password users: Supabase RLS blocks direct writes.
+            // localStorage (already saved above) is their source of truth — skip Supabase.
+            if(!id.startsWith('discord_')) return;
         }
 
         // All other tables (history, promos etc) use direct Supabase — not sensitive
@@ -3577,7 +3592,9 @@
                         // No local cache (new device) — use server value
                         userData = users[u];
                     }
+                    // Save to localStorage immediately to establish it as source of truth
                     localStorage.setItem('swarm_user', u);
+                    localStorage.setItem('swarm_userdata_' + u, JSON.stringify(userData));
                     await loginSuccess();
                 } else {
                     alert("Login failed! Wrong username or password.");
@@ -6494,10 +6511,12 @@
 
         // Step 3: Already logged in — restore session.
         if(currentUser) {
+            console.log('[DEBUG] Auto-login for user:', currentUser);
             // First try localStorage cache for instant load with correct balance
             const _cachedRaw = localStorage.getItem('swarm_userdata_' + currentUser);
             let _cachedData = null;
             try { _cachedData = _cachedRaw ? JSON.parse(_cachedRaw) : null; } catch(e) {}
+            console.log('[DEBUG] localStorage data:', _cachedData);
 
             const _isDiscordUser = currentUser.startsWith('discord_');
 
@@ -6507,45 +6526,40 @@
             // value is always stale — don't fetch it at all, just use localStorage.
             if(_isDiscordUser) {
                 try { _serverData = await dbGet('users', currentUser); } catch(e) {}
+                console.log('[DEBUG] Discord user - server data:', _serverData);
             }
 
             if(_isDiscordUser) {
-                // localStorage is kept in sync on every updateUI() call during gameplay.
-                // It is always the most up-to-date source for chip balance.
-                // The server value can be STALE if the Edge Function save failed after a loss
-                // (server still holds the pre-loss balance), so we must NOT blindly prefer
-                // the server when it has more chips — that would restore lost coins on refresh.
-                //
-                // The ONLY time the server should override localStorage is when an admin/bot
-                // explicitly updated the balance (_bot_updated flag), which is handled below.
-
-                if(_serverData && _cachedData) {
-                    if(_serverData._bot_updated) {
-                        // Admin/bot deposit: server is authoritative
-                        userData = _serverData;
-                        localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
-                    } else {
-                        // Gameplay save: localStorage chips are the source of truth.
-                        // Merge server fields (displayName, avatarUrl, etc.) but keep local chips.
-                        userData = Object.assign({}, _serverData, { chips: _cachedData.chips });
-                        localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(userData));
-                        // Sync corrected balance back to server in case it was stale
-                        dbSet('users', currentUser, userData);
-                    }
+                // Discord users: Server is PRIMARY (bot needs to read it)
+                // But use localStorage as immediate backup if server fetch fails
+                console.log('[DEBUG] Discord user - server data:', _serverData);
+                console.log('[DEBUG] Discord user - cached data:', _cachedData);
+                
+                if(_serverData) {
+                    // Server data exists - this is the source of truth for Discord users
+                    userData = _serverData;
+                    // Update localStorage to match server
+                    try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
                 } else {
-                    // Only one source exists — use whichever is available
-                    userData = _cachedData || _serverData;
-                    if(_serverData && !_cachedData) {
-                        localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
+                    // Server fetch failed - use localStorage as emergency fallback
+                    console.warn('[DEBUG] Server fetch failed for Discord user - using localStorage backup');
+                    userData = _cachedData;
+                    // Try to push localStorage data back to server
+                    if(_cachedData) {
+                        try { await dbSet('users', currentUser, _cachedData); } catch(e) {}
                     }
                 }
             } else {
-                // Username/password users: localStorage IS the source of truth.
-                // Only fall back to server if no local cache at all (brand new device).
+                // Username/password users: localStorage IS the ONLY source of truth.
+                // NEVER fetch from server - it's always stale (RLS blocks chip writes).
                 userData = _cachedData;
+                console.log('[DEBUG] Username/password user - using cached data:', userData);
+                // If no local cache exists at all, they need to login again
+                // (This only happens on a brand new device where they've never logged in)
                 if(!userData) {
-                    try { _serverData = await dbGet('users', currentUser); } catch(e) {}
-                    userData = _serverData;
+                    console.warn('No local cache for username/password user - logout required');
+                    localStorage.removeItem('swarm_user');
+                    currentUser = null;
                 }
             }
 
@@ -6567,6 +6581,9 @@
         // Auto-refresh balance when tab becomes visible again (bot may have updated it)
         document.addEventListener('visibilitychange', async () => {
             if(document.visibilityState === 'visible' && currentUser && userData && !mActive && !tActive && !bjActive && !crashActive) {
+                // Only auto-refresh for Discord users - username/password users use localStorage only
+                if(!currentUser.startsWith('discord_')) return;
+                
                 const fresh = await dbGet('users', currentUser);
                 if(fresh && fresh.chips !== undefined) {
                     const _SYM_RAW = Symbol.for('bss_raw');
