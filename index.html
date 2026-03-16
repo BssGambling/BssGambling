@@ -6530,24 +6530,34 @@
             }
 
             if(_isDiscordUser) {
-                // Discord users: Server is PRIMARY (bot needs to read it)
-                // But use localStorage as immediate backup if server fetch fails
+                // localStorage is written on EVERY updateUI() call during gameplay, so it always
+                // has the correct post-game balance. The server can lag or fail to save.
+                // Rule: always use localStorage chips UNLESS the server has _bot_updated flag
+                // (meaning an admin/bot explicitly deposited or withdrew coins).
                 console.log('[DEBUG] Discord user - server data:', _serverData);
                 console.log('[DEBUG] Discord user - cached data:', _cachedData);
-                
-                if(_serverData) {
-                    // Server data exists - this is the source of truth for Discord users
+
+                const _botUpdated = _serverData && _serverData._bot_updated;
+
+                if(_botUpdated) {
+                    // Admin/bot changed balance — server wins
+                    console.log('[DEBUG] _bot_updated flag found — using server balance:', _serverData.chips);
                     userData = _serverData;
-                    // Update localStorage to match server
                     try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
+                } else if(_cachedData) {
+                    // Normal case: localStorage has the real post-game balance.
+                    // Merge profile fields (displayName, avatarUrl, etc.) from server if available,
+                    // but always keep localStorage chips.
+                    userData = _serverData
+                        ? Object.assign({}, _serverData, { chips: _cachedData.chips })
+                        : _cachedData;
+                    console.log('[DEBUG] Using localStorage chips:', _cachedData.chips, '(server had:', _serverData?.chips, ')');
+                    // Push correct balance back to server
+                    try { await dbSet('users', currentUser, userData); } catch(e) {}
                 } else {
-                    // Server fetch failed - use localStorage as emergency fallback
-                    console.warn('[DEBUG] Server fetch failed for Discord user - using localStorage backup');
-                    userData = _cachedData;
-                    // Try to push localStorage data back to server
-                    if(_cachedData) {
-                        try { await dbSet('users', currentUser, _cachedData); } catch(e) {}
-                    }
+                    // No localStorage at all (new device) — fall back to server
+                    console.warn('[DEBUG] No localStorage found — falling back to server data');
+                    userData = _serverData;
                 }
             } else {
                 // Username/password users: localStorage IS the ONLY source of truth.
@@ -6563,9 +6573,8 @@
                 }
             }
 
-            // If bot updated the balance, clear the flag
+            // Clear _bot_updated flag now that it has been acted on above
             if(userData && userData._bot_updated) {
-                console.log('[onload] Bot-updated balance detected — using server value:', userData.chips);
                 delete userData._bot_updated;
                 dbSet('users', currentUser, userData);
             }
