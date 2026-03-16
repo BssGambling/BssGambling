@@ -5680,48 +5680,9 @@
             bjCheckNaturalBlackjack();
         }
     }
-    // === RIGGING ENGINE — targets 30% player win rate ===
-    // rigShouldPlayerWin: returns true ~30% of the time (real random, not manipulable)
-    function rigShouldPlayerWin() { return Math.random() < 0.30; }
-
-    // Injects a bust card near the top of the deck for the player
-    function rigInjectBustCard() {
-        const bustVals = ['10','J','Q','K'];
-        const idx = deck.findIndex(c => bustVals.includes(c.v));
-        if(idx === -1) return; // no bust card available, nothing we can do
-        // Move bust card to top (last element = next pop)
-        const [card] = deck.splice(idx, 1);
-        deck.push(card);
-    }
-
-    // Injects cards that bring dealer to a winning total (> playerScore, 17-21)
-    function rigInjectDealerWinCards(dealerHand, playerScore) {
-        let ds = getBJScore(dealerHand);
-        // Work out what single card value would take dealer to a winning total
-        // Try values 1-10 to see what makes dealer win
-        const targetCards = [];
-        for(let addVal = 1; addVal <= 10; addVal++) {
-            const projected = ds + addVal;
-            if(projected >= Math.max(17, playerScore + 1) && projected <= 21) {
-                // Find this value in deck
-                const valMap = { 1:'A', 10:'10' };
-                const lookFor = addVal === 1 ? 'A' : (addVal === 10 ? ['10','J','Q','K'] : [String(addVal)]);
-                const arr = Array.isArray(lookFor) ? lookFor : [lookFor];
-                const idx = deck.findIndex(c => arr.includes(c.v));
-                if(idx !== -1) targetCards.push({ idx, projected });
-            }
-        }
-        if(targetCards.length === 0) {
-            // Fallback: if player score >= 20, try to get dealer to exact 20 or 21 via multi-card
-            // Just leave deck as-is — dealer may naturally win or bust
-            return;
-        }
-        // Pick the closest to player score to make it look natural
-        targetCards.sort((a,b) => b.projected - a.projected);
-        const best = targetCards[0];
-        const [card] = deck.splice(best.idx, 1);
-        deck.push(card); // move to top
-    }
+    // === FAIR PLAY - NO RIGGING ===
+    // All rigging functions have been removed for balanced gameplay!
+    // Removed rigging function - fair play only!
     // =====================================================
 
     function bjHit() {
@@ -5731,11 +5692,7 @@
         const scoreEl = bjSplitPhase === 2 ? 'bj-split-score' : 'bj-player-score';
         document.getElementById('bj-double-btn').style.visibility='hidden'; document.getElementById('bj-double-btn').style.pointerEvents='none';
         document.getElementById('bj-split-btn').style.visibility='hidden'; document.getElementById('bj-split-btn').style.pointerEvents='none';
-        // RIGGING: if player score is 12-16, 60% chance to inject a bust card
-        const score = getBJScore(activeHand);
-        if(score >= 12 && score <= 16 && Math.random() < 0.60) {
-            rigInjectBustCard();
-        }
+        // Fair play - no card rigging!
         let c = deck.pop(); activeHand.push(c); renderCard(c, handEl);
         document.getElementById(scoreEl).textContent = 'Score: ' + getBJScore(activeHand);
         bjUpdateCounters(); saveGameState();
@@ -5762,7 +5719,7 @@
             document.getElementById('bj-insurance-prompt').classList.add('hidden');
             renderCard(bjDealer[1], 'bj-dealer-hand');
             let ds = getBJScore(bjDealer);
-            if(!rigShouldPlayerWin()) { rigInjectDealerWinCards(bjDealer, Math.max(getBJScore(bjHand), getBJScore(bjSplitHand))); }
+            // Fair dealer play - no rigging!
             while(ds < 17 || (ds === 17 && isSoftHand(bjDealer))) { let c = deck.pop(); bjDealer.push(c); renderCard(c, 'bj-dealer-hand', false); ds = getBJScore(bjDealer); }
             document.getElementById('bj-dealer-score').textContent = 'Score: ' + ds;
             bjUpdateCounters();
@@ -5796,10 +5753,7 @@
         renderCard(bjDealer[1], 'bj-dealer-hand');
         let ds = getBJScore(bjDealer), ps = getBJScore(bjHand);
 
-        // RIGGING: 70% of the time, rig the deck so dealer wins
-        if(ps <= 21 && !rigShouldPlayerWin()) {
-            rigInjectDealerWinCards(bjDealer, ps);
-        }
+        // Fair dealer play - follows standard blackjack rules!
 
         while(ds < 17 || (ds === 17 && isSoftHand(bjDealer))) { let c = deck.pop(); bjDealer.push(c); renderCard(c, 'bj-dealer-hand', false); ds = getBJScore(bjDealer); }
         document.getElementById('bj-dealer-score').textContent = 'Score: ' + ds;
