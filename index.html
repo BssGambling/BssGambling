@@ -3313,6 +3313,7 @@
 
         // Always cache locally first — this is the primary persistence for username/password users
         if(table === 'users') {
+            console.log('[DEBUG] dbSet saving to localStorage:', id, 'chips:', rawVal.chips);
             try { localStorage.setItem('swarm_userdata_' + id, JSON.stringify(rawVal)); } catch(e) {}
         }
 
@@ -6473,10 +6474,12 @@
 
         // Step 3: Already logged in — restore session.
         if(currentUser) {
+            console.log('[DEBUG] Auto-login for user:', currentUser);
             // First try localStorage cache for instant load with correct balance
             const _cachedRaw = localStorage.getItem('swarm_userdata_' + currentUser);
             let _cachedData = null;
             try { _cachedData = _cachedRaw ? JSON.parse(_cachedRaw) : null; } catch(e) {}
+            console.log('[DEBUG] localStorage data:', _cachedData);
 
             const _isDiscordUser = currentUser.startsWith('discord_');
 
@@ -6486,6 +6489,7 @@
             // value is always stale — don't fetch it at all, just use localStorage.
             if(_isDiscordUser) {
                 try { _serverData = await dbGet('users', currentUser); } catch(e) {}
+                console.log('[DEBUG] Discord user - server data:', _serverData);
             }
 
             if(_isDiscordUser) {
@@ -6497,19 +6501,16 @@
                     try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData)); } catch(e) {}
                 }
             } else {
-                // Username/password users: localStorage IS the source of truth.
-                // NEVER use server data as it's always stale (RLS blocks chip writes).
+                // Username/password users: localStorage IS the ONLY source of truth.
+                // NEVER fetch from server - it's always stale (RLS blocks chip writes).
                 userData = _cachedData;
+                console.log('[DEBUG] Username/password user - using cached data:', userData);
+                // If no local cache exists at all, they need to login again
+                // (This only happens on a brand new device where they've never logged in)
                 if(!userData) {
-                    // Fallback: fetch from server only if NO local cache exists (brand new device)
-                    // but immediately save it to localStorage so future loads use local version
-                    try { 
-                        _serverData = await dbGet('users', currentUser); 
-                        if(_serverData) {
-                            userData = _serverData;
-                            localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
-                        }
-                    } catch(e) {}
+                    console.warn('No local cache for username/password user - logout required');
+                    localStorage.removeItem('swarm_user');
+                    currentUser = null;
                 }
             }
 
