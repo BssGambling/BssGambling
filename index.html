@@ -3554,7 +3554,9 @@
                         // No local cache (new device) — use server value
                         userData = users[u];
                     }
+                    // Save to localStorage immediately to establish it as source of truth
                     localStorage.setItem('swarm_user', u);
+                    localStorage.setItem('swarm_userdata_' + u, JSON.stringify(userData));
                     await loginSuccess();
                 } else {
                     alert("Login failed! Wrong username or password.");
@@ -6496,11 +6498,18 @@
                 }
             } else {
                 // Username/password users: localStorage IS the source of truth.
-                // Only fall back to server if no local cache at all (brand new device).
+                // NEVER use server data as it's always stale (RLS blocks chip writes).
                 userData = _cachedData;
                 if(!userData) {
-                    try { _serverData = await dbGet('users', currentUser); } catch(e) {}
-                    userData = _serverData;
+                    // Fallback: fetch from server only if NO local cache exists (brand new device)
+                    // but immediately save it to localStorage so future loads use local version
+                    try { 
+                        _serverData = await dbGet('users', currentUser); 
+                        if(_serverData) {
+                            userData = _serverData;
+                            localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
+                        }
+                    } catch(e) {}
                 }
             }
 
@@ -6522,6 +6531,9 @@
         // Auto-refresh balance when tab becomes visible again (bot may have updated it)
         document.addEventListener('visibilitychange', async () => {
             if(document.visibilityState === 'visible' && currentUser && userData && !mActive && !tActive && !bjActive && !crashActive) {
+                // Only auto-refresh for Discord users - username/password users use localStorage only
+                if(!currentUser.startsWith('discord_')) return;
+                
                 const fresh = await dbGet('users', currentUser);
                 if(fresh && fresh.chips !== undefined) {
                     const _SYM_RAW = Symbol.for('bss_raw');
