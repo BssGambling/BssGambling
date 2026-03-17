@@ -3998,8 +3998,7 @@
             if(fpBal) fpBal.innerText = Math.floor(fpChips).toLocaleString();
             return; // Don't save to Firebase or run anticheat in FP mode
         }
-        // Sync anticheat snapshot on every legitimate updateUI call
-        if(_acEnabled) acLegitChange(userData.chips);
+        // Sync balance to server on every legitimate updateUI call
         dbSet('users', currentUser, userData);
 
         // Dim FP button when any game is active (prevents confusion)
@@ -6575,10 +6574,13 @@
                 if(fresh && fresh.chips !== undefined) {
                     const _SYM_RAW = Symbol.for('bss_raw');
                     const raw = (userData && userData[_SYM_RAW]) ? userData[_SYM_RAW] : userData;
-                    // Server is authoritative for Discord users (Edge Function keeps it current).
-                    // Update local balance whenever server differs — this reflects bot withdrawals/deposits.
-                    if(Math.abs((raw.chips || 0) - fresh.chips) > 0) {
+                    // Only apply the server balance if an admin/bot explicitly updated it.
+                    // If we apply it unconditionally, a stale server value (e.g. a save that
+                    // failed after a loss) will silently restore coins the player legitimately lost.
+                    if(fresh._bot_updated) {
                         raw.chips = fresh.chips;
+                        delete fresh._bot_updated;
+                        dbSet('users', currentUser, Object.assign({}, raw, { chips: fresh.chips }));
                         updateUI();
                     }
                 }
