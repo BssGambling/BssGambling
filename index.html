@@ -6236,61 +6236,12 @@
     // ══════════════════════════════════════════════
     // ANTICHEAT ENGINE
     // ══════════════════════════════════════════════
-    let _acChipsSnapshot = 0;
+    // Anti-cheat disabled — was causing false positives
     let _acEnabled = false;
-    let _acCheckInterval = null;
-    const _acAllowedSources = new Set(); // timestamps of legitimate chip changes
-
-    function acInit(chips) {
-        _acChipsSnapshot = chips;
-        _acEnabled = true;
-        // Check every 2s if chips match our snapshot
-        _acCheckInterval = setInterval(acCheck, 2000);
-    }
-
-    function acLegitChange(newChips) {
-        _acChipsSnapshot = newChips;
-        _acAllowedSources.add(Date.now());
-    }
-
-    function acCheck() {
-        if(!_acEnabled || !userData) return;
-        if(fpEnabled) return; // Free Play uses fake chips — skip anticheat
-        const actual = Math.floor(userData.chips);
-        const snap = Math.floor(_acChipsSnapshot);
-        // Allow small floating point differences
-        if(Math.abs(actual - snap) > 1 && !_acPendingLegit()) {
-            acTrigger('Chip value tampered: expected ' + snap + ' got ' + actual);
-        }
-    }
-
-    function _acPendingLegit() {
-        const now = Date.now();
-        for(let ts of _acAllowedSources) {
-            if(now - ts < 4000) return true;
-        }
-        // Cleanup old entries
-        _acAllowedSources.forEach(ts => { if(now - ts > 4000) _acAllowedSources.delete(ts); });
-        return false;
-    }
-
-    // DevTools detection removed
-
-    function acTrigger(reason) {
-        _acEnabled = false;
-        clearInterval(_acCheckInterval);
-        console.warn('[AC]', reason);
-        document.getElementById('ac-warning').classList.add('show');
-        // Reset to snapshot value and save
-        if(userData) {
-            userData.chips = _acChipsSnapshot;
-            dbSet('users', currentUser, userData);
-        }
-    }
-
-    // Wrap updateUI to track chip snapshots
-    const _origUpdateUI = updateUI;
-    // We'll patch updateUI after defining it — see below
+    function acInit(chips) {}
+    function acLegitChange(newChips) {}
+    function acCheck() {}
+    function acTrigger(reason) {}
 
     // ══════════════════════════════════════════════
     // PROVABLY FAIR ENGINE
@@ -7064,11 +7015,7 @@ spUpdateStats();
 <div id="toast-container"></div>
 
 <!-- Anticheat warning -->
-<div id="ac-warning" style="position:fixed; inset:0; z-index:9999; background:#000; color:#fff; text-align:center; padding:40px; display:none;">
-    <h1>⚠️ Cheat Detected</h1>
-    <p>Unauthorized modification of game data was detected. Your session has been locked.<br><br>If you believe this is a mistake, please reload the page.</p>
-    <button onclick="location.reload()" style="margin-top:24px;background:#e74c3c;border:none;color:white;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:900;cursor:pointer;">Reload</button>
-</div>
+
 
 <!-- Floating Provably Fair Button -->
 <div class="pf-float-btn hidden" id="pf-float-btn" onclick="pfOpen()">
