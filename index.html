@@ -3293,11 +3293,9 @@
             const rows = await res.json();
             if (!Array.isArray(rows)) { console.error('dbGet error:', JSON.stringify(rows)); return null; }
             const val = rows[0] ? (table === 'users' ? rows[0].data : rows[0].val) : null;
-            // Only update local cache for Discord users — username/password users can't write to
-            // Supabase (RLS blocks it), so their server value is stale and must NOT overwrite localStorage.
-            if(table === 'users' && val && id.startsWith('discord_')) {
-                try { localStorage.setItem('swarm_userdata_' + id, JSON.stringify(val)); } catch(e) {}
-            }
+            // Do NOT write server data to localStorage here — dbSet handles that after every
+            // legitimate chip change. Writing here would clobber local chips with a stale
+            // server value (e.g. a slow/failed save after a loss) on every read.
             return val;
         } catch(e) {
             console.error('dbGet exception:', e);
