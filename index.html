@@ -4002,6 +4002,17 @@
             // Update FP modal balance too if open
             const fpBal = document.getElementById('fp-bal-display');
             if(fpBal) fpBal.innerText = Math.floor(fpChips).toLocaleString();
+            // Persist FP chips so they survive a page refresh
+            if(currentUser) {
+                try {
+                    const _gsRaw = localStorage.getItem('swarm_gs_' + currentUser);
+                    const _gsState = _gsRaw ? JSON.parse(_gsRaw) : {};
+                    if(!_gsState.fp) _gsState.fp = {};
+                    _gsState.fp.chips = fpChips;
+                    _gsState.fp.enabled = true;
+                    localStorage.setItem('swarm_gs_' + currentUser, JSON.stringify(_gsState));
+                } catch(e) {}
+            }
             return; // Don't save to Firebase or run anticheat in FP mode
         }
         // Sync balance to server on every legitimate updateUI call
