@@ -2820,8 +2820,12 @@
   <div class="tier-row">
     <div class="tier-label" style="background:rgba(255,255,255,0.08);color:#ffffff;">Secret</div>
     <div class="tier-stickers" id="tier-secret"></div>
+  </div>
+  <div class="tier-row">
     <div class="tier-label" style="background:rgba(232,121,249,0.2);color:#f0abfc;">Mythic</div>
     <div class="tier-stickers" id="tier-mythic"></div>
+  </div>
+  <div class="tier-row">
     <div class="tier-label" style="background:rgba(245,158,11,0.2);color:#fcd34d;">Legendary</div>
     <div class="tier-stickers" id="tier-legendary"></div>
   </div>
@@ -3313,66 +3317,48 @@
 
         // Always cache locally first — this is the primary persistence for username/password users
         if(table === 'users') {
-            // Strip _bot_updated before saving so it never gets permanently baked into localStorage
-            const saveVal = Object.assign({}, rawVal);
-            delete saveVal._bot_updated;
-            console.log('[DEBUG] dbSet saving to localStorage:', id, 'chips:', saveVal.chips);
-            try { localStorage.setItem('swarm_userdata_' + id, JSON.stringify(saveVal)); } catch(e) {}
+            try { localStorage.setItem('swarm_userdata_' + id, JSON.stringify(rawVal)); } catch(e) {}
         }
 
         // For users table — route through Edge Function so anon key can't write chips directly
         if(table === 'users') {
             const token = sessionStorage.getItem('dc_token_live');
-            console.log('[DEBUG] Discord token exists:', !!token);
             
+            // Try Edge Function for Discord users (preferred method)
             if(token && id.startsWith('discord_')) {
-                // Try Edge Function first (proper way for Discord users)
                 try {
-                    console.log('[DEBUG] Attempting Edge Function save for Discord user, chips:', rawVal.chips);
                     const response = await fetch(`${EDGE_BASE}/save-user`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ discord_token: token, data: rawVal })
                     });
-                    
-                    if(!response.ok) {
-                        console.error('[DEBUG] Edge Function returned error:', response.status);
-                        throw new Error('Edge Function failed: ' + response.status);
-                    }
-                    
-                    const result = await response.json();
-                    console.log('[DEBUG] Edge Function save SUCCESS:', result);
-                    return; // Success - exit here
+                    if(response.ok) return; // Success, exit here
+                    console.warn('Edge Function failed, falling back to direct write');
                 } catch(e) { 
-                    console.error('[DEBUG] Edge Function save FAILED, trying direct write:', e); 
-                    // Fall through to direct write below
+                    console.error('Edge Function error, falling back to direct write:', e); 
                 }
             }
             
-            // Fallback: Try direct Supabase write (may fail due to RLS, but worth trying)
-            if(id.startsWith('discord_')) {
-                try {
-                    console.log('[DEBUG] Attempting direct Supabase write for Discord user');
-                    await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(id)}`, {
-                        method: 'PATCH',
-                        headers: {
-                            apikey: SUPABASE_KEY,
-                            Authorization: `Bearer ${SUPABASE_KEY}`,
-                            'Content-Type': 'application/json',
-                            'Prefer': 'return=minimal'
-                        },
-                        body: JSON.stringify({ data: rawVal })
-                    });
-                    console.log('[DEBUG] Direct Supabase write completed');
-                } catch(e) {
-                    console.error('[DEBUG] Direct Supabase write also failed:', e);
-                }
-                return;
-            }
-            
-            // Username/password users: Supabase RLS blocks direct writes.
-            // localStorage (already saved above) is their source of truth — skip Supabase.
+            // Username/password users: localStorage only (RLS blocks writes)
             if(!id.startsWith('discord_')) return;
+            
+            // Fallback for Discord users: try direct Supabase write via upsert
+            try {
+                await fetch(`${SUPABASE_URL}/rest/v1/users`, {
+                    method: 'POST',
+                    headers: {
+                        apikey: SUPABASE_KEY, 
+                        Authorization: `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json', 
+                        'Prefer': 'resolution=merge-duplicates'
+                    },
+                    body: JSON.stringify({ id, data: rawVal })
+                });
+                return; // Exit after Discord user save
+            } catch(e) { 
+                console.error('Direct Supabase write also failed:', e); 
+            }
+            return;
         }
 
         // All other tables (history, promos etc) use direct Supabase — not sensitive
@@ -3595,9 +3581,7 @@
                         // No local cache (new device) — use server value
                         userData = users[u];
                     }
-                    // Save to localStorage immediately to establish it as source of truth
                     localStorage.setItem('swarm_user', u);
-                    localStorage.setItem('swarm_userdata_' + u, JSON.stringify(userData));
                     await loginSuccess();
                 } else {
                     alert("Login failed! Wrong username or password.");
@@ -5372,7 +5356,7 @@
         document.getElementById('t-bet').value = tBet;
         if(tBet > userData.chips || tBet < MIN_BET) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
         tCurrentRisk = document.getElementById('t-risk').value;
-        countGame(); userData.chips -= tBet; addProfit('tower', -tBet); updateUI();
+        countGame(); const tBalBefore = userData.chips; userData.chips -= tBet; addProfit('tower', -tBet); updateUI();
         releaseBetLock();
         tActive = true; tLevel = 0;
         document.getElementById('t-start').disabled = true;
@@ -5429,7 +5413,7 @@
             document.getElementById('t-risk').disabled = false;
             document.getElementById('t-bet').disabled = false;
             document.getElementById('t-cash').classList.add('hidden');
-            addHistory("Tower", tBet, 0, -tBet); clearGameState('tower');
+            addHistory("Tower", tBet, 0, -tBet, tBalBefore); clearGameState('tower');
         } else {
             // House edge: on every 10th game, secretly trigger a bomb on a "safe" tile
             if(houseEdge()) {
@@ -5451,7 +5435,7 @@
                 document.getElementById('t-risk').disabled = false;
                 document.getElementById('t-bet').disabled = false;
                 document.getElementById('t-cash').classList.add('hidden');
-                addHistory("Tower", tBet, 0, -tBet); clearGameState('tower');
+                addHistory("Tower", tBet, 0, -tBet, tBalBefore); clearGameState('tower');
                 return;
             }
             tile.innerHTML = '<svg class=\"ic ic-gem\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 14.5,5.5 8,15 1.5,5.5\" fill=\"#1abc9c\" stroke=\"#16a085\" stroke-width=\"0.4\"/><polygon points=\"8,1 14.5,5.5 8,7.5 1.5,5.5\" fill=\"#2ecc71\" opacity=\"0.55\"/></svg>';
@@ -5485,7 +5469,7 @@
         const win = Math.floor(tBet * m);
         userData.chips += win; play('win');
         showWinOverlay(m, win);
-        addHistory("Tower", tBet, m, win); clearGameState('tower');
+        addHistory("Tower", tBet, m, win, tBalBefore); clearGameState('tower');
         addProfit('tower', win);
         tActive = false; updateUI();
         document.getElementById('t-start').disabled = false;
@@ -5550,7 +5534,7 @@
         bjBet = clampBet(document.getElementById('bj-bet').value);
         document.getElementById('bj-bet').value = bjBet;
         if(bjBet > userData.chips) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
-        countGame(); userData.chips -= bjBet; addProfit('blackjack', -bjBet); updateUI(); bjActive=true; createDeck(); bjWinAmount=0; bjInsurance=0;
+        countGame(); const bjBalBefore = userData.chips; userData.chips -= bjBet; addProfit('blackjack', -bjBet); updateUI(); bjActive=true; createDeck(); bjWinAmount=0; bjInsurance=0;
         bjSplitPhase=0; bjSplitHand=[]; bjSplitBet=0;
         document.getElementById('bj-split-area').style.display='none';
         document.getElementById('bj-hand-indicator').style.display='none';
@@ -5652,7 +5636,7 @@
                 if(ds === 21 && bjDealer.length === 2) {
                     // Both have blackjack — push, return bet
                     userData.chips += bjBet; addProfit('blackjack', bjBet);
-                    addHistory("Blackjack", bjBet, 1, bjBet);
+                    addHistory("Blackjack", bjBet, 1, bjBet, bjBalBefore);
                     document.getElementById('bj-status').textContent = '🤝 BOTH BLACKJACK — Push! Bet Returned';
                     toast('🤝 Both Blackjack — bet returned!', 'success');
                 } else {
@@ -5661,7 +5645,7 @@
                     userData.chips += bjWinAmount; play('win'); showWinOverlay(2.2, bjWinAmount);
                     document.querySelector('.bj-area')?.classList.remove('lose-shake');
                     document.querySelector('.bj-area')?.classList.add('win-glow');
-                    addHistory("Blackjack", bjBet, 2.2, bjWinAmount); addProfit('blackjack', bjWinAmount);
+                    addHistory("Blackjack", bjBet, 2.2, bjWinAmount, bjBalBefore); addProfit('blackjack', bjWinAmount);
                     document.getElementById('bj-status').innerHTML = '<svg class=\"ic ic-card\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"2\" y=\"1\" width=\"12\" height=\"14\" rx=\"2\" fill=\"#f0f0f0\" stroke=\"#bbb\" stroke-width=\"0.5\"/><text x=\"8\" y=\"11\" text-anchor=\"middle\" fill=\"#e74c3c\" font-size=\"9\" font-weight=\"900\" font-family=\"serif\">J</text></svg> BLACKJACK! +120%!';
                 }
                 document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
@@ -5703,10 +5687,10 @@
             if(playerBJ) {
                 // Push on main bet
                 userData.chips += bjBet; addProfit('blackjack', bjBet);
-                addHistory("Blackjack", bjBet, 1, bjBet);
+                addHistory("Blackjack", bjBet, 1, bjBet, bjBalBefore);
                 msg = bjInsurance > 0 ? '🛡️ INSURED + TIE!' : '🤝 BOTH BLACKJACK — TIE';
             } else {
-                addHistory("Blackjack", bjBet, 0, -bjBet);
+                addHistory("Blackjack", bjBet, 0, -bjBet, bjBalBefore);
                 msg = bjInsurance > 0 ? '🛡️ INSURANCE SAVES YOU!' : '😞 DEALER BLACKJACK';
                 document.querySelector('.bj-area')?.classList.remove('win-glow');
                 document.querySelector('.bj-area')?.classList.add('lose-shake');
@@ -5784,7 +5768,7 @@
             const totalBet = bjBet + bjSplitBet, totalWin = win1 + win2;
             if(totalWin > 0) { play('win'); showWinOverlay(totalWin/totalBet, totalWin); document.querySelector('.bj-area')?.classList.remove('lose-shake'); document.querySelector('.bj-area')?.classList.add('win-glow'); }
             else { play('boom'); document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('lose-shake'); }
-            addHistory("Blackjack Split", totalBet, totalWin > 0 ? totalWin/totalBet : 0, totalWin > 0 ? totalWin : -totalBet);
+            addHistory("Blackjack Split", totalBet, totalWin > 0 ? totalWin/totalBet : 0, totalWin > 0 ? totalWin : -totalBet, bjBalBefore);
             bjSplitPhase=0; bjSplitHand=[]; bjSplitBet=0;
             document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
             bjHideActionButtons(); updateUI();
@@ -5808,27 +5792,27 @@
             bjWinAmount = bjBet * 2.5; // 2.5x payout for 5-card 21
             userData.chips += bjWinAmount; play('win'); showWinOverlay(2.5, bjWinAmount);
             document.querySelector('.bj-area')?.classList.remove('lose-shake'); document.querySelector('.bj-area')?.classList.add('win-glow');
-            addHistory("Blackjack", bjBet, 2.5, bjWinAmount); addProfit('blackjack', bjWinAmount);
+            addHistory("Blackjack", bjBet, 2.5, bjWinAmount, bjBalBefore); addProfit('blackjack', bjWinAmount);
             document.getElementById('bj-status').textContent = '🌟 5-CARD 21! YOU WIN!';
         } else if(ps <= 21 && (ds > 21 || ps > ds)) {
             // Player wins
             bjWinAmount = bjBet*2;
             userData.chips += bjWinAmount; play('win'); showWinOverlay(2, bjWinAmount);
             document.querySelector('.bj-area')?.classList.remove('lose-shake'); document.querySelector('.bj-area')?.classList.add('win-glow');
-            addHistory("Blackjack", bjBet, 2, bjWinAmount); addProfit('blackjack', bjWinAmount);
+            addHistory("Blackjack", bjBet, 2, bjWinAmount, bjBalBefore); addProfit('blackjack', bjWinAmount);
             document.getElementById('bj-status').textContent = '🏆 YOU WIN!';
         } else if(ps > 21) {
-            play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet);
+            play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet, bjBalBefore);
             document.getElementById('bj-status').textContent = '💥 BUST!';
             document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('lose-shake');
         } else if(ps === ds) {
             userData.chips += bjBet; addProfit('blackjack', bjBet);
-            addHistory("Blackjack", bjBet, 1, bjBet);
+            addHistory("Blackjack", bjBet, 1, bjBet, bjBalBefore);
             document.getElementById('bj-status').textContent = '🤝 TIE — Bet Returned!';
             document.querySelector('.bj-area')?.classList.remove('win-glow', 'lose-shake');
             toast('🤝 Tie — bet returned!', 'success');
         } else {
-            play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet);
+            play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet, bjBalBefore);
             document.getElementById('bj-status').textContent = '😞 DEALER WINS';
             document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('lose-shake');
         }
@@ -6489,22 +6473,6 @@
     function pfOverlayClick(e){ if(e.target===document.getElementById('pf-overlay')) pfClose(); }
 
     window.onload = async () => {
-        // ONE-TIME CLEANUP: scrub any stuck _bot_updated flag from localStorage right now,
-        // before any balance logic runs. This prevents it from ever triggering a server
-        // balance override on refresh.
-        try {
-            const _cleanKey = 'swarm_userdata_' + localStorage.getItem('swarm_user');
-            const _cleanRaw = localStorage.getItem(_cleanKey);
-            if(_cleanRaw) {
-                const _cleanObj = JSON.parse(_cleanRaw);
-                if(_cleanObj && _cleanObj._bot_updated) {
-                    console.log('[CLEANUP] Removing stuck _bot_updated from localStorage');
-                    delete _cleanObj._bot_updated;
-                    localStorage.setItem(_cleanKey, JSON.stringify(_cleanObj));
-                }
-            }
-        } catch(e) {}
-
         pfInit();
 
         // Step 1: If Discord just redirected back with a token in the URL,
@@ -6530,12 +6498,10 @@
 
         // Step 3: Already logged in — restore session.
         if(currentUser) {
-            console.log('[DEBUG] Auto-login for user:', currentUser);
             // First try localStorage cache for instant load with correct balance
             const _cachedRaw = localStorage.getItem('swarm_userdata_' + currentUser);
             let _cachedData = null;
             try { _cachedData = _cachedRaw ? JSON.parse(_cachedRaw) : null; } catch(e) {}
-            console.log('[DEBUG] localStorage data:', _cachedData);
 
             const _isDiscordUser = currentUser.startsWith('discord_');
 
@@ -6545,78 +6511,52 @@
             // value is always stale — don't fetch it at all, just use localStorage.
             if(_isDiscordUser) {
                 try { _serverData = await dbGet('users', currentUser); } catch(e) {}
-                console.log('[DEBUG] Discord user - server data:', _serverData);
             }
 
             if(_isDiscordUser) {
-                // localStorage is written on EVERY updateUI() call during gameplay, so it always
-                // has the correct post-game balance. The server can lag or fail to save.
-                // Rule: always use localStorage chips UNLESS the server has _bot_updated flag
-                // (meaning an admin/bot explicitly deposited or withdrew coins).
-                console.log('[DEBUG] Discord user - server data:', _serverData);
-                console.log('[DEBUG] Discord user - cached data:', _cachedData);
+                // localStorage is kept in sync on every updateUI() call during gameplay.
+                // It is always the most up-to-date source for chip balance.
+                // The server value can be STALE if the Edge Function save failed after a loss
+                // (server still holds the pre-loss balance), so we must NOT blindly prefer
+                // the server when it has more chips — that would restore lost coins on refresh.
+                //
+                // The ONLY time the server should override localStorage is when an admin/bot
+                // explicitly updated the balance (_bot_updated flag), which is handled below.
 
-                const _botUpdated = _serverData && _serverData._bot_updated;
-
-                if(_botUpdated) {
-                    // Admin/bot changed the balance — use the HIGHER of server vs local chips
-                    // (protects against server having a stale deposit value if local is already ahead)
-                    const _serverChips = _serverData.chips || 0;
-                    const _localChips = _cachedData ? (_cachedData.chips || 0) : 0;
-                    const _finalChips = Math.max(_serverChips, _localChips);
-                    console.log('[DEBUG] _bot_updated found — server:', _serverChips, 'local:', _localChips, 'using:', _finalChips);
-                    // Merge server profile fields, apply best chips, strip the flag
-                    userData = Object.assign({}, _serverData, { chips: _finalChips });
-                    delete userData._bot_updated;
-                    // Clear flag from localStorage and push clean data to server immediately
-                    try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(userData)); } catch(e) {}
-                    try { await dbSet('users', currentUser, userData); } catch(e) {}
-                } else if(_cachedData) {
-                    // Normal case: localStorage has the real post-game balance.
-                    // Merge profile fields (displayName, avatarUrl, etc.) from server if available,
-                    // but always keep localStorage chips.
-                    userData = _serverData
-                        ? Object.assign({}, _serverData, { chips: _cachedData.chips })
-                        : _cachedData;
-                    console.log('[DEBUG] Using localStorage chips:', _cachedData.chips, '(server had:', _serverData?.chips, ')');
-                    // Push correct balance back to server to keep it in sync
-                    try { await dbSet('users', currentUser, userData); } catch(e) {}
+                if(_serverData && _cachedData) {
+                    if(_serverData._bot_updated) {
+                        // Admin/bot deposit: server is authoritative
+                        userData = _serverData;
+                        localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
+                    } else {
+                        // Gameplay save: localStorage chips are the source of truth.
+                        // Merge server fields (displayName, avatarUrl, etc.) but keep local chips.
+                        userData = Object.assign({}, _serverData, { chips: _cachedData.chips });
+                        localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(userData));
+                        // Sync corrected balance back to server in case it was stale
+                        dbSet('users', currentUser, userData);
+                    }
                 } else {
-                    // No localStorage at all (new device) — fall back to server
-                    console.warn('[DEBUG] No localStorage found — falling back to server data');
-                    userData = _serverData;
-                    if(_serverData) {
-                        delete userData._bot_updated;
-                        try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(userData)); } catch(e) {}
-                        try { await dbSet('users', currentUser, userData); } catch(e) {}
+                    // Only one source exists — use whichever is available
+                    userData = _cachedData || _serverData;
+                    if(_serverData && !_cachedData) {
+                        localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
                     }
                 }
             } else {
-                // Username/password users: localStorage IS the ONLY source of truth.
-                // NEVER fetch from server - it's always stale (RLS blocks chip writes).
+                // Username/password users: localStorage IS the source of truth.
+                // Only fall back to server if no local cache at all (brand new device).
                 userData = _cachedData;
-                console.log('[DEBUG] Username/password user - using cached data:', userData);
-                // If no local cache exists at all, they need to login again
-                // (This only happens on a brand new device where they've never logged in)
                 if(!userData) {
-                    console.warn('No local cache for username/password user - logout required');
-                    localStorage.removeItem('swarm_user');
-                    currentUser = null;
+                    try { _serverData = await dbGet('users', currentUser); } catch(e) {}
+                    userData = _serverData;
                 }
             }
 
-            // Clear _bot_updated flag from memory, localStorage AND server now that it has been acted on
+            // If bot updated the balance, clear the flag
             if(userData && userData._bot_updated) {
+                console.log('[onload] Bot-updated balance detected — using server value:', userData.chips);
                 delete userData._bot_updated;
-                // Also manually scrub from localStorage right now so a failed dbSet can't leave it behind
-                try {
-                    const _scrub = localStorage.getItem('swarm_userdata_' + currentUser);
-                    if(_scrub) {
-                        const _scrubObj = JSON.parse(_scrub);
-                        delete _scrubObj._bot_updated;
-                        localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_scrubObj));
-                    }
-                } catch(e) {}
                 dbSet('users', currentUser, userData);
             }
 
@@ -6628,30 +6568,20 @@
             }
         }
 
-        // Auto-refresh balance when tab becomes visible again (ONLY for bot/admin deposits)
+        // Auto-refresh balance when tab becomes visible again (bot may have updated it)
         document.addEventListener('visibilitychange', async () => {
             if(document.visibilityState === 'visible' && currentUser && userData && !mActive && !tActive && !bjActive && !crashActive) {
-                if(!currentUser.startsWith('discord_')) return;
-
                 const fresh = await dbGet('users', currentUser);
-                if(fresh && fresh._bot_updated) {
-                    // Only override if an admin/bot explicitly changed the balance
+                if(fresh && fresh.chips !== undefined) {
                     const _SYM_RAW = Symbol.for('bss_raw');
                     const raw = (userData && userData[_SYM_RAW]) ? userData[_SYM_RAW] : userData;
-                    const _serverChips = fresh.chips || 0;
-                    const _localChips = raw.chips || 0;
-                    raw.chips = Math.max(_serverChips, _localChips);
-                    // Clear the flag so it does not trigger again
-                    delete fresh._bot_updated;
-                    try {
-                        const _scrub = Object.assign({}, fresh, { chips: raw.chips });
-                        delete _scrub._bot_updated;
-                        localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_scrub));
-                        await dbSet('users', currentUser, _scrub);
-                    } catch(e) {}
-                    updateUI();
+                    // Server is authoritative for Discord users (Edge Function keeps it current).
+                    // Update local balance whenever server differs — this reflects bot withdrawals/deposits.
+                    if(Math.abs((raw.chips || 0) - fresh.chips) > 0) {
+                        raw.chips = fresh.chips;
+                        updateUI();
+                    }
                 }
-                // If no _bot_updated flag, server data is stale — do NOT overwrite local chips
             }
         });
     };
@@ -6990,7 +6920,7 @@ async function spPrintSticker() {
 
   if (typeof sendDiscordWebhook === 'function' && typeof fpEnabled !== 'undefined' && !fpEnabled) {
     const stickerWin = result === 'win' ? coinsChange : 0;
-    sendDiscordWebhook('Sticker Printer', bet, result === 'win' ? 2 : 0, stickerWin);
+    sendDiscordWebhook('Sticker Printer', bet, result === 'win' ? 2 : 0, stickerWin, spBalBefore);
   }
 
   history.unshift({ result, playerSticker, botSticker, coinsChange: result === 'win' ? coinsChange : result === 'lose' ? -bet : 0 });
