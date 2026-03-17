@@ -3564,15 +3564,19 @@
             } else {
                 if(users[u] && users[u].password === p) {
                     currentUser = u;
-                    // localStorage is ALWAYS the source of truth for username/password users
-                    // because Supabase RLS blocks chip writes — the server value never updates
-                    // during gameplay, so it's always stale. Use local chips if they exist.
                     const _loginCached = localStorage.getItem('swarm_userdata_' + u);
                     let _loginCachedData = null;
                     try { _loginCachedData = _loginCached ? JSON.parse(_loginCached) : null; } catch(e) {}
+                    // Also check dedicated chip key — always most up-to-date
+                    const _savedChipsLogin = (() => {
+                        try { const v = localStorage.getItem('bss_chips_' + u); if(v !== null) { const n = parseInt(v, 10); if(!isNaN(n)) return n; } } catch(e) {}
+                        return null;
+                    })();
                     if(_loginCachedData && typeof _loginCachedData.chips === 'number') {
-                        // Use local chips; merge other fields (password etc.) from server
-                        userData = Object.assign({}, users[u], { chips: _loginCachedData.chips });
+                        const bestChips = _savedChipsLogin !== null ? _savedChipsLogin : _loginCachedData.chips;
+                        userData = Object.assign({}, users[u], { chips: bestChips });
+                    } else if(_savedChipsLogin !== null) {
+                        userData = Object.assign({}, users[u], { chips: _savedChipsLogin });
                     } else {
                         // No local cache (new device) — use server value
                         userData = users[u];
