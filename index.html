@@ -2820,8 +2820,12 @@
   <div class="tier-row">
     <div class="tier-label" style="background:rgba(255,255,255,0.08);color:#ffffff;">Secret</div>
     <div class="tier-stickers" id="tier-secret"></div>
+  </div>
+  <div class="tier-row">
     <div class="tier-label" style="background:rgba(232,121,249,0.2);color:#f0abfc;">Mythic</div>
     <div class="tier-stickers" id="tier-mythic"></div>
+  </div>
+  <div class="tier-row">
     <div class="tier-label" style="background:rgba(245,158,11,0.2);color:#fcd34d;">Legendary</div>
     <div class="tier-stickers" id="tier-legendary"></div>
   </div>
@@ -3289,11 +3293,9 @@
             const rows = await res.json();
             if (!Array.isArray(rows)) { console.error('dbGet error:', JSON.stringify(rows)); return null; }
             const val = rows[0] ? (table === 'users' ? rows[0].data : rows[0].val) : null;
-            // Only update local cache for Discord users — username/password users can't write to
-            // Supabase (RLS blocks it), so their server value is stale and must NOT overwrite localStorage.
-            if(table === 'users' && val && id.startsWith('discord_')) {
-                try { localStorage.setItem('swarm_userdata_' + id, JSON.stringify(val)); } catch(e) {}
-            }
+            // Do NOT write server data to localStorage here — dbSet handles that after every
+            // legitimate chip change. Writing here would clobber local chips with a stale
+            // server value (e.g. a slow/failed save after a loss) on every read.
             return val;
         } catch(e) {
             console.error('dbGet exception:', e);
@@ -3310,6 +3312,9 @@
 
     async function dbSet(table, id, value) {
         const rawVal = (value && value[Symbol.for('bss_raw')]) ? value[Symbol.for('bss_raw')] : (value && value.__raw ? value.__raw : value);
+
+        // Stamp every save with current time so page-load can pick the freshest source
+        if(table === 'users') rawVal._ts = Date.now();
 
         // Always cache locally first — this is the primary persistence for username/password users
         if(table === 'users') {
@@ -3994,8 +3999,7 @@
             if(fpBal) fpBal.innerText = Math.floor(fpChips).toLocaleString();
             return; // Don't save to Firebase or run anticheat in FP mode
         }
-        // Sync anticheat snapshot on every legitimate updateUI call
-        if(_acEnabled) acLegitChange(userData.chips);
+        // Sync balance to server on every legitimate updateUI call
         dbSet('users', currentUser, userData);
 
         // Dim FP button when any game is active (prevents confusion)
@@ -5352,7 +5356,7 @@
         document.getElementById('t-bet').value = tBet;
         if(tBet > userData.chips || tBet < MIN_BET) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
         tCurrentRisk = document.getElementById('t-risk').value;
-        countGame(); userData.chips -= tBet; addProfit('tower', -tBet); updateUI();
+        countGame(); const tBalBefore = userData.chips; userData.chips -= tBet; addProfit('tower', -tBet); updateUI();
         releaseBetLock();
         tActive = true; tLevel = 0;
         document.getElementById('t-start').disabled = true;
@@ -5409,7 +5413,7 @@
             document.getElementById('t-risk').disabled = false;
             document.getElementById('t-bet').disabled = false;
             document.getElementById('t-cash').classList.add('hidden');
-            addHistory("Tower", tBet, 0, -tBet); clearGameState('tower');
+            addHistory("Tower", tBet, 0, -tBet, tBalBefore); clearGameState('tower');
         } else {
             // House edge: on every 10th game, secretly trigger a bomb on a "safe" tile
             if(houseEdge()) {
@@ -5431,7 +5435,7 @@
                 document.getElementById('t-risk').disabled = false;
                 document.getElementById('t-bet').disabled = false;
                 document.getElementById('t-cash').classList.add('hidden');
-                addHistory("Tower", tBet, 0, -tBet); clearGameState('tower');
+                addHistory("Tower", tBet, 0, -tBet, tBalBefore); clearGameState('tower');
                 return;
             }
             tile.innerHTML = '<svg class=\"ic ic-gem\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 14.5,5.5 8,15 1.5,5.5\" fill=\"#1abc9c\" stroke=\"#16a085\" stroke-width=\"0.4\"/><polygon points=\"8,1 14.5,5.5 8,7.5 1.5,5.5\" fill=\"#2ecc71\" opacity=\"0.55\"/></svg>';
@@ -5465,7 +5469,7 @@
         const win = Math.floor(tBet * m);
         userData.chips += win; play('win');
         showWinOverlay(m, win);
-        addHistory("Tower", tBet, m, win); clearGameState('tower');
+        addHistory("Tower", tBet, m, win, tBalBefore); clearGameState('tower');
         addProfit('tower', win);
         tActive = false; updateUI();
         document.getElementById('t-start').disabled = false;
@@ -5530,7 +5534,7 @@
         bjBet = clampBet(document.getElementById('bj-bet').value);
         document.getElementById('bj-bet').value = bjBet;
         if(bjBet > userData.chips) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
-        countGame(); userData.chips -= bjBet; addProfit('blackjack', -bjBet); updateUI(); bjActive=true; createDeck(); bjWinAmount=0; bjInsurance=0;
+        countGame(); const bjBalBefore = userData.chips; userData.chips -= bjBet; addProfit('blackjack', -bjBet); updateUI(); bjActive=true; createDeck(); bjWinAmount=0; bjInsurance=0;
         bjSplitPhase=0; bjSplitHand=[]; bjSplitBet=0;
         document.getElementById('bj-split-area').style.display='none';
         document.getElementById('bj-hand-indicator').style.display='none';
@@ -5632,7 +5636,7 @@
                 if(ds === 21 && bjDealer.length === 2) {
                     // Both have blackjack — push, return bet
                     userData.chips += bjBet; addProfit('blackjack', bjBet);
-                    addHistory("Blackjack", bjBet, 1, bjBet);
+                    addHistory("Blackjack", bjBet, 1, bjBet, bjBalBefore);
                     document.getElementById('bj-status').textContent = '🤝 BOTH BLACKJACK — Push! Bet Returned';
                     toast('🤝 Both Blackjack — bet returned!', 'success');
                 } else {
@@ -5641,7 +5645,7 @@
                     userData.chips += bjWinAmount; play('win'); showWinOverlay(2.2, bjWinAmount);
                     document.querySelector('.bj-area')?.classList.remove('lose-shake');
                     document.querySelector('.bj-area')?.classList.add('win-glow');
-                    addHistory("Blackjack", bjBet, 2.2, bjWinAmount); addProfit('blackjack', bjWinAmount);
+                    addHistory("Blackjack", bjBet, 2.2, bjWinAmount, bjBalBefore); addProfit('blackjack', bjWinAmount);
                     document.getElementById('bj-status').innerHTML = '<svg class=\"ic ic-card\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"2\" y=\"1\" width=\"12\" height=\"14\" rx=\"2\" fill=\"#f0f0f0\" stroke=\"#bbb\" stroke-width=\"0.5\"/><text x=\"8\" y=\"11\" text-anchor=\"middle\" fill=\"#e74c3c\" font-size=\"9\" font-weight=\"900\" font-family=\"serif\">J</text></svg> BLACKJACK! +120%!';
                 }
                 document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
@@ -5683,10 +5687,10 @@
             if(playerBJ) {
                 // Push on main bet
                 userData.chips += bjBet; addProfit('blackjack', bjBet);
-                addHistory("Blackjack", bjBet, 1, bjBet);
+                addHistory("Blackjack", bjBet, 1, bjBet, bjBalBefore);
                 msg = bjInsurance > 0 ? '🛡️ INSURED + TIE!' : '🤝 BOTH BLACKJACK — TIE';
             } else {
-                addHistory("Blackjack", bjBet, 0, -bjBet);
+                addHistory("Blackjack", bjBet, 0, -bjBet, bjBalBefore);
                 msg = bjInsurance > 0 ? '🛡️ INSURANCE SAVES YOU!' : '😞 DEALER BLACKJACK';
                 document.querySelector('.bj-area')?.classList.remove('win-glow');
                 document.querySelector('.bj-area')?.classList.add('lose-shake');
@@ -5764,7 +5768,7 @@
             const totalBet = bjBet + bjSplitBet, totalWin = win1 + win2;
             if(totalWin > 0) { play('win'); showWinOverlay(totalWin/totalBet, totalWin); document.querySelector('.bj-area')?.classList.remove('lose-shake'); document.querySelector('.bj-area')?.classList.add('win-glow'); }
             else { play('boom'); document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('lose-shake'); }
-            addHistory("Blackjack Split", totalBet, totalWin > 0 ? totalWin/totalBet : 0, totalWin > 0 ? totalWin : -totalBet);
+            addHistory("Blackjack Split", totalBet, totalWin > 0 ? totalWin/totalBet : 0, totalWin > 0 ? totalWin : -totalBet, bjBalBefore);
             bjSplitPhase=0; bjSplitHand=[]; bjSplitBet=0;
             document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
             bjHideActionButtons(); updateUI();
@@ -5788,27 +5792,27 @@
             bjWinAmount = bjBet * 2.5; // 2.5x payout for 5-card 21
             userData.chips += bjWinAmount; play('win'); showWinOverlay(2.5, bjWinAmount);
             document.querySelector('.bj-area')?.classList.remove('lose-shake'); document.querySelector('.bj-area')?.classList.add('win-glow');
-            addHistory("Blackjack", bjBet, 2.5, bjWinAmount); addProfit('blackjack', bjWinAmount);
+            addHistory("Blackjack", bjBet, 2.5, bjWinAmount, bjBalBefore); addProfit('blackjack', bjWinAmount);
             document.getElementById('bj-status').textContent = '🌟 5-CARD 21! YOU WIN!';
         } else if(ps <= 21 && (ds > 21 || ps > ds)) {
             // Player wins
             bjWinAmount = bjBet*2;
             userData.chips += bjWinAmount; play('win'); showWinOverlay(2, bjWinAmount);
             document.querySelector('.bj-area')?.classList.remove('lose-shake'); document.querySelector('.bj-area')?.classList.add('win-glow');
-            addHistory("Blackjack", bjBet, 2, bjWinAmount); addProfit('blackjack', bjWinAmount);
+            addHistory("Blackjack", bjBet, 2, bjWinAmount, bjBalBefore); addProfit('blackjack', bjWinAmount);
             document.getElementById('bj-status').textContent = '🏆 YOU WIN!';
         } else if(ps > 21) {
-            play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet);
+            play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet, bjBalBefore);
             document.getElementById('bj-status').textContent = '💥 BUST!';
             document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('lose-shake');
         } else if(ps === ds) {
             userData.chips += bjBet; addProfit('blackjack', bjBet);
-            addHistory("Blackjack", bjBet, 1, bjBet);
+            addHistory("Blackjack", bjBet, 1, bjBet, bjBalBefore);
             document.getElementById('bj-status').textContent = '🤝 TIE — Bet Returned!';
             document.querySelector('.bj-area')?.classList.remove('win-glow', 'lose-shake');
             toast('🤝 Tie — bet returned!', 'success');
         } else {
-            play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet);
+            play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet, bjBalBefore);
             document.getElementById('bj-status').textContent = '😞 DEALER WINS';
             document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('lose-shake');
         }
@@ -6233,61 +6237,12 @@
     // ══════════════════════════════════════════════
     // ANTICHEAT ENGINE
     // ══════════════════════════════════════════════
-    let _acChipsSnapshot = 0;
+    // Anti-cheat disabled — was causing false positives
     let _acEnabled = false;
-    let _acCheckInterval = null;
-    const _acAllowedSources = new Set(); // timestamps of legitimate chip changes
-
-    function acInit(chips) {
-        _acChipsSnapshot = chips;
-        _acEnabled = true;
-        // Check every 2s if chips match our snapshot
-        _acCheckInterval = setInterval(acCheck, 2000);
-    }
-
-    function acLegitChange(newChips) {
-        _acChipsSnapshot = newChips;
-        _acAllowedSources.add(Date.now());
-    }
-
-    function acCheck() {
-        if(!_acEnabled || !userData) return;
-        if(fpEnabled) return; // Free Play uses fake chips — skip anticheat
-        const actual = Math.floor(userData.chips);
-        const snap = Math.floor(_acChipsSnapshot);
-        // Allow small floating point differences
-        if(Math.abs(actual - snap) > 1 && !_acPendingLegit()) {
-            acTrigger('Chip value tampered: expected ' + snap + ' got ' + actual);
-        }
-    }
-
-    function _acPendingLegit() {
-        const now = Date.now();
-        for(let ts of _acAllowedSources) {
-            if(now - ts < 4000) return true;
-        }
-        // Cleanup old entries
-        _acAllowedSources.forEach(ts => { if(now - ts > 4000) _acAllowedSources.delete(ts); });
-        return false;
-    }
-
-    // DevTools detection removed
-
-    function acTrigger(reason) {
-        _acEnabled = false;
-        clearInterval(_acCheckInterval);
-        console.warn('[AC]', reason);
-        document.getElementById('ac-warning').classList.add('show');
-        // Reset to snapshot value and save
-        if(userData) {
-            userData.chips = _acChipsSnapshot;
-            dbSet('users', currentUser, userData);
-        }
-    }
-
-    // Wrap updateUI to track chip snapshots
-    const _origUpdateUI = updateUI;
-    // We'll patch updateUI after defining it — see below
+    function acInit(chips) {}
+    function acLegitChange(newChips) {}
+    function acCheck() {}
+    function acTrigger(reason) {}
 
     // ══════════════════════════════════════════════
     // PROVABLY FAIR ENGINE
@@ -6510,31 +6465,34 @@
             }
 
             if(_isDiscordUser) {
-                // localStorage is kept in sync on every updateUI() call during gameplay.
-                // It is always the most up-to-date source for chip balance.
-                // The server value can be STALE if the Edge Function save failed after a loss
-                // (server still holds the pre-loss balance), so we must NOT blindly prefer
-                // the server when it has more chips — that would restore lost coins on refresh.
-                //
-                // The ONLY time the server should override localStorage is when an admin/bot
-                // explicitly updated the balance (_bot_updated flag), which is handled below.
+                // Use _ts (timestamp) to pick whichever source was saved most recently.
+                // This correctly handles both: (a) a win saved to localStorage that the
+                // server hasn't received yet, and (b) an admin/bot deposit that only
+                // exists on the server. Whoever has the newer _ts wins.
+                const localTs  = (_cachedData && _cachedData._ts)  || 0;
+                const serverTs = (_serverData && _serverData._ts) || 0;
 
                 if(_serverData && _cachedData) {
-                    if(_serverData._bot_updated) {
-                        // Admin/bot deposit: server is authoritative
+                    if(_serverData._bot_updated || serverTs > localTs) {
+                        // Server is fresher (admin deposit, or server saved after local)
+                        // IMPORTANT: strip _bot_updated before saving to localStorage so it
+                        // doesn't keep triggering the server-wins branch on every refresh
+                        delete _serverData._bot_updated;
                         userData = _serverData;
                         localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
                     } else {
-                        // Gameplay save: localStorage chips are the source of truth.
-                        // Merge server fields (displayName, avatarUrl, etc.) but keep local chips.
-                        userData = Object.assign({}, _serverData, { chips: _cachedData.chips });
+                        // Local is fresher — keep local chips, merge server profile fields
+                        // Also strip any stale _bot_updated that may have leaked into localStorage
+                        userData = Object.assign({}, _serverData, { chips: _cachedData.chips, _ts: _cachedData._ts });
+                        delete userData._bot_updated;
                         localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(userData));
-                        // Sync corrected balance back to server in case it was stale
+                        // Push corrected balance back to server
                         dbSet('users', currentUser, userData);
                     }
                 } else {
                     // Only one source exists — use whichever is available
                     userData = _cachedData || _serverData;
+                    if(userData) delete userData._bot_updated;
                     if(_serverData && !_cachedData) {
                         localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
                     }
@@ -6549,10 +6507,13 @@
                 }
             }
 
-            // If bot updated the balance, clear the flag
+            // If bot updated the balance, clear the flag from both memory and localStorage
             if(userData && userData._bot_updated) {
                 console.log('[onload] Bot-updated balance detected — using server value:', userData.chips);
                 delete userData._bot_updated;
+                localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(
+                    (userData[Symbol.for('bss_raw')] ? userData[Symbol.for('bss_raw')] : userData)
+                ));
                 dbSet('users', currentUser, userData);
             }
 
@@ -6571,10 +6532,13 @@
                 if(fresh && fresh.chips !== undefined) {
                     const _SYM_RAW = Symbol.for('bss_raw');
                     const raw = (userData && userData[_SYM_RAW]) ? userData[_SYM_RAW] : userData;
-                    // Server is authoritative for Discord users (Edge Function keeps it current).
-                    // Update local balance whenever server differs — this reflects bot withdrawals/deposits.
-                    if(Math.abs((raw.chips || 0) - fresh.chips) > 0) {
+                    // Only apply the server balance if an admin/bot explicitly updated it.
+                    // If we apply it unconditionally, a stale server value (e.g. a save that
+                    // failed after a loss) will silently restore coins the player legitimately lost.
+                    if(fresh._bot_updated) {
                         raw.chips = fresh.chips;
+                        delete fresh._bot_updated;
+                        dbSet('users', currentUser, Object.assign({}, raw, { chips: fresh.chips }));
                         updateUI();
                     }
                 }
@@ -6916,7 +6880,7 @@ async function spPrintSticker() {
 
   if (typeof sendDiscordWebhook === 'function' && typeof fpEnabled !== 'undefined' && !fpEnabled) {
     const stickerWin = result === 'win' ? coinsChange : 0;
-    sendDiscordWebhook('Sticker Printer', bet, result === 'win' ? 2 : 0, stickerWin);
+    sendDiscordWebhook('Sticker Printer', bet, result === 'win' ? 2 : 0, stickerWin, spBalBefore);
   }
 
   history.unshift({ result, playerSticker, botSticker, coinsChange: result === 'win' ? coinsChange : result === 'lose' ? -bet : 0 });
@@ -7058,11 +7022,7 @@ spUpdateStats();
 <div id="toast-container"></div>
 
 <!-- Anticheat warning -->
-<div id="ac-warning" style="position:fixed; inset:0; z-index:9999; background:#000; color:#fff; text-align:center; padding:40px; display:none;">
-    <h1>⚠️ Cheat Detected</h1>
-    <p>Unauthorized modification of game data was detected. Your session has been locked.<br><br>If you believe this is a mistake, please reload the page.</p>
-    <button onclick="location.reload()" style="margin-top:24px;background:#e74c3c;border:none;color:white;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:900;cursor:pointer;">Reload</button>
-</div>
+
 
 <!-- Floating Provably Fair Button -->
 <div class="pf-float-btn hidden" id="pf-float-btn" onclick="pfOpen()">
