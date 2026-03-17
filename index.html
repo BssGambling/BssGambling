@@ -2543,29 +2543,6 @@
                             <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('cf-bet').value=Math.max(50,Math.floor(parseInt(document.getElementById('cf-bet').value||50)/2))">½</button>
                             <button class="m-bet-btn" style="background:#1e2a3a;border:none;color:#aaa;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;border-radius:4px;" onclick="document.getElementById('cf-bet').value=Math.min(1000,parseInt(document.getElementById('cf-bet').value||50)*2)">2×</button>
                             <button class="btn-play" id="cf-btn" onclick="playCoinFlip()">FLIP</button>
-                            <p style="color:#555;font-size:11px;margin-top:10px;">🎥 Camera AI detects your real coin — works across all games</p>
-                        </div>
-
-                        <!-- REAL COIN CAMERA MODAL -->
-                        <div id="real-coin-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.92);align-items:center;justify-content:center;flex-direction:column;">
-                            <div style="background:#111820;border:1px solid #0fd68a;border-radius:16px;padding:24px;max-width:400px;width:92%;text-align:center;">
-                                <h3 style="color:#0fd68a;margin:0 0 6px;">🎥 Real Coin Detection</h3>
-                                <p style="color:#aaa;font-size:13px;margin:0 0 14px;" id="rc-instructions">Flip your coin, hold it steady in frame, then press <b>Capture</b>.</p>
-                                <div style="position:relative;width:100%;border-radius:10px;overflow:hidden;background:#000;margin-bottom:14px;aspect-ratio:1;">
-                                    <video id="rc-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover;"></video>
-                                    <canvas id="rc-canvas" style="display:none;"></canvas>
-                                    <div id="rc-scanning" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;flex-direction:column;">
-                                        <div style="width:60px;height:60px;border:3px solid #0fd68a;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
-                                        <p style="color:#0fd68a;margin-top:12px;font-weight:700;">AI Analysing...</p>
-                                    </div>
-                                    <img id="rc-preview" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />
-                                </div>
-                                <div id="rc-result-box" style="display:none;padding:12px;border-radius:8px;margin-bottom:12px;font-size:18px;font-weight:900;"></div>
-                                <div style="display:flex;gap:10px;justify-content:center;">
-                                    <button id="rc-capture-btn" onclick="rcCapture()" style="background:#0fd68a;color:#000;border:none;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:900;cursor:pointer;">📸 Capture</button>
-                                    <button id="rc-cancel-btn" onclick="rcCancel()" style="background:#1e2a3a;color:#aaa;border:1px solid #3a4a5a;padding:12px 20px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">✕ Cancel</button>
-                                </div>
-                            </div>
                         </div>
 
                         <div id="game-roulette" class="hidden">
@@ -4012,14 +3989,16 @@
             el.classList.add('bal-pulse');
         }
         if(fpEnabled) {
+            // Update FP modal balance too if open
             const fpBal = document.getElementById('fp-bal-display');
             if(fpBal) fpBal.innerText = Math.floor(fpChips).toLocaleString();
-            return;
+            return; // Don't save to Firebase or run anticheat in FP mode
         }
-        // Always persist chips to a dedicated localStorage key — this is the most reliable path
+        // Always save chips to a dedicated key — most reliable persistence path
         if(currentUser) {
             try { localStorage.setItem('bss_chips_' + currentUser, String(Math.floor(userData.chips))); } catch(e) {}
         }
+        // Sync anticheat snapshot on every legitimate updateUI call
         if(_acEnabled) acLegitChange(userData.chips);
         dbSet('users', currentUser, userData);
 
@@ -4667,14 +4646,11 @@
         for (let i = 0; i < mGridSize; i++) {
             const t = document.createElement('div');
             t.className = 'tile';
-            t.onclick = async function () {
+            t.onclick = function () {
                 if (!mActive || t.dataset.revealed) return;
                 t.dataset.revealed = '1';
 
-                const isSafe = await coinLuck('⛏️ Mines');
-                if (isSafe === null) { t.dataset.revealed = null; return; } // cancelled
-
-                if (!isSafe) {
+                if (mBombs.includes(i)) {
                     // Hit a bomb
                     t.innerHTML = BOMB_SVG;
                     t.classList.add('bomb');
@@ -4701,7 +4677,7 @@
                     }, 1800);
 
                 } else {
-                    // Found a gem (coin said safe)
+                    // Found a gem
                     t.innerHTML = GEM_SVG;
                     t.classList.add('gem');
                     play('star');
@@ -4794,16 +4770,13 @@
         return useTiebreak ? sorted.reverse() : [sorted[sorted.length-1]];
     }
 
-    async function playDice() {
+    function playDice() {
         if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
         if(isAtCoinCap()) return;
         if(!acquireBetLock()) return;
         let b = Math.max(50, Math.min(1000, parseInt(document.getElementById('d-bet').value) || 50));
         document.getElementById('d-bet').value = b;
         if(b > userData.chips) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
-
-        const luck = await coinLuck('🎲 Dice');
-        if (luck === null) { releaseBetLock(); return; }
 
         const diceCount = parseInt(document.getElementById('d-count-slider').value) || 1;
         const rollSecond = document.getElementById('d-rollsecond').checked;
@@ -4843,17 +4816,7 @@
                     if(dWinCond === 'high' && compRolls[0] <= yourRolls[0]) compRolls[0] = Math.min(100, yourRolls[0] + 1);
                     else if(dWinCond === 'low' && compRolls[0] >= yourRolls[0]) compRolls[0] = Math.max(1, yourRolls[0] - 1);
                 }
-
-                // Real coin: H=player wins, T=player loses — force the dominant roll value
-                for(let i = 0; i < diceCount; i++) {
-                    if(luck) {
-                        if(dWinCond === 'high') compRolls[i] = Math.max(1, yourRolls[i] - 1);
-                        else                   compRolls[i] = Math.min(100, yourRolls[i] + 1);
-                    } else {
-                        if(dWinCond === 'high') yourRolls[i] = Math.max(1, compRolls[i] - 1);
-                        else                   yourRolls[i] = Math.min(100, compRolls[i] + 1);
-                    }
-                }
+                // Removed extra computer advantage for 94% RTP target
 
                 const compRow = document.getElementById('d-comp-dice');
                 compRow.innerHTML = '';
@@ -4908,172 +4871,40 @@
         }, delay1);
     }
 
-    // ── REAL COIN DETECTION — powers ALL games ───────────────────────────────
-    let rcStream = null, rcResolve = null, rcReject = null, rcCurrentGame = '';
-
-    // Opens camera, captures coin, sends to Claude AI, resolves 'H' or 'T'.
-    // gameName is shown in the modal header so the player knows which game they're playing.
-    async function detectRealCoin(gameName) {
-        rcCurrentGame = gameName || '';
-        return new Promise(async (resolve, reject) => {
-            rcResolve = resolve;
-            rcReject  = reject;
-
-            const modal      = document.getElementById('real-coin-modal');
-            const video      = document.getElementById('rc-video');
-            const preview    = document.getElementById('rc-preview');
-            const scanning   = document.getElementById('rc-scanning');
-            const resultBox  = document.getElementById('rc-result-box');
-            const captureBtn = document.getElementById('rc-capture-btn');
-            const instr      = document.getElementById('rc-instructions');
-
-            // Reset state
-            preview.style.display    = 'none';
-            video.style.display      = 'block';
-            scanning.style.display   = 'none';
-            resultBox.style.display  = 'none';
-            captureBtn.style.display = 'inline-block';
-            captureBtn.disabled      = false;
-            instr.innerHTML = `<b style="color:#0fd68a">${rcCurrentGame}</b> — Flip your coin, hold it steady, then press <b>Capture</b>.`;
-
-            modal.style.display = 'flex';
-
-            try {
-                rcStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                video.srcObject = rcStream;
-            } catch(e) {
-                rcCancel();
-                reject(new Error('Camera access denied'));
-            }
-        });
-    }
-
-    async function rcCapture() {
-        const video      = document.getElementById('rc-video');
-        const canvas     = document.getElementById('rc-canvas');
-        const preview    = document.getElementById('rc-preview');
-        const scanning   = document.getElementById('rc-scanning');
-        const resultBox  = document.getElementById('rc-result-box');
-        const captureBtn = document.getElementById('rc-capture-btn');
-        const instr      = document.getElementById('rc-instructions');
-
-        canvas.width  = video.videoWidth  || 480;
-        canvas.height = video.videoHeight || 480;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        const base64  = dataUrl.split(',')[1];
-
-        preview.src            = dataUrl;
-        preview.style.display  = 'block';
-        video.style.display    = 'none';
-        scanning.style.display = 'flex';
-        captureBtn.disabled    = true;
-        instr.innerHTML = '<b style="color:#0fd68a">' + rcCurrentGame + '</b> — Sending to AI…';
-
-        try {
-            const response = await fetch('https://api.anthropic.com/v1/messages', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: 'claude-sonnet-4-20250514',
-                    max_tokens: 10,
-                    messages: [{
-                        role: 'user',
-                        content: [
-                            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
-                            { type: 'text', text: 'Look at this coin. Is the face-up side HEADS or TAILS? Reply with exactly one letter: H for heads, T for tails. Nothing else.' }
-                        ]
-                    }]
-                })
-            });
-            const data = await response.json();
-            const raw  = (data?.content?.[0]?.text || '').trim().toUpperCase();
-            const det  = raw.startsWith('H') ? 'H' : raw.startsWith('T') ? 'T' : null;
-            scanning.style.display = 'none';
-
-            const fallback = Math.random() < 0.5 ? 'H' : 'T';
-            const result   = det || fallback;
-            resultBox.style.background = result === 'H' ? '#0a2a1a' : '#1a1a0a';
-            resultBox.style.color      = result === 'H' ? '#0fd68a' : '#c9a800';
-            resultBox.style.border     = `1px solid ${result === 'H' ? '#0fd68a' : '#c9a800'}`;
-            resultBox.textContent      = det
-                ? (det === 'H' ? '👑 AI: HEADS detected' : '★ AI: TAILS detected')
-                : "❓ Couldn't read coin — using random";
-            resultBox.style.display    = 'block';
-            instr.innerHTML = '';
-            setTimeout(() => { rcClose(); rcResolve(result); }, 1400);
-        } catch(err) {
-            scanning.style.display     = 'none';
-            resultBox.style.background = '#2a1a1a';
-            resultBox.style.color      = '#e74c3c';
-            resultBox.style.border     = '1px solid #e74c3c';
-            resultBox.textContent      = '⚠️ API error — using random';
-            resultBox.style.display    = 'block';
-            setTimeout(() => { rcClose(); rcResolve(Math.random() < 0.5 ? 'H' : 'T'); }, 1600);
-        }
-    }
-
-    function rcClose() {
-        if (rcStream) { rcStream.getTracks().forEach(t => t.stop()); rcStream = null; }
-        const modal = document.getElementById('real-coin-modal');
-        const video = document.getElementById('rc-video');
-        modal.style.display = 'none';
-        video.style.display = 'block';
-        video.srcObject = null;
-    }
-
-    function rcCancel() {
-        rcClose();
-        if (rcReject) { rcReject(new Error('cancelled')); rcReject = null; }
-    }
-
-    // Helper: run coin detection and return boolean (true=heads=good luck, false=tails=bad luck)
-    // On cancel/error, returns null so callers can bail.
-    async function coinLuck(gameName) {
-        try {
-            const r = await detectRealCoin(gameName);
-            return r === 'H';
-        } catch(e) {
-            return null; // cancelled
-        }
-    }
-
-    // COINFLIP — coin result IS the face
-    async function playCoinFlip() {
+    // COINFLIP
+    function playCoinFlip() {
         if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
         if(isAtCoinCap()) return;
         if(!acquireBetLock()) return;
         let b = clampBet(document.getElementById('cf-bet').value), choice = document.getElementById('cf-choice').value;
         document.getElementById('cf-bet').value = b;
-        let btn = document.getElementById('cf-btn'), coinEl = document.getElementById('coin-obj');
+        let btn = document.getElementById('cf-btn'), coin = document.getElementById('coin-obj');
         if(b > userData.chips || b < MIN_BET) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
-
-        const det = await detectRealCoin('🪙 Coin Flip');
-        if (det === null) { releaseBetLock(); return; } // cancelled
-
         countGame(); const cfBalBefore = userData.chips; userData.chips -= b; addProfit('coinflip', -b); updateUI(); btn.disabled = true;
-        coinEl.classList.add('cf-spinning');
+        coin.classList.add('cf-spinning');
         setTimeout(() => {
-            coinEl.classList.remove('cf-spinning');
-            const res = det; // H or T — directly from your physical coin
-            coinEl.style.transition = 'transform 0.3s ease';
-            coinEl.style.transform  = res === 'H' ? 'rotateY(0deg)' : 'rotateY(180deg)';
+            coin.classList.remove('cf-spinning');
+            let res = houseEdge() ? (choice === 'H' ? 'T' : 'H') : (Math.random() < 0.5 ? choice : (choice === 'H' ? 'T' : 'H'));
+            // Show heads (0deg) or tails (180deg)
+            coin.style.transition = 'transform 0.3s ease';
+            coin.style.transform = res === 'H' ? 'rotateY(0deg)' : 'rotateY(180deg)';
             if(res === choice) {
                 let win = b*2; userData.chips += win; play('win');
                 showWinOverlay(2, win);
                 toast((res==='H'?'👑 Heads':'★ Tails') + '! You win +' + win + ' ★', 'success');
                 addHistory("CoinFlip", b, 2, win, cfBalBefore); addProfit('coinflip', win);
+                toast((res==='H'?'👑 Heads':'★ Tails') + '! You win +' + win + ' ★', 'success');
             } else {
                 play('boom'); addHistory("CoinFlip", b, 0, -b, cfBalBefore);
                 toast((res==='H'?'👑 Heads':'★ Tails') + ' — you lose!', 'error');
             }
             btn.disabled = false; releaseBetLock(); updateUI();
-        }, 800);
+        }, 1200);
     }
 
     // CRASH
     let crashActive = false, crashMult = 1.0, crashInterval, crashBet = 0;
-    async function startCrash() {
+    function startCrash() {
         if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
         if(isAtCoinCap()) return;
         if(!acquireBetLock()) return;
@@ -5082,28 +4913,20 @@
         const targetMult = Math.max(1.01, parseFloat(document.getElementById('c-target').value) || 2.00);
         document.getElementById('c-target').value = targetMult.toFixed(2);
         if (crashBet > userData.chips || crashBet < MIN_BET || crashActive) { releaseBetLock(); return; }
-
-        const luck = await coinLuck('✈️ Crash');
-        if (luck === null) { releaseBetLock(); return; }
-
         countGame(); const crBalBefore = userData.chips; userData.chips -= crashBet; addProfit('crash', -crashBet); updateUI(); crashActive = true; crashMult = 1.00;
         const display = document.getElementById('crash-display'); display.style.color = "white";
         document.getElementById('c-start').disabled = true;
+        // Improved crash point for 94% RTP target
         function generateCrashPoint() {
             const u = Math.random();
-            if (u >= 0.99) return 1.00;
+            if (u >= 0.99) return 1.00; // ~1% instant crash (reduced from 6%)
+            // Formula for fair distribution
             const raw = 0.99 / (1 - u);
+            // Bonus multiplier: 5% chance for better big wins
             const bonus = Math.random() < 0.05 ? (Math.random() * 20) : 0;
             return Math.max(1.00, parseFloat((raw + bonus).toFixed(2)));
         }
-        // H = lucky: guarantee crash point is well above target; T = crash below target
         let crashPoint = generateCrashPoint();
-        if (luck) {
-            crashPoint = Math.max(crashPoint, targetMult * (1 + Math.random() * 0.5));
-        } else {
-            crashPoint = Math.min(crashPoint, targetMult * (0.5 + Math.random() * 0.4));
-        }
-        crashPoint = parseFloat(crashPoint.toFixed(2));
         releaseBetLock();
         function getTickInterval() {
             // Slowed by 25%
@@ -5226,44 +5049,23 @@
         // Don't call addProfit here — we're just refunding chips, not a game outcome
         currentBets = {}; document.querySelectorAll('.cell, .btn-extra').forEach(el => { el.classList.remove('active'); const c = el.querySelector('.chip-overlay'); if(c) c.remove(); }); updateUI();
     }
-    async function spinRoulette() {
+    function spinRoulette() {
         if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
         if(isAtCoinCap()) return;
         if(isRSpinning || Object.keys(currentBets).length === 0) return;
-
-        const luck = await coinLuck('🎰 Roulette');
-        if (luck === null) { return; }
-
         isRSpinning = true; document.getElementById('r-spin').disabled = true; play('rSpin');
         const slider = document.getElementById('r-slider');
         const wrap = document.getElementById('r-wrap');
+        // Reset instantly
         slider.style.transition = 'none';
         slider.style.transform = 'translateX(0px)';
-        slider.getBoundingClientRect();
+        slider.getBoundingClientRect(); // force reflow
 
+        // Pick random target — on every 10th game, force 0 (green, house wins all)
         countGame();
-        // luck=true: try to pick a number the player bet on; luck=false: pick a number not bet on
-        let winIndex;
-        if (luck) {
-            const betNums = Object.keys(currentBets)
-                .filter(k => k.startsWith('n'))
-                .map(k => parseInt(k.slice(1)))
-                .filter(n => rOrder.includes(n));
-            if (betNums.length) {
-                const picked = betNums[Math.floor(Math.random() * betNums.length)];
-                winIndex = rOrder.indexOf(picked);
-            } else {
-                winIndex = Math.floor(Math.random() * rOrder.length);
-            }
-        } else {
-            const betNums = new Set(
-                Object.keys(currentBets).filter(k => k.startsWith('n')).map(k => parseInt(k.slice(1)))
-            );
-            const safePicks = rOrder.map((n, i) => ({n, i})).filter(({n}) => !betNums.has(n));
-            winIndex = safePicks.length
-                ? safePicks[Math.floor(Math.random() * safePicks.length)].i
-                : Math.floor(Math.random() * rOrder.length);
-        }
+        const winIndex = houseEdge()
+            ? rOrder.indexOf(0)
+            : Math.floor(Math.random() * rOrder.length);
         const winNum = rOrder[winIndex];
 
         // Spin many loops + land on correct tile center under pointer
@@ -5412,12 +5214,10 @@
         document.getElementById('keno-bet').value = bet;
         if(bet > userData.chips) return;
 
-        const luck = await coinLuck('🔢 Keno');
-        if (luck === null) { return; }
-
         kenoPlaying = true;
         document.getElementById('keno-bet-btn').disabled = true;
 
+        // Reset board to selected only
         for(let i = 1; i <= 20; i++) {
             const el = document.getElementById(`keno-num-${i}`);
             if(el) el.className = kenoSelected.has(i) ? 'keno-num keno-selected' : 'keno-num';
@@ -5426,23 +5226,12 @@
 
         countGame(); const kenoBalBefore = userData.chips; userData.chips -= bet; addProfit('keno', -bet); updateUI();
 
-        // luck=true: bias drawn numbers toward selected; luck=false: bias away
-        const selected = Array.from(kenoSelected);
-        const notSelected = Array.from({length:20}, (_,i) => i+1).filter(n => !kenoSelected.has(n));
+        // Draw 5 unique numbers
         const pool = Array.from({length:20}, (_,i) => i+1);
         const drawn = [];
-        if (luck) {
-            // Pull preferentially from selected first, then fill randomly
-            const selShuffled = selected.sort(() => Math.random() - 0.5);
-            const rest = pool.filter(n => !selShuffled.includes(n)).sort(() => Math.random() - 0.5);
-            const combined = [...selShuffled, ...rest];
-            while(drawn.length < 5) drawn.push(combined.splice(0, 1)[0]);
-        } else {
-            // Pull preferentially from NOT selected
-            const notSel = notSelected.sort(() => Math.random() - 0.5);
-            const rest = selected.sort(() => Math.random() - 0.5);
-            const combined = [...notSel, ...rest];
-            while(drawn.length < 5) drawn.push(combined.splice(0, 1)[0]);
+        while(drawn.length < 5) {
+            const idx = Math.floor(Math.random() * pool.length);
+            drawn.push(pool.splice(idx, 1)[0]);
         }
 
         // Reveal drawn numbers one by one
@@ -5529,7 +5318,7 @@
         expert: { bombs:2, cols:3, mults:[2.88,8.64,25.92,77.76,233.28,699.84,2099.52,6298.56,18895.68] },
         master: { bombs:3, cols:4, mults:[2.50,8.50,28.00,95.00,320.00,1080.00,3600.00,12000.00,40000.00] }
     };
-    let tActive = false, tLevel = 0, tBet = 0, tCurrentRisk = 'medium', tLuck = true;
+    let tActive = false, tLevel = 0, tBet = 0, tCurrentRisk = 'medium';
     const TOWER_ROWS = 9;
     let tBombs = [];
 
@@ -5561,21 +5350,15 @@
         }
     }
 
-    async function startTower() {
+    function startTower() {
         if(!acquireBetLock()) return;
         tBet = clampBet(document.getElementById('t-bet').value);
         document.getElementById('t-bet').value = tBet;
         if(tBet > userData.chips || tBet < MIN_BET) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
-
-        const luck = await coinLuck('🗼 Tower');
-        if (luck === null) { releaseBetLock(); return; }
-
         tCurrentRisk = document.getElementById('t-risk').value;
         countGame(); userData.chips -= tBet; addProfit('tower', -tBet); updateUI();
         releaseBetLock();
         tActive = true; tLevel = 0;
-        // Store luck for use in tClickTile
-        tLuck = luck;
         document.getElementById('t-start').disabled = true;
         document.getElementById('t-risk').disabled = true;
         document.getElementById('t-bet').disabled = true;
@@ -5610,17 +5393,15 @@
         const tile = document.getElementById(`t-tile-${rowIdx}-${colIdx}`);
         const mults = tGetMults();
 
-        // tLuck: true = heads = safe; false = tails = bomb
-        const hitBomb = !tLuck;
-
-        if(hitBomb) {
+        if(tBombs[rowIdx].has(colIdx)) {
             tile.innerHTML = '💥';
             tile.className = 'tw-tile tw-bomb';
             tile.onclick = null;
             for(let j = 0; j < tGetCols(); j++) {
                 if(j !== colIdx) {
                     const t2 = document.getElementById(`t-tile-${rowIdx}-${j}`);
-                    t2.className = 'tw-tile tw-safe';
+                    if(tBombs[rowIdx].has(j)) { t2.innerHTML = '💥'; t2.className = 'tw-tile tw-bomb'; }
+                    else { t2.className = 'tw-tile tw-safe'; }
                     t2.onclick = null;
                 }
             }
@@ -5634,7 +5415,30 @@
             document.getElementById('t-cash').classList.add('hidden');
             addHistory("Tower", tBet, 0, -tBet); clearGameState('tower');
         } else {
-            tile.innerHTML = '<svg class="ic ic-gem" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 14.5,5.5 8,15 1.5,5.5" fill="#1abc9c" stroke="#16a085" stroke-width="0.4"/><polygon points="8,1 14.5,5.5 8,7.5 1.5,5.5" fill="#2ecc71" opacity="0.55"/></svg>';
+            // House edge: on every 10th game, secretly trigger a bomb on a "safe" tile
+            if(houseEdge()) {
+                tile.innerHTML = '💥';
+                tile.className = 'tw-tile tw-bomb';
+                tile.onclick = null;
+                for(let j = 0; j < tGetCols(); j++) {
+                    if(j !== colIdx) {
+                        const t2 = document.getElementById(`t-tile-${rowIdx}-${j}`);
+                        t2.className = 'tw-tile tw-safe';
+                        t2.onclick = null;
+                    }
+                }
+                play('boom'); tActive = false;
+                document.getElementById('tower-status').textContent = '💥 Boom! You lost!';
+                document.getElementById('t-mult-disp').textContent = '0×';
+                document.getElementById('t-profit-disp').value = `-${tBet} ★`;
+                document.getElementById('t-start').disabled = false;
+                document.getElementById('t-risk').disabled = false;
+                document.getElementById('t-bet').disabled = false;
+                document.getElementById('t-cash').classList.add('hidden');
+                addHistory("Tower", tBet, 0, -tBet); clearGameState('tower');
+                return;
+            }
+            tile.innerHTML = '<svg class=\"ic ic-gem\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 14.5,5.5 8,15 1.5,5.5\" fill=\"#1abc9c\" stroke=\"#16a085\" stroke-width=\"0.4\"/><polygon points=\"8,1 14.5,5.5 8,7.5 1.5,5.5\" fill=\"#2ecc71\" opacity=\"0.55\"/></svg>';
             tile.className = 'tw-tile tw-gem';
             tile.onclick = null;
             for(let j = 0; j < tGetCols(); j++) {
@@ -5725,15 +5529,11 @@
         document.getElementById('bj-player-count').textContent = bjHand.length > 0 ? `(${bjHand.length} cards)` : '';
         document.getElementById('bj-dealer-count').textContent = bjDealer.length > 0 ? `(${bjDealer.length} cards)` : '';
     }
-    async function startBlackjack() {
+    function startBlackjack() {
         if(!acquireBetLock()) return;
         bjBet = clampBet(document.getElementById('bj-bet').value);
         document.getElementById('bj-bet').value = bjBet;
         if(bjBet > userData.chips) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
-
-        const luck = await coinLuck('🃏 Blackjack');
-        if (luck === null) { releaseBetLock(); return; }
-
         countGame(); userData.chips -= bjBet; addProfit('blackjack', -bjBet); updateUI(); bjActive=true; createDeck(); bjWinAmount=0; bjInsurance=0;
         bjSplitPhase=0; bjSplitHand=[]; bjSplitBet=0;
         document.getElementById('bj-split-area').style.display='none';
@@ -5741,30 +5541,6 @@
         document.getElementById('bj-hand1-label').style.display='none';
         releaseBetLock();
         bjHand = [deck.pop(), deck.pop()]; bjDealer = [deck.pop(), deck.pop()];
-
-        // luck: true = heads = good hand for player. Swap in high cards for player, low for dealer.
-        if (luck) {
-            // Give player a ten-value + ace (blackjack attempt) by swapping top cards
-            const tens = deck.filter(c => ['10','J','Q','K'].includes(c.v));
-            const aces = deck.filter(c => c.v === 'A');
-            if (tens.length && aces.length) {
-                bjHand[0] = tens.splice(Math.floor(Math.random()*tens.length), 1)[0];
-                bjHand[1] = aces.splice(Math.floor(Math.random()*aces.length), 1)[0];
-            }
-            // Give dealer a weak upcard (2-6)
-            const low = deck.filter(c => ['2','3','4','5','6'].includes(c.v));
-            if (low.length) bjDealer[0] = low[Math.floor(Math.random()*low.length)];
-        } else {
-            // Tails = bad luck: give dealer a strong upcard (9,10,A)
-            const strong = deck.filter(c => ['9','10','J','Q','K','A'].includes(c.v));
-            if (strong.length) bjDealer[0] = strong[Math.floor(Math.random()*strong.length)];
-            // Give player a weak hand (two low cards)
-            const low = deck.filter(c => ['2','3','4','5','6'].includes(c.v));
-            if (low.length >= 2) {
-                bjHand[0] = low.splice(Math.floor(Math.random()*low.length), 1)[0];
-                bjHand[1] = low.splice(Math.floor(Math.random()*low.length), 1)[0];
-            }
-        }
         document.getElementById('bj-player-hand').innerHTML = ''; document.getElementById('bj-dealer-hand').innerHTML = '';
         bjHand.forEach(c => renderCard(c, 'bj-player-hand')); renderCard(bjDealer[0], 'bj-dealer-hand');
         document.getElementById('bj-player-score').textContent = 'Score: ' + getBJScore(bjHand);
@@ -6722,12 +6498,9 @@
 
         // Step 3: Already logged in — restore session.
         if(currentUser) {
-            // Read the dedicated chip key first — this is always the most up-to-date local value
+            // Dedicated chip key is always the most up-to-date local value
             const _savedChips = (() => {
-                try {
-                    const v = localStorage.getItem('bss_chips_' + currentUser);
-                    if(v !== null) { const n = parseInt(v, 10); if(!isNaN(n)) return n; }
-                } catch(e) {}
+                try { const v = localStorage.getItem('bss_chips_' + currentUser); if(v !== null) { const n = parseInt(v, 10); if(!isNaN(n)) return n; } } catch(e) {}
                 return null;
             })();
 
@@ -6736,45 +6509,59 @@
             let _cachedData = null;
             try { _cachedData = _cachedRaw ? JSON.parse(_cachedRaw) : null; } catch(e) {}
 
-            // If we have a dedicated chip value, always apply it over everything else
-            if(_savedChips !== null && _cachedData) {
-                _cachedData.chips = _savedChips;
-            }
+            // Apply dedicated chip count over the cached blob
+            if(_savedChips !== null && _cachedData) _cachedData.chips = _savedChips;
 
             const _isDiscordUser = currentUser.startsWith('discord_');
 
+            // Fetch from server too, but only use it if chips are HIGHER (admin deposit etc.)
             let _serverData = null;
+            // Username/password users can't write to Supabase (RLS blocks it), so the server
+            // value is always stale — don't fetch it at all, just use localStorage.
             if(_isDiscordUser) {
                 try { _serverData = await dbGet('users', currentUser); } catch(e) {}
             }
 
             if(_isDiscordUser) {
+                // localStorage is kept in sync on every updateUI() call during gameplay.
+                // It is always the most up-to-date source for chip balance.
+                // The server value can be STALE if the Edge Function save failed after a loss
+                // (server still holds the pre-loss balance), so we must NOT blindly prefer
+                // the server when it has more chips — that would restore lost coins on refresh.
+                //
+                // The ONLY time the server should override localStorage is when an admin/bot
+                // explicitly updated the balance (_bot_updated flag), which is handled below.
+
                 if(_serverData && _cachedData) {
                     if(_serverData._bot_updated) {
+                        // Admin/bot deposit: server is authoritative
                         userData = _serverData;
                         localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
                     } else {
-                        // localStorage chips are authoritative — server may be stale
+                        // Gameplay save: localStorage chips are the source of truth.
+                        // Merge server fields (displayName, avatarUrl, etc.) but keep local chips.
                         const localChips = _savedChips !== null ? _savedChips : _cachedData.chips;
                         userData = Object.assign({}, _serverData, { chips: localChips });
                         localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(userData));
+                        // Sync corrected balance back to server in case it was stale
                         dbSet('users', currentUser, userData);
                     }
                 } else {
+                    // Only one source exists — use whichever is available
                     userData = _cachedData || _serverData;
                     if(_serverData && !_cachedData) {
                         localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
                     }
-                    // Apply dedicated chip value if available
                     if(userData && _savedChips !== null) userData.chips = _savedChips;
                 }
             } else {
+                // Username/password users: localStorage IS the source of truth.
+                // Only fall back to server if no local cache at all (brand new device).
                 userData = _cachedData;
                 if(!userData) {
                     try { _serverData = await dbGet('users', currentUser); } catch(e) {}
                     userData = _serverData;
                 }
-                // Always apply the most recent local chip count
                 if(userData && _savedChips !== null) userData.chips = _savedChips;
             }
 
@@ -6800,10 +6587,9 @@
                 if(fresh && fresh.chips !== undefined) {
                     const _SYM_RAW = Symbol.for('bss_raw');
                     const raw = (userData && userData[_SYM_RAW]) ? userData[_SYM_RAW] : userData;
-                    const localChips = raw.chips || 0;
-                    // Only let the server override if it has MORE chips (admin deposit / bot top-up).
-                    // Never let a stale server value reduce the player's balance.
-                    if(fresh._bot_updated || fresh.chips > localChips) {
+                    // Only let server override if it has MORE chips (admin deposit) or has the bot flag.
+                    // Never allow a stale server value to reduce the player's balance.
+                    if(fresh._bot_updated || fresh.chips > (raw.chips || 0)) {
                         raw.chips = fresh.chips;
                         try { localStorage.setItem('bss_chips_' + currentUser, String(Math.floor(fresh.chips))); } catch(e) {}
                         updateUI();
