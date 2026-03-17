@@ -3313,6 +3313,9 @@
     async function dbSet(table, id, value) {
         const rawVal = (value && value[Symbol.for('bss_raw')]) ? value[Symbol.for('bss_raw')] : (value && value.__raw ? value.__raw : value);
 
+        // Stamp every save with current time so page-load can pick the freshest source
+        if(table === 'users') rawVal._ts = Date.now();
+
         // Always cache locally first — this is the primary persistence for username/password users
         if(table === 'users') {
             try { localStorage.setItem('swarm_userdata_' + id, JSON.stringify(rawVal)); } catch(e) {}
@@ -6462,26 +6465,23 @@
             }
 
             if(_isDiscordUser) {
-                // localStorage is kept in sync on every updateUI() call during gameplay.
-                // It is always the most up-to-date source for chip balance.
-                // The server value can be STALE if the Edge Function save failed after a loss
-                // (server still holds the pre-loss balance), so we must NOT blindly prefer
-                // the server when it has more chips — that would restore lost coins on refresh.
-                //
-                // The ONLY time the server should override localStorage is when an admin/bot
-                // explicitly updated the balance (_bot_updated flag), which is handled below.
+                // Use _ts (timestamp) to pick whichever source was saved most recently.
+                // This correctly handles both: (a) a win saved to localStorage that the
+                // server hasn't received yet, and (b) an admin/bot deposit that only
+                // exists on the server. Whoever has the newer _ts wins.
+                const localTs  = (_cachedData && _cachedData._ts)  || 0;
+                const serverTs = (_serverData && _serverData._ts) || 0;
 
                 if(_serverData && _cachedData) {
-                    if(_serverData._bot_updated) {
-                        // Admin/bot deposit: server is authoritative
+                    if(_serverData._bot_updated || serverTs > localTs) {
+                        // Server is fresher (admin deposit, or server saved after local)
                         userData = _serverData;
                         localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
                     } else {
-                        // Gameplay save: localStorage chips are the source of truth.
-                        // Merge server fields (displayName, avatarUrl, etc.) but keep local chips.
-                        userData = Object.assign({}, _serverData, { chips: _cachedData.chips });
+                        // Local is fresher — keep local chips, merge server profile fields
+                        userData = Object.assign({}, _serverData, { chips: _cachedData.chips, _ts: _cachedData._ts });
                         localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(userData));
-                        // Sync corrected balance back to server in case it was stale
+                        // Push corrected balance back to server
                         dbSet('users', currentUser, userData);
                     }
                 } else {
