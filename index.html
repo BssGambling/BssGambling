@@ -6449,72 +6449,44 @@
 
         // Step 3: Already logged in — restore session.
         if(currentUser) {
-            // First try localStorage cache for instant load with correct balance
+            // localStorage is written synchronously on every chip change (in dbSet).
+            // It is ALWAYS the correct current balance. The server is async and can be
+            // stale — never let it overwrite localStorage on a normal refresh.
             const _cachedRaw = localStorage.getItem('swarm_userdata_' + currentUser);
             let _cachedData = null;
             try { _cachedData = _cachedRaw ? JSON.parse(_cachedRaw) : null; } catch(e) {}
 
             const _isDiscordUser = currentUser.startsWith('discord_');
 
-            // Fetch from server too, but only use it if chips are HIGHER (admin deposit etc.)
-            let _serverData = null;
-            // Username/password users can't write to Supabase (RLS blocks it), so the server
-            // value is always stale — don't fetch it at all, just use localStorage.
-            if(_isDiscordUser) {
-                try { _serverData = await dbGet('users', currentUser); } catch(e) {}
-            }
-
-            if(_isDiscordUser) {
-                // Use _ts (timestamp) to pick whichever source was saved most recently.
-                // This correctly handles both: (a) a win saved to localStorage that the
-                // server hasn't received yet, and (b) an admin/bot deposit that only
-                // exists on the server. Whoever has the newer _ts wins.
-                const localTs  = (_cachedData && _cachedData._ts)  || 0;
-                const serverTs = (_serverData && _serverData._ts) || 0;
-
-                if(_serverData && _cachedData) {
-                    if(_serverData._bot_updated || serverTs > localTs) {
-                        // Server is fresher (admin deposit, or server saved after local)
-                        // IMPORTANT: strip _bot_updated before saving to localStorage so it
-                        // doesn't keep triggering the server-wins branch on every refresh
-                        delete _serverData._bot_updated;
-                        userData = _serverData;
-                        localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
-                    } else {
-                        // Local is fresher — keep local chips, merge server profile fields
-                        // Also strip any stale _bot_updated that may have leaked into localStorage
-                        userData = Object.assign({}, _serverData, { chips: _cachedData.chips, _ts: _cachedData._ts });
-                        delete userData._bot_updated;
-                        localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(userData));
-                        // Push corrected balance back to server
-                        dbSet('users', currentUser, userData);
-                    }
-                } else {
-                    // Only one source exists — use whichever is available
-                    userData = _cachedData || _serverData;
-                    if(userData) delete userData._bot_updated;
-                    if(_serverData && !_cachedData) {
-                        localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
-                    }
-                }
-            } else {
-                // Username/password users: localStorage IS the source of truth.
-                // Only fall back to server if no local cache at all (brand new device).
+            if(_cachedData) {
+                // We have local data — always use it, strip any stale flags
+                delete _cachedData._bot_updated;
                 userData = _cachedData;
-                if(!userData) {
-                    try { _serverData = await dbGet('users', currentUser); } catch(e) {}
+            } else {
+                // No local cache (new device / cleared browser) — fall back to server
+                let _serverData = null;
+                try { _serverData = await dbGet('users', currentUser); } catch(e) {}
+                if(_serverData) {
+                    delete _serverData._bot_updated;
                     userData = _serverData;
+                    localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
                 }
             }
 
-            // If bot updated the balance, clear the flag from both memory and localStorage
-            if(userData && userData._bot_updated) {
-                console.log('[onload] Bot-updated balance detected — using server value:', userData.chips);
-                delete userData._bot_updated;
-                localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(
-                    (userData[Symbol.for('bss_raw')] ? userData[Symbol.for('bss_raw')] : userData)
-                ));
-                dbSet('users', currentUser, userData);
+            // Check server ONLY for bot/admin deposits (_bot_updated flag)
+            if(_isDiscordUser && _cachedData) {
+                dbGet('users', currentUser).then(_serverData => {
+                    if(_serverData && _serverData._bot_updated) {
+                        delete _serverData._bot_updated;
+                        userData.chips = _serverData.chips;
+                        localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(
+                            Object.assign({}, _serverData, { _bot_updated: undefined })
+                        ));
+                        dbSet('users', currentUser, userData);
+                        updateUI();
+                        console.log('[onload] Admin deposit applied:', _serverData.chips);
+                    }
+                }).catch(() => {});
             }
 
             if(userData) {
