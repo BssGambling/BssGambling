@@ -3564,19 +3564,15 @@
             } else {
                 if(users[u] && users[u].password === p) {
                     currentUser = u;
+                    // localStorage is ALWAYS the source of truth for username/password users
+                    // because Supabase RLS blocks chip writes — the server value never updates
+                    // during gameplay, so it's always stale. Use local chips if they exist.
                     const _loginCached = localStorage.getItem('swarm_userdata_' + u);
                     let _loginCachedData = null;
                     try { _loginCachedData = _loginCached ? JSON.parse(_loginCached) : null; } catch(e) {}
-                    // Also check dedicated chip key — always most up-to-date
-                    const _savedChipsLogin = (() => {
-                        try { const v = localStorage.getItem('bss_chips_' + u); if(v !== null) { const n = parseInt(v, 10); if(!isNaN(n)) return n; } } catch(e) {}
-                        return null;
-                    })();
                     if(_loginCachedData && typeof _loginCachedData.chips === 'number') {
-                        const bestChips = _savedChipsLogin !== null ? _savedChipsLogin : _loginCachedData.chips;
-                        userData = Object.assign({}, users[u], { chips: bestChips });
-                    } else if(_savedChipsLogin !== null) {
-                        userData = Object.assign({}, users[u], { chips: _savedChipsLogin });
+                        // Use local chips; merge other fields (password etc.) from server
+                        userData = Object.assign({}, users[u], { chips: _loginCachedData.chips });
                     } else {
                         // No local cache (new device) — use server value
                         userData = users[u];
@@ -3997,10 +3993,6 @@
             const fpBal = document.getElementById('fp-bal-display');
             if(fpBal) fpBal.innerText = Math.floor(fpChips).toLocaleString();
             return; // Don't save to Firebase or run anticheat in FP mode
-        }
-        // Always save chips to a dedicated key — most reliable persistence path
-        if(currentUser) {
-            try { localStorage.setItem('bss_chips_' + currentUser, String(Math.floor(userData.chips))); } catch(e) {}
         }
         // Sync anticheat snapshot on every legitimate updateUI call
         if(_acEnabled) acLegitChange(userData.chips);
@@ -6502,19 +6494,10 @@
 
         // Step 3: Already logged in — restore session.
         if(currentUser) {
-            // Dedicated chip key is always the most up-to-date local value
-            const _savedChips = (() => {
-                try { const v = localStorage.getItem('bss_chips_' + currentUser); if(v !== null) { const n = parseInt(v, 10); if(!isNaN(n)) return n; } } catch(e) {}
-                return null;
-            })();
-
             // First try localStorage cache for instant load with correct balance
             const _cachedRaw = localStorage.getItem('swarm_userdata_' + currentUser);
             let _cachedData = null;
             try { _cachedData = _cachedRaw ? JSON.parse(_cachedRaw) : null; } catch(e) {}
-
-            // Apply dedicated chip count over the cached blob
-            if(_savedChips !== null && _cachedData) _cachedData.chips = _savedChips;
 
             const _isDiscordUser = currentUser.startsWith('discord_');
 
@@ -6544,8 +6527,7 @@
                     } else {
                         // Gameplay save: localStorage chips are the source of truth.
                         // Merge server fields (displayName, avatarUrl, etc.) but keep local chips.
-                        const localChips = _savedChips !== null ? _savedChips : _cachedData.chips;
-                        userData = Object.assign({}, _serverData, { chips: localChips });
+                        userData = Object.assign({}, _serverData, { chips: _cachedData.chips });
                         localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(userData));
                         // Sync corrected balance back to server in case it was stale
                         dbSet('users', currentUser, userData);
@@ -6556,7 +6538,6 @@
                     if(_serverData && !_cachedData) {
                         localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
                     }
-                    if(userData && _savedChips !== null) userData.chips = _savedChips;
                 }
             } else {
                 // Username/password users: localStorage IS the source of truth.
@@ -6566,7 +6547,6 @@
                     try { _serverData = await dbGet('users', currentUser); } catch(e) {}
                     userData = _serverData;
                 }
-                if(userData && _savedChips !== null) userData.chips = _savedChips;
             }
 
             // If bot updated the balance, clear the flag
@@ -6591,11 +6571,10 @@
                 if(fresh && fresh.chips !== undefined) {
                     const _SYM_RAW = Symbol.for('bss_raw');
                     const raw = (userData && userData[_SYM_RAW]) ? userData[_SYM_RAW] : userData;
-                    // Only let server override if it has MORE chips (admin deposit) or has the bot flag.
-                    // Never allow a stale server value to reduce the player's balance.
-                    if(fresh._bot_updated || fresh.chips > (raw.chips || 0)) {
+                    // Server is authoritative for Discord users (Edge Function keeps it current).
+                    // Update local balance whenever server differs — this reflects bot withdrawals/deposits.
+                    if(Math.abs((raw.chips || 0) - fresh.chips) > 0) {
                         raw.chips = fresh.chips;
-                        try { localStorage.setItem('bss_chips_' + currentUser, String(Math.floor(fresh.chips))); } catch(e) {}
                         updateUI();
                     }
                 }
