@@ -3313,12 +3313,17 @@
     async function dbSet(table, id, value) {
         const rawVal = (value && value[Symbol.for('bss_raw')]) ? value[Symbol.for('bss_raw')] : (value && value.__raw ? value.__raw : value);
 
-        // Stamp every save with current time so page-load can pick the freshest source
+        // Stamp every save with current time
         if(table === 'users') rawVal._ts = Date.now();
 
-        // Always cache locally first — this is the primary persistence for username/password users
+        // ALWAYS save to localStorage immediately and synchronously first
+        // This is the source of truth — server saves are best-effort
         if(table === 'users') {
-            try { localStorage.setItem('swarm_userdata_' + id, JSON.stringify(rawVal)); } catch(e) {}
+            const toSave = JSON.parse(JSON.stringify(rawVal)); // deep clone to avoid mutation issues
+            delete toSave._bot_updated; // never persist this flag
+            try { localStorage.setItem('swarm_userdata_' + id, JSON.stringify(toSave)); } catch(e) {
+                console.error('localStorage save FAILED:', e);
+            }
         }
 
         // For users table — route through Edge Function so anon key can't write chips directly
@@ -4000,6 +4005,14 @@
             return; // Don't save to Firebase or run anticheat in FP mode
         }
         // Sync balance to server on every legitimate updateUI call
+        // Also do a direct localStorage write here as a safety net
+        if(currentUser && userData) {
+            const _raw = userData[Symbol.for('bss_raw')] || userData;
+            _raw._ts = Date.now();
+            const _save = JSON.parse(JSON.stringify(_raw));
+            delete _save._bot_updated;
+            try { localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_save)); } catch(e) {}
+        }
         dbSet('users', currentUser, userData);
 
         // Dim FP button when any game is active (prevents confusion)
