@@ -6563,7 +6563,24 @@
             }
         }
 
-        // visibilitychange balance sync removed — was causing balance resets on tab switch.
+        // Auto-refresh balance when tab becomes visible — ONLY applies bot deposits/withdrawals.
+        // We check for the _bot_updated flag which the bot sets when it changes a balance.
+        // Without this flag we never touch the local balance, so tab-switching is safe.
+        document.addEventListener('visibilitychange', async () => {
+            if(document.visibilityState === 'visible' && currentUser && userData && !mActive && !tActive && !bjActive && !crashActive) {
+                const fresh = await dbGet('users', currentUser);
+                if(fresh && fresh._bot_updated) {
+                    // Bot explicitly updated this balance — apply it
+                    const _SYM_RAW = Symbol.for('bss_raw');
+                    const raw = (userData && userData[_SYM_RAW]) ? userData[_SYM_RAW] : userData;
+                    raw.chips = fresh.chips;
+                    delete raw._bot_updated;
+                    localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(raw));
+                    dbSet('users', currentUser, raw);
+                    updateUI();
+                }
+            }
+        });
     };
     
     // ====================================================
