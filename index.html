@@ -6563,30 +6563,7 @@
             }
         }
 
-        // Auto-refresh balance when tab becomes visible again (bot may have updated it)
-        document.addEventListener('visibilitychange', async () => {
-            if(document.visibilityState === 'visible' && currentUser && userData && !mActive && !tActive && !bjActive && !crashActive) {
-                // Only fetch from server for Discord users — the Edge Function keeps their
-                // server balance current. Username/password users can't write to Supabase
-                // (RLS blocks it), so the server value is always stale (stuck at 1000).
-                // Overwriting localStorage with that stale value would reset their balance.
-                if(!currentUser.startsWith('discord_')) return;
-                const fresh = await dbGet('users', currentUser);
-                if(fresh && fresh.chips !== undefined) {
-                    const _SYM_RAW = Symbol.for('bss_raw');
-                    const raw = (userData && userData[_SYM_RAW]) ? userData[_SYM_RAW] : userData;
-                    // Server is authoritative for Discord users (Edge Function keeps it current).
-                    // Update local balance whenever server differs — this reflects bot withdrawals/deposits.
-                    // Only update if server has MORE chips (admin/bot deposit).
-                    // Never overwrite with a lower server value — the server can be stale
-                    // if the Edge Function save failed, which would reset earned coins.
-                    if(fresh.chips > (raw.chips || 0)) {
-                        raw.chips = fresh.chips;
-                        updateUI();
-                    }
-                }
-            }
-        });
+        // visibilitychange balance sync removed — was causing balance resets on tab switch.
     };
     
     // ====================================================
