@@ -6520,20 +6520,12 @@
                 // explicitly updated the balance (_bot_updated flag), which is handled below.
 
                 if(_serverData && _cachedData) {
-                    if(_serverData._bot_updated) {
-                        // Admin/bot deposit: server is authoritative
-                        userData = _serverData;
-                        localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
-                    } else {
-                        // Gameplay save: localStorage chips are the source of truth.
-                        // Merge server fields (displayName, avatarUrl, etc.) but keep local chips.
-                        userData = Object.assign({}, _serverData, { chips: _cachedData.chips });
-                        localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(userData));
-                        // Sync corrected balance back to server in case it was stale
-                        dbSet('users', currentUser, userData);
-                    }
+                    // localStorage chips are always the source of truth.
+                    // Merge server fields (displayName, avatarUrl, etc.) but keep local chips.
+                    userData = Object.assign({}, _serverData, { chips: _cachedData.chips });
+                    localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(userData));
+                    dbSet('users', currentUser, userData);
                 } else {
-                    // Only one source exists — use whichever is available
                     userData = _cachedData || _serverData;
                     if(_serverData && !_cachedData) {
                         localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
@@ -6549,11 +6541,9 @@
                 }
             }
 
-            // If bot updated the balance, clear the flag
+            // Clean up any stale _bot_updated flag
             if(userData && userData._bot_updated) {
-                console.log('[onload] Bot-updated balance detected — using server value:', userData.chips);
                 delete userData._bot_updated;
-                dbSet('users', currentUser, userData);
             }
 
             if(userData) {
