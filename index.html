@@ -6541,9 +6541,12 @@
                 }
             }
 
-            // Clean up any stale _bot_updated flag
+            // Clean up _bot_updated flag — delete it locally AND save back to server
+            // so it doesn't keep triggering a reset on every refresh
             if(userData && userData._bot_updated) {
+                console.log('[onload] Clearing _bot_updated flag from server...');
                 delete userData._bot_updated;
+                await dbSet('users', currentUser, userData);
             }
 
             if(userData) {
