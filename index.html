@@ -1062,10 +1062,12 @@
   .tier-label {
     font-family: 'Fredoka One', cursive;
     font-size: 1.1rem;
-    width: 60px;
+    min-width: 90px;
     text-align: center;
     border-radius: 6px;
-    padding: 4px 8px;
+    padding: 4px 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   .tier-stickers { display: flex; gap: 10px; flex-wrap: wrap; }
   #game-sticker .tier-sticker-mini {
