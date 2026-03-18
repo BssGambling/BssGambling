@@ -6578,7 +6578,10 @@
                     const raw = (userData && userData[_SYM_RAW]) ? userData[_SYM_RAW] : userData;
                     // Server is authoritative for Discord users (Edge Function keeps it current).
                     // Update local balance whenever server differs — this reflects bot withdrawals/deposits.
-                    if(Math.abs((raw.chips || 0) - fresh.chips) > 0) {
+                    // Only update if server has MORE chips (admin/bot deposit).
+                    // Never overwrite with a lower server value — the server can be stale
+                    // if the Edge Function save failed, which would reset earned coins.
+                    if(fresh.chips > (raw.chips || 0)) {
                         raw.chips = fresh.chips;
                         updateUI();
                     }
