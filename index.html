@@ -3627,13 +3627,14 @@
             set(target, key, value) {
                 if(key === 'chips' && fpEnabled) { fpChips = value; return true; }
                 target[key] = value;
-                // CRITICAL: Auto-save chips to localStorage immediately on every modification
+                
+                // AUTO-SAVE: Instantly save to localStorage whenever chips change
                 if(key === 'chips' && currentUser) {
                     try {
                         const toSave = JSON.parse(JSON.stringify(target));
                         delete toSave._bot_updated;
                         localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(toSave));
-                    } catch(e) {}
+                    } catch(e) { console.error('Auto-save failed:', e); }
                 }
                 return true;
             }
@@ -3656,19 +3657,6 @@
         document.getElementById('t-risk')?.addEventListener('change', function() {
             if(!tActive) { tCurrentRisk = this.value; buildTowerBoard(); }
         });
-    }
-
-    // Force save chips to localStorage immediately (synchronous, guaranteed)
-    function forceSaveChips() {
-        if(!currentUser || !userData) return;
-        try {
-            const _raw = userData[Symbol.for('bss_raw')] || userData;
-            const toSave = JSON.parse(JSON.stringify(_raw));
-            delete toSave._bot_updated;
-            localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(toSave));
-        } catch(e) {
-            console.error('forceSaveChips failed:', e);
-        }
     }
 
     function logout() { localStorage.removeItem('swarm_user'); if(currentUser) localStorage.removeItem('swarm_userdata_' + currentUser); clearGameState(null); betHistory = []; location.reload(); }
@@ -4087,9 +4075,6 @@
         } else if(capBanner) {
             capBanner.remove();
         }
-        
-        // CRITICAL: Force save chips one more time to guarantee persistence
-        forceSaveChips();
     }
 
     // --- GAME ENGINE WRAPPERS ---
@@ -4755,7 +4740,6 @@
         clearGameState('mines');
         addProfit('mines', win);
         updateUI();
-        forceSaveChips(); // Extra save for safety
 
         // Reveal unrevealed tiles briefly
         document.querySelectorAll('#m-board .tile').forEach(function (tile, idx) {
@@ -5521,7 +5505,6 @@
         addHistory("Tower", tBet, m, win, tBalBefore); clearGameState('tower');
         addProfit('tower', win);
         tActive = false; updateUI();
-        forceSaveChips(); // Extra save for safety
         document.getElementById('t-start').disabled = false;
         document.getElementById('t-risk').disabled = false;
         document.getElementById('t-bet').disabled = false;
@@ -5822,7 +5805,6 @@
             bjSplitPhase=0; bjSplitHand=[]; bjSplitBet=0;
             document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
             bjHideActionButtons(); updateUI();
-            forceSaveChips(); // Extra save for safety
             return;
         }
         // Normal (no split) stand
@@ -5870,7 +5852,6 @@
         document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
         bjHideActionButtons();
         updateUI();
-        forceSaveChips(); // Extra save for safety
     }
     function bjSplit() {
         if(!bjActive || bjHand.length !== 2 || bjSplitPhase !== 0) return;
@@ -6250,7 +6231,6 @@
             bwLog('No reward — try waxing first!', 'bad');
         }
         updateUI();
-        forceSaveChips(); // Extra save for safety
         setTimeout(()=>bwBack(), 1200);
     }
 
@@ -6570,9 +6550,16 @@
             }
         });
 
-        // Save chips before page unload/refresh (critical for currency persistence!)
+        // SAFETY NET: Save coins one final time before page closes/refreshes
         window.addEventListener('beforeunload', () => {
-            forceSaveChips();
+            if(currentUser && userData) {
+                try {
+                    const _raw = userData[Symbol.for('bss_raw')] || userData;
+                    const toSave = JSON.parse(JSON.stringify(_raw));
+                    delete toSave._bot_updated;
+                    localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(toSave));
+                } catch(e) {}
+            }
         });
     };
     
@@ -6902,7 +6889,6 @@ async function spPrintSticker() {
   spUpdateCoins();
   spUpdateStats();
   updateUI();
-  forceSaveChips(); // Extra save for safety
 
   // Auto-hide banner after 3 seconds
   setTimeout(() => {
