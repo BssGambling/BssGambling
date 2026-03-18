@@ -3500,6 +3500,17 @@
                 user.displayName = displayName;
                 user.avatarUrl = avatarUrl;
                 user.discord = true;
+
+                // FIX: Don't let a stale server balance overwrite a higher local balance
+                const _localRaw = localStorage.getItem('swarm_userdata_' + id);
+                if(_localRaw) {
+                    try {
+                        const _local = JSON.parse(_localRaw);
+                        if(typeof _local.chips === 'number' && _local.chips > user.chips) {
+                            user.chips = _local.chips;
+                        }
+                    } catch(e) {}
+                }
             }
             await dbSet('users', id, user);
             localStorage.setItem('swarm_user', id);
@@ -3659,7 +3670,7 @@
         });
     }
 
-    function logout() { localStorage.removeItem('swarm_user'); if(currentUser) localStorage.removeItem('swarm_userdata_' + currentUser); clearGameState(null); betHistory = []; location.reload(); }
+    function logout() { localStorage.removeItem('swarm_user'); clearGameState(null); betHistory = []; location.reload(); }
 
     // ══════════════════════════════════════════════════════════════════
     // GAME STATE PERSISTENCE  (survive page refresh)
