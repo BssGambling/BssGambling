@@ -6582,7 +6582,30 @@
             }
         });
     };
-    
+
+    // ── Pull-to-refresh guard ──────────────────────────────────────────────────
+    // Dynamically toggle overscroll-behavior on the scroller so the browser
+    // only gets a chance to trigger pull-to-refresh when already at the top.
+    (function() {
+        const getScroller = () => document.querySelector('.main-wrapper');
+
+        function updateOverscroll() {
+            const el = getScroller();
+            if (!el) return;
+            el.style.overscrollBehaviorY = el.scrollTop <= 0 ? 'auto' : 'none';
+        }
+
+        // Update on every scroll event
+        document.addEventListener('scroll', updateOverscroll, { passive: true, capture: true });
+
+        // Also update on touchstart so it's set correctly before any move
+        document.addEventListener('touchstart', updateOverscroll, { passive: true });
+
+        // Run once on load
+        window.addEventListener('load', updateOverscroll);
+    })();
+    // ──────────────────────────────────────────────────────────────────────────
+
     // ====================================================
     // STICKER PRINTER GAME
     // ====================================================
