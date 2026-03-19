@@ -1487,7 +1487,6 @@
             min-height: 100vh;
             overflow-y: auto;
             overflow-x: hidden;
-            overscroll-behavior-y: none;
         }
 
         /* Top bar */
@@ -6585,18 +6584,22 @@
     };
 
     // ── Pull-to-refresh guard ──────────────────────────────────────────────────
-    // Blocks the browser's native pull-to-refresh unless the scrollable area
-    // is already at the very top, so scrolling up never accidentally refreshes.
     (function() {
         let _startY = 0;
+        let _startScrollTop = 0;
+
         document.addEventListener('touchstart', function(e) {
-            _startY = e.touches[0].clientY;
-        }, { passive: true });
-        document.addEventListener('touchmove', function(e) {
             const scrollEl = document.querySelector('.main-wrapper');
-            const atTop = !scrollEl || scrollEl.scrollTop <= 0;
-            const pullingDown = e.touches[0].clientY > _startY;
-            if (pullingDown && !atTop) {
+            _startY = e.touches[0].clientY;
+            _startScrollTop = scrollEl ? scrollEl.scrollTop : 0;
+        }, { passive: true });
+
+        document.addEventListener('touchmove', function(e) {
+            const currentY = e.touches[0].clientY;
+            const pullingDown = currentY > _startY;
+
+            // Only allow pull-to-refresh if we STARTED the gesture at the top
+            if (pullingDown && _startScrollTop > 0) {
                 e.preventDefault();
             }
         }, { passive: false });
