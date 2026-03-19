@@ -33,7 +33,7 @@
 
     * { box-sizing: border-box; }
 
-    html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+    html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; overscroll-behavior-y: none; }
 
     body {
         background-color: var(--dark);
@@ -6583,7 +6583,26 @@
             }
         });
     };
-    
+
+    // ── Pull-to-refresh guard ──────────────────────────────────────────────────
+    // Blocks the browser's native pull-to-refresh unless the scrollable area
+    // is already at the very top, so scrolling up never accidentally refreshes.
+    (function() {
+        let _startY = 0;
+        document.addEventListener('touchstart', function(e) {
+            _startY = e.touches[0].clientY;
+        }, { passive: true });
+        document.addEventListener('touchmove', function(e) {
+            const scrollEl = document.querySelector('.main-wrapper');
+            const atTop = !scrollEl || scrollEl.scrollTop <= 0;
+            const pullingDown = e.touches[0].clientY > _startY;
+            if (pullingDown && !atTop) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    })();
+    // ──────────────────────────────────────────────────────────────────────────
+
     // ====================================================
     // STICKER PRINTER GAME
     // ====================================================
