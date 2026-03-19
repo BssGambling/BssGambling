@@ -33,7 +33,7 @@
 
     * { box-sizing: border-box; }
 
-    html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; overscroll-behavior-y: none; }
+    html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
 
     body {
         background-color: var(--dark);
@@ -1487,7 +1487,7 @@
             min-height: 100vh;
             overflow-y: auto;
             overflow-x: hidden;
-            overscroll-behavior-y: contain;
+            overscroll-behavior-y: none;
         }
 
         /* Top bar */
@@ -6601,7 +6601,6 @@
             }
         }, { passive: false });
     })();
-    // ──────────────────────────────────────────────────────────────────────────
 
     // ====================================================
     // STICKER PRINTER GAME
