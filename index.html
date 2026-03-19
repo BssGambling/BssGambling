@@ -6582,29 +6582,7 @@
             }
         });
     };
-
-    // ── Pull-to-refresh guard ──────────────────────────────────────────────────
-    (function() {
-        let _startY = 0;
-        let _startScrollTop = 0;
-
-        document.addEventListener('touchstart', function(e) {
-            const scrollEl = document.querySelector('.main-wrapper');
-            _startY = e.touches[0].clientY;
-            _startScrollTop = scrollEl ? scrollEl.scrollTop : 0;
-        }, { passive: true });
-
-        document.addEventListener('touchmove', function(e) {
-            const currentY = e.touches[0].clientY;
-            const pullingDown = currentY > _startY;
-
-            // Only allow pull-to-refresh if we STARTED the gesture at the top
-            if (pullingDown && _startScrollTop > 0) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-    })();
-
+    
     // ====================================================
     // STICKER PRINTER GAME
     // ====================================================
