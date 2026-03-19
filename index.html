@@ -6584,24 +6584,34 @@
     };
 
     // ── Pull-to-refresh guard ──────────────────────────────────────────────────
-    // Dynamically toggle overscroll-behavior on the scroller so the browser
-    // only gets a chance to trigger pull-to-refresh when already at the top.
     (function() {
-        const getScroller = () => document.querySelector('.main-wrapper');
-
-        function updateOverscroll() {
-            const el = getScroller();
-            if (!el) return;
-            el.style.overscrollBehaviorY = el.scrollTop <= 0 ? 'auto' : 'none';
+        function isAtTop() {
+            // Check every possible scroller
+            const els = [
+                document.querySelector('.main-wrapper'),
+                document.documentElement,
+                document.body
+            ];
+            for (const el of els) {
+                if (el && el.scrollTop > 5) return false;
+            }
+            return true;
         }
 
-        // Update on every scroll event
-        document.addEventListener('scroll', updateOverscroll, { passive: true, capture: true });
+        function updateOverscroll() {
+            const el = document.querySelector('.main-wrapper');
+            if (!el) return;
+            if (isAtTop()) {
+                el.style.overscrollBehaviorY = 'auto';
+                document.body.style.overscrollBehaviorY = 'auto';
+            } else {
+                el.style.overscrollBehaviorY = 'none';
+                document.body.style.overscrollBehaviorY = 'none';
+            }
+        }
 
-        // Also update on touchstart so it's set correctly before any move
+        document.querySelector('.main-wrapper')?.addEventListener('scroll', updateOverscroll, { passive: true });
         document.addEventListener('touchstart', updateOverscroll, { passive: true });
-
-        // Run once on load
         window.addEventListener('load', updateOverscroll);
     })();
     // ──────────────────────────────────────────────────────────────────────────
