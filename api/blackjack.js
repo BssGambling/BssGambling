@@ -2,6 +2,31 @@ const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const MAX_CHIPS = 1_000_000;
 
+async function sendBetWebhook(playerName, game, bet, payout, balBefore) {
+    const WEBHOOK_BETS = process.env.DISCORD_WEBHOOK_BETS;
+    if(!WEBHOOK_BETS) return;
+    const isWin = payout > bet;
+    const profit = payout - bet;
+    try {
+        await fetch(WEBHOOK_BETS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ embeds: [{
+                title: (isWin ? '✅ ' : '❌ ') + game,
+                color: isWin ? 0x27ae60 : 0xe74c3c,
+                description: '**Player:** ' + playerName + '\n**Bet:** ' + bet + ' ★\n**' + (isWin ? 'Payout' : 'Lost') + ':** ' + (isWin ? '+' + payout : '-' + bet) + ' ★\n\n**Balance:** ' + balBefore + ' → ' + (balBefore - bet + payout),
+                fields: [
+                    { name: 'Result', value: isWin ? '🟢 WIN' : '🔴 LOSS', inline: true },
+                    { name: 'Profit', value: (profit >= 0 ? '+' : '') + profit + ' ★', inline: true }
+                ],
+                footer: { text: 'BSS Gambling' },
+                timestamp: new Date().toISOString()
+            }]})
+        });
+    } catch(e) {}
+}
+
+
 function makeDeck() {
   const suits = ['♠','♣','♥','♦'], vals = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
   const deck = [];
@@ -118,6 +143,8 @@ module.exports = async (req, res) => {
       const { outcome, payout } = resolveHand(game.playerHand, game.dealerHand, game.bet);
       const newChips = Math.min(MAX_CHIPS, currentChips + payout);
       await supabase.from('users').upsert({ id: user_id, data: { ...userData, chips: newChips, active_game: null } }, { onConflict: 'id' });
+      const pName = userData?.displayName || userData?.discordName || user_id;
+      if(outcome !== 'push') sendBetWebhook(pName, 'Blackjack', game.bet, payout, game.balBefore || game.bet);
       return res.json({ dealerHand: game.dealerHand, outcome, payout, chips: newChips });
     }
 
