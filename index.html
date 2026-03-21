@@ -6530,7 +6530,9 @@
                     // Merge server fields (displayName, avatarUrl, etc.) but keep local chips.
                     userData = Object.assign({}, _serverData, { chips: _cachedData.chips });
                     localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(userData));
-                    dbSet('users', currentUser, userData);
+                    // Don't call dbSet here — dc_token_live is gone after refresh (sessionStorage cleared)
+                    // so the Edge Function call would fail anyway. The next updateUI() during gameplay
+                    // will sync the correct balance back to the server.
                 } else {
                     userData = _cachedData || _serverData;
                     if(_serverData && !_cachedData) {
@@ -6547,12 +6549,21 @@
                 }
             }
 
-            // Clean up _bot_updated flag — delete it locally AND save back to server
-            // so it doesn't keep triggering a reset on every refresh
+            // Clean up _bot_updated flag via Edge Function (RLS blocks anon writes)
             if(userData && userData._bot_updated) {
                 console.log('[onload] Clearing _bot_updated flag from server...');
                 delete userData._bot_updated;
-                await dbSet('users', currentUser, userData);
+                const _token = sessionStorage.getItem('dc_token_live');
+                if(_token) {
+                    const _raw = (userData && userData[Symbol.for('bss_raw')]) ? userData[Symbol.for('bss_raw')] : userData;
+                    try {
+                        await fetch(`${EDGE_BASE}/save-user`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ discord_token: _token, data: _raw })
+                        });
+                    } catch(e) { console.error('Failed to clear _bot_updated on load:', e); }
+                }
             }
 
             if(userData) {
@@ -6574,7 +6585,18 @@
                 raw.chips = fresh.chips;
                 delete raw._bot_updated;
                 localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(raw));
-                dbSet('users', currentUser, raw);
+                // Use Edge Function to save back WITHOUT _bot_updated
+                // (RLS blocks anon key from writing directly)
+                const token = sessionStorage.getItem('dc_token_live');
+                if(token) {
+                    try {
+                        await fetch(`${EDGE_BASE}/save-user`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ discord_token: token, data: raw })
+                        });
+                    } catch(e) { console.error('Failed to clear _bot_updated via edge:', e); }
+                }
                 updateUI();
             }
         }, 10000);
