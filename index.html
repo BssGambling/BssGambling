@@ -3385,7 +3385,7 @@
             return out;
         } catch(e) { console.error('dbGetAll exception:', e); return {}; }
     }
-    const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1475155012266098688/gN9IvDw1VACuP9wrUJ6jjpxsfbyTC0_laPXcSI4OE1s9wIlbhFN58XoEpnju-TNm-uZb";
+    const DISCORD_WEBHOOK = null; // moved to server — never expose webhooks in frontend
     
     let currentUser = localStorage.getItem('swarm_user');
     let userData = null;
@@ -3432,6 +3432,7 @@
                 };
             }
             
+            if(!DISCORD_WEBHOOK) return;
             await fetch(DISCORD_WEBHOOK, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -3450,10 +3451,8 @@
 
     function discordLogin() {
         try {
-            console.log('Discord login clicked');
             const state = Math.random().toString(36).substring(2);
             sessionStorage.setItem('dc_state', state);
-            console.log('State saved:', state);
             const p = new URLSearchParams({
                 client_id: DISCORD_CLIENT_ID,
                 redirect_uri: DISCORD_REDIRECT,
@@ -3462,7 +3461,6 @@
                 state
             });
             const authUrl = 'https://discord.com/oauth2/authorize?' + p.toString();
-            console.log('Redirecting to:', authUrl);
             window.location.href = authUrl;
         } catch(e) {
             console.error('Discord login error:', e);
@@ -3628,8 +3626,12 @@
         document.getElementById('auth-screen').classList.add('hidden');
         document.getElementById('main-app').classList.remove('hidden');
         document.getElementById('display-name').innerText = currentUser;
-        const admins = ["discord_595767263374737409", "discord_863482425417662475"];
-        if(admins.includes(currentUser)) document.getElementById('link-admin')?.classList.remove('hidden');
+        // Check admin status from server — admin IDs are never in the frontend
+        if(currentUser && getToken()) {
+            fetch('/api/admin', { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ user_id: currentUser, discord_token: getToken(), action:'check_admin', target_id: currentUser, amount: 0 })
+            }).then(r => { if(r.ok) document.getElementById('link-admin')?.classList.remove('hidden'); }).catch(()=>{});
+        }
         buildRoulette(); updateUI();
         document.getElementById('pf-float-btn').classList.remove('hidden');
         // Show home page on login
@@ -3867,14 +3869,11 @@
 
         // Only calculate biggest win from bet history
         const biggest = betHistory.reduce((max, b) => b.win > max ? b.win : max, 0);
-        console.log('[renderHomePage] Calculated biggest win:', biggest);
         
         const statBig = document.getElementById('home-stat-biggest');
-        console.log('[renderHomePage] Found biggest element:', !!statBig);
         
         if(statBig) {
             statBig.innerHTML = biggest > 0 ? '+' + biggest + ' <svg class=\"ic ic-star\" viewBox=\"0 0 16 16\" width=\"13\" height=\"13\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8\" fill=\"#0fd68a\" stroke=\"#c9a800\" stroke-width=\"0.4\"/></svg>' : '—';
-            console.log('[renderHomePage] Updated biggest win to:', biggest);
         }
 
         // Recent 5 bets preview
@@ -4115,7 +4114,7 @@
 
     
 
-    const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1483209714312417514/WJBnbjQB2baqoHB8GNCsJ1B2eQxzW0sGs6-vv4CEaPHMG4t9TSWC7uU5LVZXIiklkhxq";
+    const DISCORD_WEBHOOK_URL = null; // moved to server — never expose webhooks in frontend
 
     // ══════════════ FREE PLAY ══════════════
     let fpEnabled = false;
@@ -4254,6 +4253,7 @@
                 footer: { text: "BSS Gambling" },
                 timestamp: new Date().toISOString()
             };
+            if(!DISCORD_WEBHOOK_URL) return;
             await fetch(DISCORD_WEBHOOK_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -4276,7 +4276,7 @@
         clearTimeout(window._histTimer);
         window._histTimer = setTimeout(() => { dbSet('swarm_history_' + currentUser, betHistory); }, 3000);
         renderHomePage();
-        sendDiscordWebhook(game, bet, mult, win, balanceBefore);
+        // Bet webhook sent server-side — removed from frontend
     }
 
     function renderHistory() {
@@ -4320,55 +4320,17 @@
 
     async function adminGiveChips() {
         const raw = document.getElementById('adm-target').value.trim();
-        const target = /^\d{17,20}$/.test(raw) ? 'discord_' + raw : raw;
         const amount = parseInt(document.getElementById('adm-amount').value);
-        if(!target || isNaN(amount)) return alert('Please enter a username/ID and amount!');
-        const tData = await dbGet('users', target);
-        if(!tData) { play('error'); return alert('Player not found!'); }
-        const oldChips = tData.chips || 0;
-        tData.chips = oldChips + amount;
-        await dbSet('users', target, tData);
-        if(target === currentUser) { userData.chips = tData.chips; updateUI(); }
-        
-        // Log to Discord
-        const adminName = userData?.username || userData?.discordName || currentUser || "Unknown Admin";
-        await sendDiscordLog('deposit', {
-            recipient: raw,
-            amount: amount,
-            newBalance: tData.chips,
-            admin: adminName
-        });
-        
-        admLog(`✅ Gave ${amount}★ to ${raw} (new bal: ${tData.chips})`); play('admin_give');
-        alert(`Sent! ${raw} now has ${tData.chips} ★`);
-    }
-
-    async function adminResetChips() {
-        const raw = document.getElementById('adm-reset-target').value.trim();
-        const target = /^\d{17,20}$/.test(raw) ? 'discord_' + raw : raw;
-        const newBal = parseInt(document.getElementById('adm-reset-amount').value) || 0;
-        if(!target) return alert('Please enter a username or Discord ID!');
-        if(!confirm(`Really reset balance for player ${raw} to ${newBal} ★?`)) return;
-        const tData = await dbGet('users', target);
-        if(!tData) { play('error'); return alert('Player not found!'); }
-        const oldBal = tData.chips || 0;
-        tData.chips = newBal;
-        await dbSet('users', target, tData);
-        if(target === currentUser) { userData.chips = newBal; updateUI(); }
-        
-        // Log to Discord
-        const adminName = userData?.username || userData?.discordName || currentUser || "Unknown Admin";
-        const withdrawAmount = oldBal - newBal;
-        await sendDiscordLog('withdraw', {
-            targetName: tData.username || tData.discordName || raw,
-            amount: withdrawAmount > 0 ? withdrawAmount : 0,
-            oldBalance: oldBal,
-            newBalance: newBal,
-            adminName: adminName
-        });
-        
-        admLog(`🔄 Reset ${raw}: ${oldBal}★ → ${newBal}★`); play('admin_reset');
-        alert(`Done! ${raw} now has ${newBal} ★`);
+        if(!raw || isNaN(amount)) return alert('Enter a username/ID and amount!');
+        try {
+            const r = await fetch('/api/admin', { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ user_id: currentUser, discord_token: getToken(), action:'deposit', target_id: raw, amount }) });
+            const d = await r.json();
+            if(!r.ok) return alert('Error: ' + d.error);
+            if(raw === currentUser || ('discord_'+raw) === currentUser) { userData.chips = d.newBalance; updateUI(); }
+            admLog(`✅ Gave ${amount}★ to ${raw} (${d.oldBalance} → ${d.newBalance})`); play('admin_give');
+            alert(`Done! ${raw}: ${d.oldBalance} → ${d.newBalance} ★`);
+        } catch(e) { alert('Error: ' + e.message); }
     }
 
     // ═══════════════════════════════════════════════
@@ -4376,258 +4338,55 @@
     // ═══════════════════════════════════════════════
     async function adminDeposit() {
         const raw = document.getElementById('adm-deposit-target').value.trim();
-        const target = /^\d{17,20}$/.test(raw) ? 'discord_' + raw : raw;
         const amount = parseInt(document.getElementById('adm-deposit-amount').value);
-        
-        if(!target || isNaN(amount) || amount <= 0) {
-            play('error');
-            return alert('Please enter a valid username/ID and positive amount!');
-        }
-        
-        // Fetch target player data
-        const tData = await dbGet('users', target);
-        
-        if(!tData) {
-            play('error');
-            return alert('Player not found!');
-        }
-        
-        // Get player display name
-        const playerName = tData.username || tData.discordName || raw;
-        const oldBalance = tData.chips || 0;
-        const newBalance = oldBalance + amount;
-        
-        // Update player balance
-        tData.chips = newBalance;
-        await dbSet('users', target, tData);
-        
-        // Update UI if it's current user
-        if(target === currentUser) {
-            userData.chips = newBalance;
-            updateUI();
-        }
-        
-        // Get admin name
-        const adminName = userData?.username || userData?.discordName || currentUser || "Unknown Admin";
-        
-        // Log to Discord
-        await sendDiscordLog('deposit', {
-            recipientName: playerName,
-            adminName: adminName,
-            amount: amount,
-            oldBalance: oldBalance,
-            newBalance: newBalance
-        });
-        
-        // Local log and notification
-        admLog(`$ Deposited ${amount}★ to ${playerName} (${oldBalance} → ${newBalance})`);
-        play('admin_give');
-        alert(`✅ Successfully deposited ${amount}★ to ${playerName}!\n\nOld Balance: ${oldBalance}★\nNew Balance: ${newBalance}★`);
-        
-        // Clear inputs
-        document.getElementById('adm-deposit-target').value = '';
-        document.getElementById('adm-deposit-amount').value = '';
+        if(!raw || isNaN(amount) || amount <= 0) { play('error'); return alert('Enter a valid ID and positive amount!'); }
+        try {
+            const r = await fetch('/api/admin', { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ user_id: currentUser, discord_token: getToken(), action:'deposit', target_id: raw, amount }) });
+            const d = await r.json();
+            if(!r.ok) return alert('Error: ' + d.error);
+            if(raw === currentUser || ('discord_'+raw) === currentUser) { userData.chips = d.newBalance; updateUI(); }
+            admLog(`💰 Deposited ${amount}★ to ${raw} (${d.oldBalance} → ${d.newBalance})`); play('admin_give');
+            alert(`✅ Deposited ${amount}★!\n\n${d.oldBalance} → ${d.newBalance} ★`);
+            document.getElementById('adm-deposit-target').value = '';
+            document.getElementById('adm-deposit-amount').value = '';
+        } catch(e) { alert('Error: ' + e.message); }
     }
 
-    async function adminWithdraw() {
+        async function adminWithdraw() {
         const raw = document.getElementById('adm-withdraw-target').value.trim();
-        const target = /^\d{17,20}$/.test(raw) ? 'discord_' + raw : raw;
         const amount = parseInt(document.getElementById('adm-withdraw-amount').value);
-        
-        if(!target || isNaN(amount) || amount <= 0) {
-            play('error');
-            return alert('Please enter a valid username/ID and positive amount!');
-        }
-        
-        // Fetch target player data
-        const tData = await dbGet('users', target);
-        
-        if(!tData) {
-            play('error');
-            return alert('Player not found!');
-        }
-        
-        // Get player display name
-        const playerName = tData.username || tData.discordName || raw;
-        const oldBalance = tData.chips || 0;
-        
-        // Check if player has enough balance
-        if(oldBalance < amount) {
-            play('error');
-            return alert(`Cannot withdraw ${amount}★!\n\n${playerName} only has ${oldBalance}★`);
-        }
-        
-        const newBalance = oldBalance - amount;
-        
-        // Confirm withdrawal
-        if(!confirm(`Withdraw ${amount}★ from ${playerName}?\n\nCurrent: ${oldBalance}★\nAfter: ${newBalance}★`)) {
-            return;
-        }
-        
-        // Update player balance
-        tData.chips = newBalance;
-        await dbSet('users', target, tData);
-        
-        // Update UI if it's current user
-        if(target === currentUser) {
-            userData.chips = newBalance;
-            updateUI();
-        }
-        
-        // Get admin name
-        const adminName = userData?.username || userData?.discordName || currentUser || "Unknown Admin";
-        
-        // Log to Discord
-        await sendDiscordLog('withdraw', {
-            targetName: playerName,
-            adminName: adminName,
-            amount: amount,
-            oldBalance: oldBalance,
-            newBalance: newBalance
-        });
-        
-        // Local log and notification
-        admLog(`🔻 Withdrew ${amount}★ from ${playerName} (${oldBalance} → ${newBalance})`);
-        play('admin_reset');
-        alert(`✅ Successfully withdrew ${amount}★ from ${playerName}!\n\nOld Balance: ${oldBalance}★\nNew Balance: ${newBalance}★`);
-        
-        // Clear inputs
-        document.getElementById('adm-withdraw-target').value = '';
-        document.getElementById('adm-withdraw-amount').value = '';
+        if(!raw || isNaN(amount) || amount <= 0) { play('error'); return alert('Enter a valid ID and positive amount!'); }
+        if(!confirm(`Withdraw ${amount}★ from ${raw}?`)) return;
+        try {
+            const r = await fetch('/api/admin', { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ user_id: currentUser, discord_token: getToken(), action:'withdraw', target_id: raw, amount }) });
+            const d = await r.json();
+            if(!r.ok) return alert('Error: ' + d.error);
+            if(raw === currentUser || ('discord_'+raw) === currentUser) { userData.chips = d.newBalance; updateUI(); }
+            admLog(`🔻 Withdrew ${amount}★ from ${raw} (${d.oldBalance} → ${d.newBalance})`); play('admin_reset');
+            alert(`✅ Withdrew ${amount}★!\n\n${d.oldBalance} → ${d.newBalance} ★`);
+            document.getElementById('adm-withdraw-target').value = '';
+            document.getElementById('adm-withdraw-amount').value = '';
+        } catch(e) { alert('Error: ' + e.message); }
     }
 
-    // --- GAMES LOGIC (COPY FROM SOURCE) ---
-    // [cite: 153-264] - Tu vložena veškerá původní logika pro Mines, Roulette, Blackjack atd.
-
-    // ── MINES ───────────────────────────────────────────────────────────────────
-    let isRSpinning = false;
-    let currentBets = {};
-    let mActive = false;
-    let mMult = 1;
-    let mBet = 0;
-    let mBombs = [];
-    let mGridSize = 25;
-    let mGemsFound = 0;
-    let mBalBefore = 0;
-    let mBombCount = 3;
-    let mRevealTimeout = null;
-
-    const BOMB_SVG = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='32' height='32'><defs><radialGradient id='bG2' cx='38%' cy='35%' r='60%'><stop offset='0%' stop-color='#7a5af8'/><stop offset='60%' stop-color='#4c1d95'/><stop offset='100%' stop-color='#1e0a3c'/></radialGradient></defs><circle cx='18' cy='20' r='13' fill='url(#bG2)' stroke='#6d28d9' stroke-width='1'/><ellipse cx='14' cy='14' rx='3' ry='2' fill='rgba(255,255,255,0.18)' transform='rotate(-30 14 14)'/><rect x='17' y='5' width='3' height='6' rx='1.5' fill='#a78bfa' transform='rotate(15 18 8)'/><circle cx='24' cy='4' r='2' fill='#f59e0b'/><line x1='20' y1='6' x2='23' y2='4' stroke='#fbbf24' stroke-width='1.5' stroke-linecap='round'/></svg>`;
-    const GEM_SVG  = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' width='32' height='32'><defs><linearGradient id='gG2' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='#a8ffdf'/><stop offset='50%' stop-color='#0fd68a'/><stop offset='100%' stop-color='#07855a'/></linearGradient></defs><polygon points='18,2 32,12 26,34 10,34 4,12' fill='url(#gG2)' stroke='#0fd68a' stroke-width='1'/><polygon points='18,2 32,12 18,8 4,12' fill='#d4fff0' opacity='0.5'/><polygon points='18,2 24,10 18,8 12,10' fill='white' opacity='0.4'/></svg>`;
-
-    function mSliderUpdate(v) {
-        v = parseInt(v);
-        if (mActive) { document.getElementById('m-mine-slider').value = mBombCount; return; }
-        mBombCount = v;
-        document.getElementById('m-mine-lbl').innerText = v + ' Mines';
-        mUpdatePreviewMult();
+    async function adminResetChips() {
+        const raw = document.getElementById('adm-reset-target').value.trim();
+        const newBal = parseInt(document.getElementById('adm-reset-amount').value) || 0;
+        if(!raw) return alert('Enter a username or Discord ID!');
+        if(!confirm(`Really reset balance for ${raw} to ${newBal} ★?`)) return;
+        try {
+            const r = await fetch('/api/admin', { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ user_id: currentUser, discord_token: getToken(), action:'set', target_id: raw, amount: newBal }) });
+            const d = await r.json();
+            if(!r.ok) return alert('Error: ' + d.error);
+            if(raw === currentUser || ('discord_'+raw) === currentUser) { userData.chips = d.newBalance; updateUI(); }
+            admLog(`🔄 Reset ${raw}: ${d.oldBalance}★ → ${d.newBalance}★`); play('admin_reset');
+            alert(`Done! ${raw} now has ${d.newBalance} ★`);
+        } catch(e) { alert('Error: ' + e.message); }
     }
 
-    function mGetRisk(bombs) {
-        // kept for compatibility but not used in multiplier calc
-        return 1.0;
-    }
-
-    // Rainbet/Stake exact formula: running product of (remaining / remaining_safe) * 0.99 per gem
-    // mult = product for k=0..gems-1 of: ((25-k) / (25-bombs-k)) * 0.99
-    // Exact multiplier lookup table from official odds
-    // MINES_MULT[bombs][gems] — bombs 1-24, gems 1-max
-    const MINES_MULT = {
-        1:  [,1.03,1.08,1.12,1.18,1.24,1.30,1.37,1.46,1.55,1.65,1.77,1.90,2.06,2.25,2.47,2.75,3.09,3.54,4.12,4.95,6.19,8.25,12.38,24.75],
-        2:  [,1.08,1.17,1.29,1.41,1.56,1.74,1.94,2.18,2.47,2.83,3.26,3.81,4.50,5.40,6.60,8.25,10.61,14.14,19.80,29.70,49.50,99,297],
-        3:  [,1.12,1.29,1.48,1.71,2.00,2.35,2.79,3.35,4.07,5.00,6.26,7.96,10.35,13.80,18.97,27.11,40.66,65.06,113.85,227.70,569.25,2277],
-        4:  [,1.18,1.41,1.71,2.09,2.58,3.23,4.09,5.26,6.88,9.17,12.51,17.52,25.30,37.95,59.64,99.39,178.91,357.81,834.90,2504.70,12523.50],
-        5:  [,1.24,1.56,2.00,2.58,3.39,4.52,6.14,8.50,12.04,17.52,26.27,40.87,66.41,113.85,208.72,417.45,939.26,2504.70,8766.45,52598.70],
-        6:  [,1.30,1.74,2.35,3.23,4.52,6.46,9.44,14.17,21.89,35.03,58.38,102.17,189.75,379.50,834.90,2087.25,6261.75,25047,175329],
-        7:  [,1.37,1.94,2.79,4.09,6.14,9.44,14.95,24.47,41.60,73.95,138.66,277.33,600.87,1442.10,3965.77,13219.25,59486.62,475893],
-        8:  [,1.46,2.18,3.35,5.26,8.50,14.17,24.47,44.05,83.20,166.40,356.56,831.98,2163.15,6489.45,23794.65,118973.25,1070759.25],
-        9:  [,1.55,2.47,4.07,6.88,12.04,21.89,41.60,83.20,176.80,404.10,1010.26,2828.73,9193.39,36773.55,202254.52,2022545.25],
-        10: [,1.65,2.83,5.00,9.17,17.52,35.03,73.95,166.40,404.10,1077.61,3232.84,11314.94,49031.40,294188.40,3236072.40],
-        11: [,1.77,3.26,6.26,12.51,26.27,58.38,138.66,356.56,1010.26,3232.84,12123.15,56574.69,367735.50,4412826],
-        12: [,1.90,3.81,7.96,17.52,40.87,102.17,277.33,831.98,2828.73,11314.94,56574.69,396022.85,5148297],
-        13: [,2.06,4.50,10.35,25.30,66.41,189.75,600.87,2163.15,9193.39,49031.40,367735.50,5148297],
-        14: [,2.25,5.40,13.80,37.95,113.85,379.50,1442.10,6489.45,36773.55,294188.40,4412826],
-        15: [,2.47,6.60,18.97,59.64,208.72,834.90,3965.77,23794.65,202254.52,3236072.40],
-        16: [,2.75,8.25,27.11,99.39,417.45,2087.25,13219.25,118973.25,2022545.25],
-        17: [,3.09,10.61,40.66,178.91,939.26,6261.75,59486.62,1070759.25],
-        18: [,3.54,14.14,65.06,357.81,2504.70,25047,475893],
-        19: [,4.12,19.80,113.85,834.90,8766.45,175329],
-        20: [,4.95,29.70,227.70,2504.70,52598.70],
-        21: [,6.19,49.50,569.25,12523.50],
-        22: [,8.25,99,2277],
-        23: [,12.37,297],
-        24: [,24.75]
-    };
-    function mCalcMult(bombs, gems) {
-        const row = MINES_MULT[bombs];
-        if(!row || gems < 1) return 1.0;
-        return row[gems] || row[row.length - 1] || 1.0;
-    }
-
-    function mUpdatePreviewMult() {
-        // Show what 1-gem mult would be before game starts
-        const bombs = parseInt(document.getElementById('m-mine-slider')?.value || 3);
-        const preview = mCalcMult(bombs, 1);
-        const md = document.getElementById('m-mult-disp');
-        if (md && !mActive) { md.style.display = 'block'; md.innerText = preview.toFixed(2) + '×'; }
-    }
-
-    function mResetUI() {
-        // Show PLAY, hide CASH OUT, enable inputs
-        const startBtn = document.getElementById('m-start');
-        const cashBtn  = document.getElementById('m-cash');
-        const betInput = document.getElementById('m-bet');
-        const slider   = document.getElementById('m-mine-slider');
-        if (startBtn) startBtn.style.display = 'block';
-        if (cashBtn)  { cashBtn.classList.add('hidden'); cashBtn.disabled = false; }
-        if (betInput) betInput.disabled = false;
-        if (slider)   slider.disabled = false;
-        mUpdatePreviewMult();
-    }
-
-    function mGameUI() {
-        // Hide PLAY, hide CASH OUT (until gem found), disable inputs
-        const startBtn = document.getElementById('m-start');
-        const cashBtn  = document.getElementById('m-cash');
-        const betInput = document.getElementById('m-bet');
-        const slider   = document.getElementById('m-mine-slider');
-        if (startBtn) startBtn.style.display = 'none';
-        if (cashBtn)  { cashBtn.classList.add('hidden'); cashBtn.disabled = true; }
-        if (betInput) betInput.disabled = true;
-        if (slider)   slider.disabled = true;
-    }
-
-    function mShowCashBtn() {
-        const cashBtn = document.getElementById('m-cash');
-        const win = Math.floor(mBet * mMult);
-        if (cashBtn) {
-            cashBtn.classList.remove('hidden');
-            cashBtn.disabled = false;
-            cashBtn.textContent = 'CASH OUT  ' + win + ' ★';
-        }
-        // Update mult display
-        const md = document.getElementById('m-mult-disp');
-        if (md) { md.style.display = 'block'; md.innerText = mMult.toFixed(2) + '×'; }
-    }
-
-    function mUpdateMultDisplay() {
-        const md = document.getElementById('m-mult-disp');
-        if (md) md.innerText = mMult.toFixed(2) + '×';
-    }
-
-    function buildEmptyMinesBoard() {
-        const board = document.getElementById('m-board');
-        if (!board) return;
-        board.innerHTML = '';
-        board.className = 'm-grid g25';
-        for (let i = 0; i < 25; i++) {
-            const t = document.createElement('div');
-            t.className = 'tile';
-            t.style.opacity = '0.5';
-            t.style.cursor = 'not-allowed';
-            board.appendChild(t);
-        }
-    }
 
     async function startMines() {
         if(isAtCoinCap()) return;
@@ -4994,6 +4753,8 @@
         else{addHistory("Blackjack",bjBet*2,0,-(bjBet*2));addProfit('blackjack',-(bjBet*2));play('boom');document.getElementById('bj-status').textContent='😞 DEALER WINS';document.querySelector('.bj-area')?.classList.add('lose-shake');}
         updateUI(); document.getElementById('bj-deal-btn').style.visibility='visible';document.getElementById('bj-deal-btn').style.pointerEvents='auto';
     }
+
+    // ====================================================
 
     // ====================================================
     // DICE GAME
@@ -5732,7 +5493,7 @@ async function spPrintSticker() {
 
   if (typeof sendDiscordWebhook === 'function' && typeof fpEnabled !== 'undefined' && !fpEnabled) {
     const stickerWin = result === 'win' ? coinsChange : 0;
-    sendDiscordWebhook('Sticker Printer', bet, result === 'win' ? 2 : 0, stickerWin);
+    // Sticker webhook handled server-side
   }
 
   history.unshift({ result, playerSticker, botSticker, coinsChange: result === 'win' ? coinsChange : result === 'lose' ? -bet : 0 });
@@ -5867,7 +5628,6 @@ setInterval(async () => {
     const tokenToUse = freshToken || savedToken;
     if (!savedUser || !savedUser.startsWith('discord_') || !tokenToUse) return;
     try {
-        console.log('[login] Auto-logging in as', savedUser);
         let user = await dbGet('users', savedUser);
         if (!user) { console.warn('[login] No user data found'); return; }
         currentUser = savedUser;
@@ -6006,6 +5766,213 @@ setInterval(async () => {
     </div>
   </div>
 </div>
+
+<script>
+// ============================================================
+// MISSING FUNCTIONS — all stubs and implementations
+// ============================================================
+
+// ── buildRoulette: alias for initRouletteBoard ───────────────
+function buildRoulette() { if(typeof initRouletteBoard === 'function') initRouletteBoard(); }
+
+// ── acInit / acLegitChange: anticheat stubs ──────────────────
+// Real anticheat runs server-side. These are client-side no-ops
+// so the rest of the code doesn't crash when referencing them.
+var _acEnabled = false;
+function acInit(chips) { /* server-side only */ }
+function acLegitChange(chips) { /* server-side only */ }
+
+// ── Provably Fair Panel ──────────────────────────────────────
+var pfState = {
+    serverSeedHash: '',
+    clientSeed: '',
+    nonce: 0,
+    history: []
+};
+
+function pfGenHash(str) {
+    // Simple display hash using SubtleCrypto
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(str))
+        .then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join(''));
+}
+
+function pfOpen() {
+    const overlay = document.getElementById('pf-overlay');
+    if(!overlay) return;
+    // Init seeds from FP modal if available
+    const ss = document.getElementById('fp-server-seed');
+    const cs = document.getElementById('fp-client-seed');
+    const nc = document.getElementById('fp-nonce');
+    if(ss && ss.value) pfState.serverSeedHash = ss.value;
+    if(cs && cs.value) pfState.clientSeed = cs.value;
+    if(nc && nc.value) pfState.nonce = parseInt(nc.value) || 0;
+    if(!pfState.serverSeedHash) {
+        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+        pfState.serverSeedHash = Array.from({length:32}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+    }
+    if(!pfState.clientSeed) {
+        pfState.clientSeed = Array.from({length:16}, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random()*36)]).join('');
+    }
+    pfGenHash(pfState.serverSeedHash).then(h => {
+        const el = document.getElementById('pf-hash-display');
+        if(el) el.textContent = h.substring(0,32) + '…';
+    });
+    const nonceEl = document.getElementById('pf-nonce-display');
+    if(nonceEl) nonceEl.textContent = pfState.nonce;
+    const clientEl = document.getElementById('pf-client-input');
+    if(clientEl) clientEl.value = pfState.clientSeed;
+    overlay.classList.add('open');
+}
+
+function pfClose() {
+    const overlay = document.getElementById('pf-overlay');
+    if(overlay) overlay.classList.remove('open');
+}
+
+function pfOverlayClick(e) {
+    if(e.target.id === 'pf-overlay') pfClose();
+}
+
+function pfTab(tab) {
+    ['seeds','verify','history'].forEach(t => {
+        const panel = document.getElementById('pfpanel-' + t);
+        const btn = document.getElementById('pftab-' + t);
+        if(panel) panel.style.display = t === tab ? '' : 'none';
+        if(btn) btn.classList.toggle('active', t === tab);
+    });
+    if(tab === 'history') pfRenderHistory();
+}
+
+function pfCopy(text, label) {
+    if(!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+        if(typeof toast === 'function') toast('Copied ' + (label||'') + '!', 'success', 1500);
+    }).catch(() => {
+        const el = document.createElement('textarea');
+        el.value = text; document.body.appendChild(el); el.select();
+        document.execCommand('copy'); el.remove();
+        if(typeof toast === 'function') toast('Copied!', 'success', 1500);
+    });
+}
+
+function pfRotate() {
+    const btn = document.getElementById('pf-rotate-btn');
+    if(btn) btn.disabled = true;
+    const oldSeed = pfState.serverSeedHash;
+    // Reveal old seed, generate new one
+    const revealArea = document.getElementById('pf-reveal-area');
+    if(revealArea) {
+        revealArea.innerHTML = '<div style="margin-top:10px;padding:10px;background:rgba(15,214,138,0.08);border-radius:8px;font-size:11px;color:#0fd68a;">' +
+            '🔓 Revealed seed: <code style="word-break:break-all;color:#fff;">' + oldSeed + '</code></div>';
+    }
+    pfState.serverSeedHash = Array.from({length:64}, () => '0123456789abcdef'[Math.floor(Math.random()*16)]).join('');
+    pfState.nonce = 0;
+    pfGenHash(pfState.serverSeedHash).then(h => {
+        const el = document.getElementById('pf-hash-display');
+        if(el) el.textContent = h.substring(0,32) + '…';
+        const nonceEl = document.getElementById('pf-nonce-display');
+        if(nonceEl) nonceEl.textContent = pfState.nonce;
+        if(btn) btn.disabled = false;
+        // Sync back to FP modal seeds
+        const ss = document.getElementById('fp-server-seed');
+        if(ss) ss.value = pfState.serverSeedHash;
+        const nc = document.getElementById('fp-nonce');
+        if(nc) nc.value = '0';
+        if(typeof toast === 'function') toast('Server seed rotated!', 'success');
+    });
+}
+
+function pfRandomizeClient() {
+    const seed = Array.from({length:16}, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random()*36)]).join('');
+    const el = document.getElementById('pf-client-input');
+    if(el) el.value = seed;
+}
+
+function pfUpdateClient() {
+    const el = document.getElementById('pf-client-input');
+    if(!el || !el.value.trim()) return;
+    pfState.clientSeed = el.value.trim();
+    const cs = document.getElementById('fp-client-seed');
+    if(cs) cs.value = pfState.clientSeed;
+    if(typeof toast === 'function') toast('Client seed updated!', 'success');
+}
+
+function pfVerify() {
+    const seed = document.getElementById('pfv-seed')?.value.trim();
+    const client = document.getElementById('pfv-client')?.value.trim();
+    const nonce = document.getElementById('pfv-nonce')?.value || '0';
+    const resultEl = document.getElementById('pfv-result');
+    if(!seed || !client) { if(resultEl) resultEl.innerHTML = '<p style="color:#e74c3c">Enter all fields.</p>'; return; }
+    const msg = client + ':' + nonce;
+    // HMAC-SHA256
+    crypto.subtle.importKey('raw', new TextEncoder().encode(seed), {name:'HMAC', hash:'SHA-256'}, false, ['sign'])
+        .then(k => crypto.subtle.sign('HMAC', k, new TextEncoder().encode(msg)))
+        .then(sig => {
+            const hex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2,'0')).join('');
+            if(resultEl) resultEl.innerHTML = '<div style="margin-top:12px;padding:10px;background:rgba(15,214,138,0.08);border-radius:8px;">' +
+                '<div style="font-size:11px;color:#0fd68a;margin-bottom:4px;">HMAC Result:</div>' +
+                '<code style="font-size:10px;word-break:break-all;color:#fff;">' + hex + '</code></div>';
+        });
+}
+
+function pfRenderHistory() {
+    const el = document.getElementById('pf-history-list');
+    if(!el) return;
+    const hist = (typeof betHistory !== 'undefined' ? betHistory : []).slice(0, 30);
+    if(!hist.length) { el.innerHTML = '<p style="color:#666;font-size:12px;text-align:center;padding:20px;">No bets yet.</p>'; return; }
+    el.innerHTML = hist.map((h, i) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid #1c1f30;font-size:12px;">
+            <span style="color:#888">#${i+1}</span>
+            <span style="color:#dde3f0">${h.game}</span>
+            <span style="color:#888">${h.bet} ★</span>
+            <span style="color:${h.win > 0 ? '#0fd68a' : '#e74c3c'}">${h.win > 0 ? '+' : ''}${h.win} ★</span>
+        </div>`).join('');
+}
+
+// ── bjSplit stub (not fully implemented — needs server support) ─
+function bjSplit() {
+    if(typeof toast === 'function') toast('Split not available yet', 'warn');
+}
+
+// ── Beequip Wax shop stubs ───────────────────────────────────
+function bwSellBeequip() { if(typeof toast === 'function') toast('Beequip shop coming soon!', 'warn'); }
+function bwBack() {
+    const detail = document.getElementById('bw-detail');
+    const list = document.getElementById('bw-list');
+    if(detail) detail.style.display = 'none';
+    if(list) list.style.display = '';
+}
+function applyWax(type) { if(typeof toast === 'function') toast('Wax: ' + type + ' — coming soon!', 'warn'); }
+
+// ── saveDiscordConfig: login with Discord token ──────────────
+function saveDiscordConfig() {
+    const tokenInput = document.getElementById('discord-token-input') ||
+                       document.getElementById('dc-token-input') ||
+                       document.getElementById('token-input');
+    if(!tokenInput || !tokenInput.value.trim()) {
+        alert('Please enter your Discord token.');
+        return;
+    }
+    const token = tokenInput.value.trim();
+    sessionStorage.setItem('dc_token_live', token);
+    localStorage.setItem('dc_token_live', token);
+    // Try to verify and login
+    fetch('https://discord.com/api/users/@me', { headers: { Authorization: 'Bearer ' + token } })
+        .then(r => r.json())
+        .then(dc => {
+            if(dc.id) {
+                const userId = 'discord_' + dc.id;
+                if(typeof currentUser !== 'undefined') window.currentUser = userId;
+                if(typeof loginWithDiscordToken === 'function') loginWithDiscordToken(token);
+                else if(typeof discordLogin === 'function') discordLogin(token);
+                else alert('Logged in as ' + (dc.username || dc.id));
+            } else {
+                alert('Invalid token. Please try again.');
+            }
+        })
+        .catch(() => alert('Could not verify token. Check your internet connection.'));
+}
+</script>
 
 </body>
 </html>
