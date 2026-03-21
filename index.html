@@ -3283,7 +3283,7 @@
 
 <script>
     const SUPABASE_URL = "https://uohmshxaypofbdnuaiwj.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvaG1zaHhheXBvZmJkbnVhaXdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNjY2NDQsImV4cCI6MjA4ODc0MjY0NH0.32yA_vM19i_0K-e95qdXrY4dR6m_fTDsJaNXqfi7T4I";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvaG1zaHhheXBvZmJkbnVhaXdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNjY2NDQsImV4cCI6MjA4ODc0MjY0NH0.32yA_vM19i_0K-e95qdXrY4dR6m_fTDsJaNXqfi7T4I"; // anon/read-only key — balance writes blocked by RLS
 
     async function dbGet(table, id) {
         try {
@@ -3354,22 +3354,8 @@
             // Username/password users: localStorage only (RLS blocks writes)
             if(!id.startsWith('discord_')) return;
             
-            // Fallback for Discord users: try direct Supabase write via upsert
-            try {
-                await fetch(`${SUPABASE_URL}/rest/v1/users`, {
-                    method: 'POST',
-                    headers: {
-                        apikey: SUPABASE_KEY, 
-                        Authorization: `Bearer ${SUPABASE_KEY}`,
-                        'Content-Type': 'application/json', 
-                        'Prefer': 'resolution=merge-duplicates'
-                    },
-                    body: JSON.stringify({ id, data: rawVal })
-                });
-                return; // Exit after Discord user save
-            } catch(e) { 
-                console.error('Direct Supabase write also failed:', e); 
-            }
+            // Direct Supabase write intentionally removed — anon key must not write chips
+            // All balance changes go through server-side API endpoints only
             return;
         }
 
