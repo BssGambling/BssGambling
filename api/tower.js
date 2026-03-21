@@ -1,6 +1,31 @@
 const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const MAX_CHIPS = 1_000_000;
+
+async function sendBetWebhook(playerName, game, bet, payout, balBefore) {
+    const WEBHOOK_BETS = process.env.DISCORD_WEBHOOK_BETS;
+    if(!WEBHOOK_BETS) return;
+    const isWin = payout > bet;
+    const profit = payout - bet;
+    try {
+        await fetch(WEBHOOK_BETS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ embeds: [{
+                title: (isWin ? '✅ ' : '❌ ') + game,
+                color: isWin ? 0x27ae60 : 0xe74c3c,
+                description: '**Player:** ' + playerName + '\n**Bet:** ' + bet + ' ★\n**' + (isWin ? 'Payout' : 'Lost') + ':** ' + (isWin ? '+' + payout : '-' + bet) + ' ★\n\n**Balance:** ' + balBefore + ' → ' + (balBefore - bet + payout),
+                fields: [
+                    { name: 'Result', value: isWin ? '🟢 WIN' : '🔴 LOSS', inline: true },
+                    { name: 'Profit', value: (profit >= 0 ? '+' : '') + profit + ' ★', inline: true }
+                ],
+                footer: { text: 'BSS Gambling' },
+                timestamp: new Date().toISOString()
+            }]})
+        });
+    } catch(e) {}
+}
+
 const HOUSE_EDGE_EVERY = 17;
 const userTowerCounts = {};
 
@@ -82,6 +107,8 @@ module.exports = async (req, res) => {
         const win = Math.floor(game.bet * mult);
         const newChips = Math.min(MAX_CHIPS, currentChips + win);
         await supabase.from('users').upsert({ id: user_id, data: { ...userData, chips: newChips, active_game: null } }, { onConflict: 'id' });
+        const pName = userData?.displayName || userData?.discordName || user_id;
+        sendBetWebhook(pName, 'Tower', game.bet, win, game.bet);
         return res.json({ isBomb: false, level: game.level, mult, isComplete: true, win, chips: newChips });
       }
 
@@ -98,6 +125,8 @@ module.exports = async (req, res) => {
       const win = Math.floor(game.bet * mult);
       const newChips = Math.min(MAX_CHIPS, currentChips + win);
       await supabase.from('users').upsert({ id: user_id, data: { ...userData, chips: newChips, active_game: null } }, { onConflict: 'id' });
+      const pName2 = userData?.displayName || userData?.discordName || user_id;
+      sendBetWebhook(pName2, 'Tower', game.bet, win, game.bet);
       return res.json({ ok: true, mult, win, chips: newChips });
     }
 
