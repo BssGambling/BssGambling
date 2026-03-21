@@ -3873,8 +3873,6 @@
     // ══════════════════════════════════════════════════════════════════
 
     function renderHomePage() {
-        console.log('[renderHomePage] Called. betHistory length:', betHistory.length);
-        
         // Update name and balance
         const nameEl = document.getElementById('home-display-name');
         const chipsEl = document.getElementById('home-display-chips');
@@ -4057,7 +4055,9 @@
         }
         // Sync anticheat snapshot on every legitimate updateUI call
         if(typeof _acEnabled !== 'undefined' && _acEnabled) acLegitChange(userData.chips);
-        dbSet('users', currentUser, userData);
+        // Debounced save — only write to Supabase after 2s of inactivity, not on every UI update
+        clearTimeout(window._saveTimer);
+        window._saveTimer = setTimeout(() => { dbSet('users', currentUser, userData); }, 2000);
 
         // Dim FP button when any game is active (prevents confusion)
         const fpBtn = document.getElementById('fp-topbtn');
@@ -4277,40 +4277,20 @@
     }
 
     function addHistory(game, bet, mult, win, balanceBefore) {
-        console.log('═══════════════════════════════════════');
-        console.log('[addHistory] CALLED');
-        console.log('[addHistory] Game:', game);
-        console.log('[addHistory] Bet:', bet);
-        console.log('[addHistory] Mult:', mult);
-        console.log('[addHistory] Win:', win);
-        console.log('[addHistory] Free Play Enabled:', fpEnabled);
-        console.log('[addHistory] betHistory length BEFORE:', betHistory.length);
-        
         if(fpEnabled) {
-            // In Free Play: still show in local history with FP tag, but don't persist or webhook
             betHistory.unshift({ game: ' ' + game, bet, mult, win: Math.floor(win), fp: true });
             if(betHistory.length > 50) betHistory.pop();
-            console.log('[addHistory] FREE PLAY - Added to betHistory');
-            console.log('[addHistory] betHistory length AFTER:', betHistory.length);
-            renderHomePage(); // Update stats
+            renderHomePage();
             return;
         }
         betHistory.unshift({ game, bet, mult, win: Math.floor(win) });
         if(betHistory.length > 50) betHistory.pop();
-        console.log('[addHistory] NORMAL MODE - Added to betHistory');
-        console.log('[addHistory] betHistory length AFTER:', betHistory.length);
-        console.log('[addHistory] Saving to localStorage...');
-        try { localStorage.setItem('swarm_history_' + currentUser, JSON.stringify(betHistory)); } catch(e) {
-            console.error('[addHistory] localStorage save failed:', e);
-        }
-        // Also save to Supabase so it persists
-        dbSet('swarm_history_' + currentUser, betHistory);
-        console.log('[addHistory] Calling renderHomePage...');
-        renderHomePage(); // Update home stats immediately
-        console.log('[addHistory] Calling sendDiscordWebhook...');
+        try { localStorage.setItem('swarm_history_' + currentUser, JSON.stringify(betHistory)); } catch(e) {}
+        // Debounced Supabase write for history — don't block on every bet
+        clearTimeout(window._histTimer);
+        window._histTimer = setTimeout(() => { dbSet('swarm_history_' + currentUser, betHistory); }, 3000);
+        renderHomePage();
         sendDiscordWebhook(game, bet, mult, win, balanceBefore);
-        console.log('[addHistory] COMPLETE');
-        console.log('═══════════════════════════════════════');
     }
 
     function renderHistory() {
