@@ -3311,6 +3311,16 @@
     }
 
     const EDGE_BASE = "https://uohmshxaypofbdnuaiwj.supabase.co/functions/v1";
+    const API_BASE = "https://bssgambling.online/api";
+
+    function getToken() { return sessionStorage.getItem('dc_token_live') || localStorage.getItem('dc_token_live'); }
+    async function apiCall(endpoint, body) {
+        const r = await fetch(`${API_BASE}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ user_id: currentUser, discord_token: getToken(), ...body }) });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Server error');
+        return d;
+    }
+    function applyServerBalance(chips) { if(typeof acLegitChange === 'function') acLegitChange(chips); userData.chips = chips; }
 
     async function dbSet(table, id, value) {
         const rawVal = (value && value[Symbol.for('bss_raw')]) ? value[Symbol.for('bss_raw')] : (value && value.__raw ? value.__raw : value);
@@ -4606,686 +4616,76 @@
         }
     }
 
-    function startMines() {
-        if (isAtCoinCap()) return;
-        if (!acquireBetLock()) return;
-        if (mActive) { releaseBetLock(); return; }
-
-        // Cancel any pending reset timer
-        if (mRevealTimeout) { clearTimeout(mRevealTimeout); mRevealTimeout = null; }
-
+    async function startMines() {
+        if(isAtCoinCap()) return;
+        if(!acquireBetLock()) return;
+        if(mActive) { releaseBetLock(); return; }
+        if(mRevealTimeout) { clearTimeout(mRevealTimeout); mRevealTimeout = null; }
         mBet = Math.max(50, Math.min(600, parseInt(document.getElementById('m-bet').value) || 50));
         document.getElementById('m-bet').value = mBet;
-
-        if (!userData || mBet > userData.chips) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
-
+        if(!userData || mBet > userData.chips) { toast('Not enough ★!','error'); releaseBetLock(); return; }
         mBombCount = parseInt(document.getElementById('m-mine-slider')?.value || 3);
-        if (mBombCount >= mGridSize) { toast('Too many mines!', 'error'); releaseBetLock(); return; }
-
-        countGame();
-        mBalBefore  = userData.chips;
-        userData.chips -= mBet;
-        mActive     = true;
-        mMult       = 1;
-        mBombs      = [];
-        mGemsFound  = 0;
-
-        updateUI();
-        addProfit('mines', -mBet);
-        releaseBetLock();
-        mGameUI();
-
-        // Place bombs
-        while (mBombs.length < mBombCount) {
-            const r = Math.floor(Math.random() * mGridSize);
-            if (!mBombs.includes(r)) mBombs.push(r);
+        if(mBombCount >= mGridSize) { toast('Too many mines!','error'); releaseBetLock(); return; }
+        mBalBefore = userData.chips; userData.chips -= mBet; mActive = true; mMult = 1; mBombs = []; mGemsFound = 0;
+        updateUI(); addProfit('mines',-mBet); releaseBetLock(); mGameUI();
+        // Call server to start game (bombs generated server-side)
+        try {
+            await apiCall('mines', { action:'start', bet:mBet, bombCount:mBombCount });
+        } catch(err) {
+            userData.chips += mBet; addProfit('mines',mBet); mActive=false; updateUI(); mResetUI();
+            toast('Error: '+err.message,'error'); return;
         }
-
-        // Build clickable board
+        // Build clickable board (no bomb positions stored client-side)
         const board = document.getElementById('m-board');
-        board.innerHTML = '';
-        board.className = 'm-grid g25';
-
-        for (let i = 0; i < mGridSize; i++) {
+        board.innerHTML = ''; board.className = 'm-grid g25';
+        for(let i=0; i<mGridSize; i++) {
             const t = document.createElement('div');
             t.className = 'tile';
-            t.onclick = function () {
-                if (!mActive || t.dataset.revealed) return;
+            t.onclick = async function() {
+                if(!mActive || t.dataset.revealed) return;
                 t.dataset.revealed = '1';
-
-                if (mBombs.includes(i)) {
-                    // Hit a bomb
-                    t.innerHTML = BOMB_SVG;
-                    t.classList.add('bomb');
-                    play('boom');
-                    mActive = false;
-
-                    // Reveal all other bombs
-                    document.querySelectorAll('#m-board .tile').forEach(function (tile, idx) {
-                        if (!tile.dataset.revealed && mBombs.includes(idx)) {
-                            tile.innerHTML = BOMB_SVG;
-                            tile.classList.add('bomb');
-                            tile.dataset.revealed = '1';
-                        }
+                t.onclick = null;
+                let res;
+                try { res = await apiCall('mines', { action:'reveal', tileIndex:i }); }
+                catch(err) { t.dataset.revealed=''; t.onclick=arguments.callee; toast('Error: '+err.message,'error'); return; }
+                if(res.isBomb) {
+                    t.innerHTML = BOMB_SVG; t.classList.add('bomb'); play('boom'); mActive = false;
+                    applyServerBalance(res.chips);
+                    // Reveal all bombs from server
+                    document.querySelectorAll('#m-board .tile').forEach(function(tile, idx) {
+                        if(!tile.dataset.revealed && res.bombPositions.includes(idx)) { tile.innerHTML=BOMB_SVG; tile.classList.add('bomb'); tile.dataset.revealed='1'; }
                     });
-
-                    addHistory('Mines', mBet, 0, -mBet, mBalBefore);
-                    clearGameState('mines');
-                    // Reset after short pause
-                    mRevealTimeout = setTimeout(function () {
-                        mRevealTimeout = null;
-                        mGemsFound = 0; mMult = 1; mBombs = [];
-                        buildEmptyMinesBoard();
-                        mResetUI();
-                    }, 1800);
-
+                    addHistory('Mines',mBet,0,-mBet,mBalBefore); clearGameState('mines');
+                    mRevealTimeout = setTimeout(function() { mRevealTimeout=null; mGemsFound=0; mMult=1; mBombs=[]; buildEmptyMinesBoard(); mResetUI(); }, 1800);
                 } else {
-                    // Found a gem
-                    t.innerHTML = GEM_SVG;
-                    t.classList.add('gem');
-                    play('star');
-                    mGemsFound++;
-                    mMult = mCalcMult(mBombCount, mGemsFound);
-                    mShowCashBtn();
-                    saveGameState();
+                    t.innerHTML = GEM_SVG; t.classList.add('gem'); play('star');
+                    mGemsFound = res.gemsFound; mMult = res.mult;
+                    mShowCashBtn(); saveGameState();
                 }
             };
             board.appendChild(t);
         }
     }
 
-    function cashoutMines() {
-        if (!mActive || mGemsFound < 1) return;
-
-        // Lock immediately — no double cashout possible
+    async function cashoutMines() {
+        if(!mActive || mGemsFound < 1) return;
         mActive = false;
         const cashBtn = document.getElementById('m-cash');
-        if (cashBtn) { cashBtn.classList.add('hidden'); cashBtn.disabled = true; }
-
-        const win = Math.floor(mBet * mMult);
-        userData.chips += win;
-        play('win');
-        showWinOverlay(mMult, win);
-        addHistory('Mines', mBet, mMult, win, mBalBefore);
-        clearGameState('mines');
-        addProfit('mines', win);
-        updateUI();
-
-        // Reveal unrevealed tiles briefly
-        document.querySelectorAll('#m-board .tile').forEach(function (tile, idx) {
-            if (tile.dataset.revealed) return;
-            if (mBombs.includes(idx)) {
-                tile.innerHTML = BOMB_SVG;
-                tile.classList.add('bomb');
-            } else {
-                tile.innerHTML = GEM_SVG;
-                tile.classList.add('gem');
-                tile.style.opacity = '0.3';
-            }
+        if(cashBtn) { cashBtn.classList.add('hidden'); cashBtn.disabled=true; }
+        let result;
+        try { result = await apiCall('mines', { action:'cashout' }); }
+        catch(err) { mActive=true; if(cashBtn) { cashBtn.classList.remove('hidden'); cashBtn.disabled=false; } toast('Error: '+err.message,'error'); return; }
+        applyServerBalance(result.chips);
+        play('win'); showWinOverlay(result.mult,result.win);
+        addHistory('Mines',mBet,result.mult,result.win,mBalBefore); clearGameState('mines');
+        addProfit('mines',result.win); updateUI();
+        document.querySelectorAll('#m-board .tile').forEach(function(tile, idx) {
+            if(tile.dataset.revealed) return;
+            if(result.bombPositions.includes(idx)) { tile.innerHTML=BOMB_SVG; tile.classList.add('bomb'); }
+            else { tile.innerHTML=GEM_SVG; tile.classList.add('gem'); tile.style.opacity='0.3'; }
         });
-
-        // After 2.5s: full reset so player can press PLAY again
-        if (mRevealTimeout) { clearTimeout(mRevealTimeout); mRevealTimeout = null; }
-        mRevealTimeout = setTimeout(function () {
-            mRevealTimeout = null;
-            mGemsFound = 0; mMult = 1; mBombs = [];
-            buildEmptyMinesBoard();
-            mResetUI();
-        }, 2500);
-    }
-
-    // ── DICE ────────────────────────────────────────────────────────────────────
-    let dWinCond = 'high'; // 'high' or 'low'
-
-    function dRollNum() { return Math.floor(Math.random() * 100) + 1; }
-
-    function dMakeDie(n, win) {
-        const d = document.createElement('div');
-        d.className = 'dg-die' + (win ? ' dg-die-win' : ' dg-die-lose');
-        d.textContent = n;
-        return d;
-    }
-
-    function dSliderUpdate(v) {
-        document.getElementById('d-count-lbl').textContent = v;
-        const tb = document.getElementById('d-tiebreak-row');
-        if(tb) { tb.style.opacity = parseInt(v) >= 2 ? '1' : '0.4'; tb.style.pointerEvents = parseInt(v) >= 2 ? '' : 'none'; }
-        dUpdatePotential();
-    }
-
-    function dSetWinCond(c) {
-        dWinCond = c;
-        document.getElementById('d-wc-high').classList.toggle('active', c === 'high');
-        document.getElementById('d-wc-low').classList.toggle('active', c === 'low');
-        dUpdatePotential();
-    }
-
-    function dUpdatePotential() {
-        const bet = Math.max(50, Math.min(1000, parseInt(document.getElementById('d-bet').value) || 50));
-        const win = Math.floor(bet * 1.96);
-        const el = document.getElementById('d-potential');
-        if(el) el.innerHTML = 'Potential Win: <strong>' + win + ' COINS</strong>';
-    }
-
-    function dGetKey(rolls, cond, useTiebreak) {
-        const sorted = [...rolls].sort((a,b) => b-a);
-        if(cond === 'high') return useTiebreak ? sorted : [sorted[0]];
-        return useTiebreak ? sorted.reverse() : [sorted[sorted.length-1]];
-    }
-
-    function playDice() {
-        if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
-        if(isAtCoinCap()) return;
-        if(!acquireBetLock()) return;
-        let b = Math.max(50, Math.min(1000, parseInt(document.getElementById('d-bet').value) || 50));
-        document.getElementById('d-bet').value = b;
-        if(b > userData.chips) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
-
-        const diceCount = parseInt(document.getElementById('d-count-slider').value) || 1;
-        const rollSecond = document.getElementById('d-rollsecond').checked;
-        const tiebreak = document.getElementById('d-tiebreak').checked && diceCount >= 2;
-
-        const btn = document.getElementById('d-roll-btn');
-        if(btn) btn.disabled = true;
-
-        // Show placeholders
-        document.getElementById('d-you-placeholder').style.display = 'flex';
-        document.getElementById('d-you-dice').style.display = 'none';
-        document.getElementById('d-comp-placeholder').style.display = 'flex';
-        document.getElementById('d-comp-dice').style.display = 'none';
-        document.getElementById('d-card-you').className = 'dg-card';
-        document.getElementById('d-card-comp').className = 'dg-card dg-card-comp';
-
-        countGame(); const dBalBefore = userData.chips; userData.chips -= b; addProfit('dice', -b); updateUI();
-        releaseBetLock();
-
-        const delay1 = rollSecond ? 600 : 300;
-        const delay2 = rollSecond ? 1200 : 300;
-
-        // Roll you first (or same time if not rollSecond)
-        setTimeout(() => {
-            const yourRolls = Array.from({length: diceCount}, dRollNum);
-            const yourRow = document.getElementById('d-you-dice');
-            yourRow.innerHTML = '';
-            yourRolls.forEach(n => yourRow.appendChild(dMakeDie(n, false)));
-            document.getElementById('d-you-placeholder').style.display = 'none';
-            yourRow.style.display = 'flex';
-
-            setTimeout(() => {
-                const compRolls = Array.from({length: diceCount}, dRollNum);
-
-                // Apply house edge on single die: nudge comp roll to beat/tie player
-                if(diceCount === 1 && houseEdge()) {
-                    if(dWinCond === 'high' && compRolls[0] <= yourRolls[0]) compRolls[0] = Math.min(100, yourRolls[0] + 1);
-                    else if(dWinCond === 'low' && compRolls[0] >= yourRolls[0]) compRolls[0] = Math.max(1, yourRolls[0] - 1);
-                }
-                // Removed extra computer advantage for 94% RTP target
-
-                const compRow = document.getElementById('d-comp-dice');
-                compRow.innerHTML = '';
-                compRolls.forEach(n => compRow.appendChild(dMakeDie(n, false)));
-                document.getElementById('d-comp-placeholder').style.display = 'none';
-                compRow.style.display = 'flex';
-
-                // Determine winner
-                const yourKey = dGetKey(yourRolls, dWinCond, tiebreak);
-                const compKey = dGetKey(compRolls, dWinCond, tiebreak);
-                let playerWins = false, tie = false;
-                for(let i = 0; i < Math.max(yourKey.length, compKey.length); i++) {
-                    const y = yourKey[i] ?? 0, c = compKey[i] ?? 0;
-                    if(dWinCond === 'high') {
-                        if(y > c) { playerWins = true; break; }
-                        if(y < c) break;
-                    } else {
-                        if(y < c) { playerWins = true; break; }
-                        if(y > c) break;
-                    }
-                }
-                // Check pure tie
-                if(JSON.stringify(yourKey) === JSON.stringify(compKey)) tie = true;
-
-                // Color dice
-                yourRow.querySelectorAll('.dg-die').forEach(d => d.className = 'dg-die ' + (playerWins ? 'dg-die-win' : tie ? 'dg-die-tie' : 'dg-die-lose'));
-                compRow.querySelectorAll('.dg-die').forEach(d => d.className = 'dg-die ' + (!playerWins && !tie ? 'dg-die-win' : tie ? 'dg-die-tie' : 'dg-die-lose'));
-
-                // Card highlight
-                if(playerWins) { document.getElementById('d-card-you').classList.add('dg-card-win'); }
-                else if(!tie) { document.getElementById('d-card-comp').classList.add('dg-card-win'); }
-
-                if(tie) {
-                    userData.chips += b; addProfit('dice', b);
-                    play('boom'); addHistory('Dice', b, 1, b, dBalBefore);
-                    toast('Tie! Your bet has been refunded. 🎲', 'success');
-                    updateUI();
-                } else if(playerWins) {
-                    const win = Math.floor(b * 2.00); // Updated to 2.00x for 94% RTP
-                    userData.chips += win; play('win');
-                    showWinOverlay(2.00, win);
-                    addHistory('Dice', b, 2.00, win, dBalBefore); addProfit('dice', win);
-                    toast('You win! +' + win + ' ★', 'success');
-                    updateUI();
-                } else {
-                    play('boom'); addHistory('Dice', b, 0, -b, dBalBefore);
-                    toast('Computer wins. Better luck next time!', 'error');
-                    updateUI();
-                }
-                if(btn) btn.disabled = false;
-            }, rollSecond ? delay2 - delay1 : 0);
-        }, delay1);
-    }
-
-    // COINFLIP
-    function playCoinFlip() {
-        if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
-        if(isAtCoinCap()) return;
-        if(!acquireBetLock()) return;
-        let b = clampBet(document.getElementById('cf-bet').value), choice = document.getElementById('cf-choice').value;
-        document.getElementById('cf-bet').value = b;
-        let btn = document.getElementById('cf-btn'), coin = document.getElementById('coin-obj');
-        if(b > userData.chips || b < MIN_BET) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
-        countGame(); const cfBalBefore = userData.chips; userData.chips -= b; addProfit('coinflip', -b); updateUI(); btn.disabled = true;
-        coin.classList.add('cf-spinning');
-        setTimeout(() => {
-            coin.classList.remove('cf-spinning');
-            let res = houseEdge() ? (choice === 'H' ? 'T' : 'H') : (Math.random() < 0.5 ? choice : (choice === 'H' ? 'T' : 'H'));
-            // Show heads (0deg) or tails (180deg)
-            coin.style.transition = 'transform 0.3s ease';
-            coin.style.transform = res === 'H' ? 'rotateY(0deg)' : 'rotateY(180deg)';
-            if(res === choice) {
-                let win = b*2; userData.chips += win; play('win');
-                showWinOverlay(2, win);
-                toast((res==='H'?'👑 Heads':'★ Tails') + '! You win +' + win + ' ★', 'success');
-                addHistory("CoinFlip", b, 2, win, cfBalBefore); addProfit('coinflip', win);
-                toast((res==='H'?'👑 Heads':'★ Tails') + '! You win +' + win + ' ★', 'success');
-            } else {
-                play('boom'); addHistory("CoinFlip", b, 0, -b, cfBalBefore);
-                toast((res==='H'?'👑 Heads':'★ Tails') + ' — you lose!', 'error');
-            }
-            btn.disabled = false; releaseBetLock(); updateUI();
-        }, 1200);
-    }
-
-    // CRASH
-    let crashActive = false, crashMult = 1.0, crashInterval, crashBet = 0;
-    function startCrash() {
-        if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
-        if(isAtCoinCap()) return;
-        if(!acquireBetLock()) return;
-        crashBet = clampBet(document.getElementById('c-bet').value);
-        document.getElementById('c-bet').value = crashBet;
-        const targetMult = Math.max(1.01, parseFloat(document.getElementById('c-target').value) || 2.00);
-        document.getElementById('c-target').value = targetMult.toFixed(2);
-        if (crashBet > userData.chips || crashBet < MIN_BET || crashActive) { releaseBetLock(); return; }
-        countGame(); const crBalBefore = userData.chips; userData.chips -= crashBet; addProfit('crash', -crashBet); updateUI(); crashActive = true; crashMult = 1.00;
-        const display = document.getElementById('crash-display'); display.style.color = "white";
-        document.getElementById('c-start').disabled = true;
-        // Improved crash point for 94% RTP target
-        function generateCrashPoint() {
-            const u = Math.random();
-            if (u >= 0.99) return 1.00; // ~1% instant crash (reduced from 6%)
-            // Formula for fair distribution
-            const raw = 0.99 / (1 - u);
-            // Bonus multiplier: 5% chance for better big wins
-            const bonus = Math.random() < 0.05 ? (Math.random() * 20) : 0;
-            return Math.max(1.00, parseFloat((raw + bonus).toFixed(2)));
-        }
-        let crashPoint = generateCrashPoint();
-        releaseBetLock();
-        function getTickInterval() {
-            // Slowed by 25%
-            if (crashMult >= 50) return 4;
-            if (crashMult >= 20) return 5;
-            if (crashMult >= 10) return 8;
-            if (crashMult >= 5)  return 13;
-            if (crashMult >= 3)  return 18;
-            if (crashMult >= 2)  return 23;
-            return 30;
-        }
-        let cashedOut = false;
-        function crashTick() {
-            // Slowed by 25%
-            crashMult += 0.0375 + (crashMult * 0.03);
-            display.innerText = crashMult.toFixed(2) + "x";
-            // Lock in win when target is hit — but keep the counter running
-            if (crashMult >= targetMult && !cashedOut) {
-                cashedOut = true;
-                let win = Math.floor(crashBet * targetMult); userData.chips += win;
-                display.style.color = "var(--green)";
-                showWinOverlay(targetMult, win);
-                play('win'); addHistory("Crash", crashBet, targetMult, win, crBalBefore);
-                addProfit('crash', win);
-                toast('✈️ Cashed out at ' + targetMult.toFixed(2) + 'x! +' + win + ' ★', 'success');
-                updateUI();
-                document.getElementById('c-start').disabled = false;
-            }
-            // Game ends when crash point is hit
-            if (crashMult >= crashPoint) {
-                clearInterval(crashInterval); crashActive = false;
-                display.style.color = cashedOut ? "var(--green)" : "var(--red)";
-                if (!cashedOut) {
-                    play('boom');
-                    addHistory("Crash", crashBet, 0, -crashBet, crBalBefore);
-                    toast('💥 Crashed at ' + crashPoint.toFixed(2) + 'x! Target was ' + targetMult.toFixed(2) + 'x', 'error');
-                    document.getElementById('c-start').disabled = false;
-                } else {
-                    play('boom');
-                    toast('💥 Crashed at ' + crashPoint.toFixed(2) + 'x — already cashed out at ' + targetMult.toFixed(2) + 'x!', 'success');
-                }
-                return;
-            }
-            // Reschedule with dynamic interval based on current multiplier
-            clearInterval(crashInterval);
-            crashInterval = setInterval(crashTick, getTickInterval());
-        }
-        crashInterval = setInterval(crashTick, getTickInterval());
-    }
-    function cashoutCrash() { /* manual cashout disabled — use target multiplier */ }
-
-
-    // ROULETTE
-    const rOrder = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
-    const redNums = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
-    let currentBets = {}, isRSpinning = false, rBalBefore = 0, lastBets = {};
-    function buildRoulette() {
-        // Build spin strip
-        const slider = document.getElementById('r-slider');
-        let sH = '';
-        for(let i=0; i<30; i++) rOrder.forEach(n => {
-            let c = n===0 ? '#1a7a3c' : (redNums.includes(n) ? '#c0392b' : '#1c1c2e');
-            sH += `<div class="r-num" style="background:${c};color:white">${n}</div>`;
-        });
-        slider.innerHTML = sH;
-
-        // Build betting board: 0 on left spanning 3 rows, then numbers in 3 rows top=3 mid=2 bot=1
-        const b = document.getElementById('r-board');
-        let bH = `<div class="cell nula" onclick="handleRClick('n0',this)">0</div>`;
-        // Row 3 (top), Row 2 (mid), Row 1 (bot)
-        for(let row=3; row>=1; row--) {
-            for(let col=1; col<=12; col++) {
-                let n = (col-1)*3 + row;
-                let cls = redNums.includes(n) ? 'red' : 'black';
-                bH += `<div class="cell ${cls}" onclick="handleRClick('n${n}',this)">${n}</div>`;
-            }
-        }
-        b.innerHTML = bH;
-    }
-    function handleRClick(val, el) { setExtraBet(val, el); }
-    function setExtraBet(type, el) {
-        if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
-        if(isRSpinning || !userData) return;
-        const raw = parseFloat(document.getElementById('r-bet').value) || 10;
-        const amt = Math.max(0.1, Math.round(raw * 10) / 10);
-        document.getElementById('r-bet').value = amt;
-        if(amt > userData.chips) { toast('Not enough ★!', 'error'); return; } if(!currentBets[type]) currentBets[type] = 0;
-        const totalSoFar = Object.values(currentBets).reduce((a, b) => a + b, 0);
-        if(totalSoFar + amt > MAX_BET) { toast(`Total bet can't exceed ${MAX_BET} ★!`, 'error'); return; }
-        if(Object.keys(currentBets).length === 0 || Object.values(currentBets).every(v => v === 0)) rBalBefore = userData.chips;
-        currentBets[type] += amt; userData.chips -= amt; updateUI(); saveGameState();
-        let chip = el.querySelector('.chip-overlay'); if(!chip) { chip = document.createElement('div'); chip.className = 'chip-overlay'; el.appendChild(chip); }
-        chip.innerText = currentBets[type] >= 1 ? Math.round(currentBets[type]) : currentBets[type].toFixed(1); el.classList.add('active');
-    }
-    function rebetRoulette() {
-        if(isRSpinning || !userData) return;
-        if(Object.keys(lastBets).length === 0) { toast('No previous bet to repeat!', 'error'); return; }
-        // Clear current bets first
-        clearRouletteBets();
-        // Re-apply last bets
-        const savedChip = document.getElementById('r-bet').value;
-        for(const [type, amt] of Object.entries(lastBets)) {
-            if(amt <= 0) continue;
-            if(amt > userData.chips) { toast('Not enough ★ to rebet!', 'error'); clearRouletteBets(); return; }
-            if(!currentBets[type]) currentBets[type] = 0;
-            if(Object.keys(currentBets).length === 0 || Object.values(currentBets).every(v => v === 0)) rBalBefore = userData.chips;
-            currentBets[type] += amt; userData.chips -= amt; updateUI();
-            // Find and update the UI element
-            const el = document.querySelector(`[onclick*="'${type}'"]`) || document.querySelector(`[onclick*='"${type}"']`);
-            if(el) {
-                let chip = el.querySelector('.chip-overlay'); if(!chip) { chip = document.createElement('div'); chip.className = 'chip-overlay'; el.appendChild(chip); }
-                chip.innerText = currentBets[type] >= 1 ? Math.round(currentBets[type]) : currentBets[type].toFixed(1); el.classList.add('active');
-            }
-        }
-        saveGameState();
-        toast('↺ Last bets placed!', 'success', 1200);
-    }
-    function clearRouletteBets() {
-        if(isRSpinning) return; let refund = 0; for(let key in currentBets) { refund += currentBets[key]; userData.chips += currentBets[key]; } clearGameState('roulette');
-        // Don't call addProfit here — we're just refunding chips, not a game outcome
-        currentBets = {}; document.querySelectorAll('.cell, .btn-extra').forEach(el => { el.classList.remove('active'); const c = el.querySelector('.chip-overlay'); if(c) c.remove(); }); updateUI();
-    }
-    function spinRoulette() {
-        if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
-        if(isAtCoinCap()) return;
-        if(isRSpinning || Object.keys(currentBets).length === 0) return;
-        isRSpinning = true; document.getElementById('r-spin').disabled = true; play('rSpin');
-        const slider = document.getElementById('r-slider');
-        const wrap = document.getElementById('r-wrap');
-        // Reset instantly
-        slider.style.transition = 'none';
-        slider.style.transform = 'translateX(0px)';
-        slider.getBoundingClientRect(); // force reflow
-
-        // Pick random target — on every 10th game, force 0 (green, house wins all)
-        countGame();
-        const winIndex = houseEdge()
-            ? rOrder.indexOf(0)
-            : Math.floor(Math.random() * rOrder.length);
-        const winNum = rOrder[winIndex];
-
-        // Spin many loops + land on correct tile center under pointer
-        const loops = 20;
-        const tileWidth = 72;
-        const wrapCenter = wrap.offsetWidth / 2;
-        const targetTile = loops * rOrder.length + winIndex;
-        const finalX = -(targetTile * tileWidth - wrapCenter + tileWidth / 2);
-
-        slider.style.transition = "transform 5s cubic-bezier(0.05, 0, 0.1, 1)";
-        slider.style.transform = `translateX(${finalX}px)`;
-
-        setTimeout(() => {
-            // Read actual number under pointer to confirm (source of truth)
-            const pointerX = wrap.getBoundingClientRect().left + wrapCenter;
-            const tiles = slider.querySelectorAll('.r-num');
-            let actualNum = winNum;
-            for(let tile of tiles) {
-                const r = tile.getBoundingClientRect();
-                if(pointerX >= r.left && pointerX <= r.right) {
-                    actualNum = parseInt(tile.innerText);
-                    break;
-                }
-            }
-
-            let totalWin = 0, totalBet = 0;
-            for(let b in currentBets) {
-                let amt = currentBets[b]; totalBet += amt;
-                if(b === 'n'+actualNum) totalWin += amt * 36;
-                else if(b === 'red' && redNums.includes(actualNum)) totalWin += amt * 2;
-                else if(b === 'black' && actualNum !== 0 && !redNums.includes(actualNum)) totalWin += amt * 2;
-                else if(b === 'even' && actualNum !== 0 && actualNum % 2 === 0) totalWin += amt * 2;
-                else if(b === 'odd' && actualNum % 2 === 1) totalWin += amt * 2;
-                else if(b === '1-18' && actualNum >= 1 && actualNum <= 18) totalWin += amt * 2;
-                else if(b === '19-36' && actualNum >= 19 && actualNum <= 36) totalWin += amt * 2;
-                else if(b === '1st12' && actualNum >= 1 && actualNum <= 12) totalWin += amt * 3;
-                else if(b === '2nd12' && actualNum >= 13 && actualNum <= 24) totalWin += amt * 3;
-                else if(b === '3rd12' && actualNum >= 25 && actualNum <= 36) totalWin += amt * 3;
-            }
-            document.getElementById('r-status').innerText = `Landed: ${actualNum} ${redNums.includes(actualNum) ? '🔴' : actualNum === 0 ? '🟢' : '⚫'}`;
-            if(totalWin > 0) { userData.chips += totalWin; play('win'); showWinOverlay(parseFloat((totalWin/totalBet).toFixed(2)), totalWin); addHistory("Roulette", totalBet, totalWin/totalBet, totalWin, rBalBefore); addProfit('roulette', totalWin - totalBet); }
-            else { play('boom'); addHistory("Roulette", totalBet, 0, -totalBet, rBalBefore); addProfit('roulette', -totalBet); }
-            lastBets = {...currentBets};
-            currentBets = {}; clearGameState('roulette'); document.querySelectorAll('.cell, .btn-extra').forEach(el => { el.classList.remove('active'); const c = el.querySelector('.chip-overlay'); if(c) c.remove(); });
-            isRSpinning = false; document.getElementById('r-spin').disabled = false; updateUI();
-        }, 5200);
-    }
-
-    // KENO
-    let kenoSelected = new Set();
-    let kenoPlaying = false;
-    let kenoMode = 'easy'; // 'easy' | 'medium' | 'hard'
-
-    // Payouts per mode → pickCount → [0-matches] (index 0 = 0 hits)
-    const KENO_PAYOUTS_ALL = {
-        easy: {
-            3: [0, 1.20, 3.00,  7.00],
-            4: [0, 0.80, 2.20,  5.50, 13.00],
-            5: [0, 0.60, 1.60,  4.00, 10.00, 30.00]
-        },
-        medium: {
-            3: [0, 0.80, 2.70,  9.00],
-            4: [0, 0.50, 1.80,  6.00, 18.00],
-            5: [0, 0.35, 1.20,  4.50, 13.00, 50.00]
-        },
-        hard: {
-            3: [0, 0.00, 2.00, 15.00],
-            4: [0, 0.00, 1.20,  8.00, 35.00],
-            5: [0, 0.00, 0.80,  5.00, 20.00, 100.00]
-        }
-    };
-
-    function setKenoMode(mode) {
-        if(kenoPlaying) return;
-        kenoMode = mode;
-        ['easy','medium','hard'].forEach(m => {
-            const btn = document.getElementById('keno-mode-' + m);
-            if(btn) btn.classList.toggle('active', m === mode);
-        });
-        updateKenoPayoutTable();
-    }
-
-    function updateKenoPayoutTable() {
-        const count = kenoSelected.size;
-        const table = document.getElementById('keno-payout-table');
-        if(!table) return;
-        const picks = Math.max(3, Math.min(5, count || 3));
-        const payouts = (KENO_PAYOUTS_ALL[kenoMode] || KENO_PAYOUTS_ALL.easy)[picks];
-        let rows = '<tr><td>Hits</td><td>Mult</td></tr>';
-        for(let i = 1; i < payouts.length; i++) {
-            const isTop = (i === payouts.length - 1);
-            const isZero = payouts[i] === 0;
-            rows += `<tr><td>${i} Hit${i>1?'s':''}</td><td${isTop?' class="keno-pt-highlight"':isZero?' style="color:#666"':''}>${payouts[i].toFixed(2)}×</td></tr>`;
-        }
-        table.innerHTML = rows;
-    }
-
-    function initKenoGrid() {
-        const grid = document.getElementById('keno-grid');
-        if(!grid || grid.children.length > 0) return;
-        grid.innerHTML = '';
-        for(let i = 1; i <= 20; i++) {
-            const cell = document.createElement('div');
-            cell.className = 'keno-num';
-            cell.id = `keno-num-${i}`;
-            cell.textContent = i;
-            cell.onclick = () => toggleKenoNum(i);
-            grid.appendChild(cell);
-        }
-        updateKenoPayoutTable();
-    }
-
-    function toggleKenoNum(n) {
-        if(kenoPlaying) return;
-        const el = document.getElementById(`keno-num-${n}`);
-        if(kenoSelected.has(n)) {
-            kenoSelected.delete(n);
-            el.classList.remove('keno-selected');
-        } else {
-            if(kenoSelected.size >= 5) return;
-            kenoSelected.add(n);
-            el.classList.add('keno-selected');
-        }
-        document.getElementById('keno-sel-count').textContent = kenoSelected.size;
-        updateKenoPayoutTable();
-    }
-
-    function clearKeno() {
-        if(kenoPlaying) return;
-        kenoSelected.clear();
-        for(let i = 1; i <= 20; i++) {
-            const el = document.getElementById(`keno-num-${i}`);
-            if(el) el.className = 'keno-num';
-        }
-        document.getElementById('keno-sel-count').textContent = 0;
-        document.getElementById('keno-result-box').style.display = 'none';
-        updateKenoPayoutTable();
-    }
-
-    async function startKeno() {
-        if(mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
-        if(isAtCoinCap()) return;
-        if(kenoPlaying) return;
-        if(kenoSelected.size < 3) return;
-        const bet = clampBet(document.getElementById('keno-bet').value);
-        document.getElementById('keno-bet').value = bet;
-        if(bet > userData.chips) return;
-
-        kenoPlaying = true;
-        document.getElementById('keno-bet-btn').disabled = true;
-
-        // Reset board to selected only
-        for(let i = 1; i <= 20; i++) {
-            const el = document.getElementById(`keno-num-${i}`);
-            if(el) el.className = kenoSelected.has(i) ? 'keno-num keno-selected' : 'keno-num';
-        }
-        document.getElementById('keno-result-box').style.display = 'none';
-
-        countGame(); const kenoBalBefore = userData.chips; userData.chips -= bet; addProfit('keno', -bet); updateUI();
-
-        // Draw 5 unique numbers
-        const pool = Array.from({length:20}, (_,i) => i+1);
-        const drawn = [];
-        while(drawn.length < 5) {
-            const idx = Math.floor(Math.random() * pool.length);
-            drawn.push(pool.splice(idx, 1)[0]);
-        }
-
-        // Reveal drawn numbers one by one
-        let matches = 0;
-        for(let d = 0; d < drawn.length; d++) {
-            await new Promise(r => setTimeout(r, 280));
-            const n = drawn[d];
-            const el = document.getElementById(`keno-num-${n}`);
-            if(kenoSelected.has(n)) {
-                el.className = 'keno-num keno-hit'; matches++;
-                play('star');
-            } else {
-                el.className = 'keno-num keno-drawn';
-            }
-        }
-
-        // Mark selected-but-not-drawn as miss
-        kenoSelected.forEach(n => {
-            if(!drawn.includes(n)) {
-                const el = document.getElementById(`keno-num-${n}`);
-                if(el) el.className = 'keno-num keno-miss';
-            }
-        });
-
-        const picks = kenoSelected.size;
-        const payoutTable = (KENO_PAYOUTS_ALL[kenoMode] || KENO_PAYOUTS_ALL.easy)[picks] || KENO_PAYOUTS_ALL.easy[5];
-        const clampedMatches = Math.min(matches, payoutTable.length - 1);
-        const mult = payoutTable[clampedMatches];
-        const win = Math.floor(bet * mult);
-
-        if(win > 0) {
-            userData.chips += win;
-            addProfit('keno', win);
-            showWinOverlay(mult, win);
-            play('win');
-        } else {
-            play('boom');
-        }
-
-        addHistory('Keno', bet, mult, win - bet, kenoBalBefore);
-        updateUI();
-
-        document.getElementById('keno-res-matches').textContent = matches + '/5';
-        document.getElementById('keno-res-mult').textContent = mult + '×';
-        const payoutEl = document.getElementById('keno-res-payout');
-        payoutEl.textContent = win > 0 ? `+${win} ★` : `-${bet} ★`;
-        payoutEl.style.color = win > 0 ? 'var(--green)' : 'var(--red)';
-        document.getElementById('keno-result-box').style.display = 'block';
-
-        kenoPlaying = false;
-        document.getElementById('keno-bet-btn').disabled = false;
+        if(mRevealTimeout) { clearTimeout(mRevealTimeout); mRevealTimeout=null; }
+        mRevealTimeout = setTimeout(function() { mRevealTimeout=null; mGemsFound=0; mMult=1; mBombs=[]; buildEmptyMinesBoard(); mResetUI(); }, 2500);
     }
 
     // TOWER
@@ -5353,15 +4753,13 @@
         }
     }
 
-    function startTower() {
+    async function startTower() {
         if(!acquireBetLock()) return;
         tBet = clampBet(document.getElementById('t-bet').value);
         document.getElementById('t-bet').value = tBet;
-        if(tBet > userData.chips || tBet < MIN_BET) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
+        if(tBet > userData.chips || tBet < MIN_BET) { toast('Not enough ★!','error'); releaseBetLock(); return; }
         tCurrentRisk = document.getElementById('t-risk').value;
-        countGame(); userData.chips -= tBet; addProfit('tower', -tBet); updateUI();
-        releaseBetLock();
-        tActive = true; tLevel = 0;
+        userData.chips -= tBet; addProfit('tower',-tBet); updateUI(); releaseBetLock();
         document.getElementById('t-start').disabled = true;
         document.getElementById('t-risk').disabled = true;
         document.getElementById('t-bet').disabled = true;
@@ -5369,21 +4767,16 @@
         document.getElementById('t-mult-disp').textContent = '1.00×';
         document.getElementById('t-profit-disp').value = '0.00 ★';
         document.getElementById('tower-status').textContent = 'Choose a tile!';
-
         buildTowerBoard();
-
-        tBombs = [];
-        const bombCount = tGetBombs();
-        for(let i = 0; i < TOWER_ROWS; i++) {
-            let bombs = new Set();
-            while(bombs.size < bombCount) bombs.add(Math.floor(Math.random() * tGetCols()));
-            tBombs.push(bombs);
-        }
+        let startResult;
+        try { startResult = await apiCall('tower', { action:'start', bet:tBet, risk:tCurrentRisk }); }
+        catch(err) { userData.chips += tBet; addProfit('tower',tBet); updateUI(); document.getElementById('t-start').disabled=false; document.getElementById('t-risk').disabled=false; document.getElementById('t-bet').disabled=false; toast('Error: '+err.message,'error'); return; }
+        tActive = true; tLevel = 0;
         tActivateRow(0);
     }
 
     function tActivateRow(rowIdx) {
-        for(let j = 0; j < tGetCols(); j++) {
+        for(let j=0; j<tGetCols(); j++) {
             const tile = document.getElementById(`t-tile-${rowIdx}-${j}`);
             if(!tile) return;
             tile.className = 'tw-tile tw-active';
@@ -5391,95 +4784,76 @@
         }
     }
 
-    function tClickTile(rowIdx, colIdx) {
+    async function tClickTile(rowIdx, colIdx) {
         if(!tActive || rowIdx !== tLevel) return;
+        // Disable all tiles in this row immediately to prevent double-clicks
+        for(let j=0; j<tGetCols(); j++) {
+            const t = document.getElementById(`t-tile-${rowIdx}-${j}`);
+            if(t) t.onclick = null;
+        }
+        let res;
+        try { res = await apiCall('tower', { action:'click', colIndex:colIdx }); }
+        catch(err) { toast('Error: '+err.message,'error'); tActivateRow(rowIdx); return; }
         const tile = document.getElementById(`t-tile-${rowIdx}-${colIdx}`);
         const mults = tGetMults();
-
-        if(tBombs[rowIdx].has(colIdx)) {
-            tile.innerHTML = '💥';
-            tile.className = 'tw-tile tw-bomb';
-            tile.onclick = null;
-            for(let j = 0; j < tGetCols(); j++) {
+        if(res.isBomb) {
+            tile.innerHTML = '💥'; tile.className = 'tw-tile tw-bomb';
+            for(let j=0; j<tGetCols(); j++) {
                 if(j !== colIdx) {
                     const t2 = document.getElementById(`t-tile-${rowIdx}-${j}`);
-                    if(tBombs[rowIdx].has(j)) { t2.innerHTML = '💥'; t2.className = 'tw-tile tw-bomb'; }
-                    else { t2.className = 'tw-tile tw-safe'; }
-                    t2.onclick = null;
+                    if(res.bombCols && res.bombCols.includes(j)) { t2.innerHTML='💥'; t2.className='tw-tile tw-bomb'; }
+                    else { t2.className='tw-tile tw-safe'; }
                 }
             }
-            play('boom'); tActive = false;
+            applyServerBalance(res.chips);
+            play('boom'); tActive=false;
             document.getElementById('tower-status').textContent = '💥 Boom! You lost!';
             document.getElementById('t-mult-disp').textContent = '0×';
             document.getElementById('t-profit-disp').value = `-${tBet} ★`;
-            document.getElementById('t-start').disabled = false;
-            document.getElementById('t-risk').disabled = false;
-            document.getElementById('t-bet').disabled = false;
-            document.getElementById('t-cash').classList.add('hidden');
-            addHistory("Tower", tBet, 0, -tBet); clearGameState('tower');
+            document.getElementById('t-start').disabled=false; document.getElementById('t-risk').disabled=false;
+            document.getElementById('t-bet').disabled=false; document.getElementById('t-cash').classList.add('hidden');
+            addHistory("Tower",tBet,0,-tBet); clearGameState('tower');
         } else {
-            // House edge: on every 10th game, secretly trigger a bomb on a "safe" tile
-            if(houseEdge()) {
-                tile.innerHTML = '💥';
-                tile.className = 'tw-tile tw-bomb';
-                tile.onclick = null;
-                for(let j = 0; j < tGetCols(); j++) {
-                    if(j !== colIdx) {
-                        const t2 = document.getElementById(`t-tile-${rowIdx}-${j}`);
-                        t2.className = 'tw-tile tw-safe';
-                        t2.onclick = null;
-                    }
-                }
-                play('boom'); tActive = false;
-                document.getElementById('tower-status').textContent = '💥 Boom! You lost!';
-                document.getElementById('t-mult-disp').textContent = '0×';
-                document.getElementById('t-profit-disp').value = `-${tBet} ★`;
-                document.getElementById('t-start').disabled = false;
-                document.getElementById('t-risk').disabled = false;
-                document.getElementById('t-bet').disabled = false;
-                document.getElementById('t-cash').classList.add('hidden');
-                addHistory("Tower", tBet, 0, -tBet); clearGameState('tower');
-                return;
-            }
-            tile.innerHTML = '<svg class=\"ic ic-gem\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 14.5,5.5 8,15 1.5,5.5\" fill=\"#1abc9c\" stroke=\"#16a085\" stroke-width=\"0.4\"/><polygon points=\"8,1 14.5,5.5 8,7.5 1.5,5.5\" fill=\"#2ecc71\" opacity=\"0.55\"/></svg>';
+            tile.innerHTML = '<svg class="ic ic-gem" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 14.5,5.5 8,15 1.5,5.5" fill="#1abc9c" stroke="#16a085" stroke-width="0.4"/><polygon points="8,1 14.5,5.5 8,7.5 1.5,5.5" fill="#2ecc71" opacity="0.55"/></svg>';
             tile.className = 'tw-tile tw-gem';
-            tile.onclick = null;
-            for(let j = 0; j < tGetCols(); j++) {
-                if(j !== colIdx) {
-                    const t2 = document.getElementById(`t-tile-${rowIdx}-${j}`);
-                    t2.className = 'tw-tile tw-safe';
-                    t2.onclick = null;
-                }
+            for(let j=0; j<tGetCols(); j++) {
+                if(j !== colIdx) { const t2=document.getElementById(`t-tile-${rowIdx}-${j}`); t2.className='tw-tile tw-safe'; t2.onclick=null; }
             }
-            play('star'); tLevel++;
+            play('star'); tLevel = res.level;
             const m = mults[rowIdx];
             const potentialWin = Math.floor(tBet * m);
-            document.getElementById('t-mult-disp').textContent = m.toFixed(2) + '×';
+            document.getElementById('t-mult-disp').textContent = m.toFixed(2)+'×';
             document.getElementById('t-profit-disp').value = `+${potentialWin} ★`;
-            if(tLevel === TOWER_ROWS) {
-                cashoutTower();
+            if(res.isComplete) {
+                applyServerBalance(res.chips);
+                play('win'); showWinOverlay(m, res.win);
+                addHistory("Tower",tBet,m,res.win); clearGameState('tower');
+                addProfit('tower',res.win); tActive=false; updateUI();
+                document.getElementById('t-start').disabled=false; document.getElementById('t-risk').disabled=false;
+                document.getElementById('t-bet').disabled=false; document.getElementById('t-cash').classList.add('hidden');
+                document.getElementById('tower-status').textContent = `✅ Completed at ${m.toFixed(2)}×!`;
             } else {
-                document.getElementById('tower-status').textContent = `Floor ${tLevel}/${TOWER_ROWS} — keep climbing!`;
+                document.getElementById('tower-status').textContent = `Floor ${tLevel}/${9} — keep climbing!`;
                 document.getElementById('t-cash').classList.remove('hidden');
                 tActivateRow(tLevel);
             }
         }
     }
 
-    function cashoutTower() {
+    async function cashoutTower() {
         if(!tActive) return;
-        const m = tGetMults()[tLevel - 1];
-        const win = Math.floor(tBet * m);
-        userData.chips += win; play('win');
-        showWinOverlay(m, win);
-        addHistory("Tower", tBet, m, win); clearGameState('tower');
-        addProfit('tower', win);
-        tActive = false; updateUI();
-        document.getElementById('t-start').disabled = false;
-        document.getElementById('t-risk').disabled = false;
-        document.getElementById('t-bet').disabled = false;
-        document.getElementById('t-cash').classList.add('hidden');
-        document.getElementById('tower-status').textContent = `✅ Cashed out at ${m.toFixed(2)}×!`;
+        const cashBtn = document.getElementById('t-cash');
+        if(cashBtn) cashBtn.disabled = true;
+        let result;
+        try { result = await apiCall('tower', { action:'cashout' }); }
+        catch(err) { if(cashBtn) cashBtn.disabled=false; toast('Error: '+err.message,'error'); return; }
+        applyServerBalance(result.chips);
+        play('win'); showWinOverlay(result.mult, result.win);
+        addHistory("Tower",tBet,result.mult,result.win); clearGameState('tower');
+        addProfit('tower',result.win); tActive=false; updateUI();
+        document.getElementById('t-start').disabled=false; document.getElementById('t-risk').disabled=false;
+        document.getElementById('t-bet').disabled=false; document.getElementById('t-cash').classList.add('hidden');
+        document.getElementById('tower-status').textContent = `✅ Cashed out at ${result.mult.toFixed(2)}×!`;
     }
 
     // BLACKJACK & BACCARAT (Simplified helper)
@@ -5532,1121 +4906,193 @@
         document.getElementById('bj-player-count').textContent = bjHand.length > 0 ? `(${bjHand.length} cards)` : '';
         document.getElementById('bj-dealer-count').textContent = bjDealer.length > 0 ? `(${bjDealer.length} cards)` : '';
     }
-    function startBlackjack() {
+    async function startBlackjack() {
         if(!acquireBetLock()) return;
         bjBet = clampBet(document.getElementById('bj-bet').value);
         document.getElementById('bj-bet').value = bjBet;
-        if(bjBet > userData.chips) { toast('Not enough ★!', 'error'); releaseBetLock(); return; }
-        countGame(); userData.chips -= bjBet; addProfit('blackjack', -bjBet); updateUI(); bjActive=true; createDeck(); bjWinAmount=0; bjInsurance=0;
-        bjSplitPhase=0; bjSplitHand=[]; bjSplitBet=0;
+        if(bjBet > userData.chips) { toast('Not enough ★!','error'); releaseBetLock(); return; }
+        userData.chips -= bjBet; addProfit('blackjack',-bjBet); updateUI(); bjActive=true;
+        bjWinAmount=0; bjInsurance=0; bjSplitPhase=0; bjSplitHand=[]; bjSplitBet=0;
         document.getElementById('bj-split-area').style.display='none';
         document.getElementById('bj-hand-indicator').style.display='none';
         document.getElementById('bj-hand1-label').style.display='none';
         releaseBetLock();
-        bjHand = [deck.pop(), deck.pop()]; bjDealer = [deck.pop(), deck.pop()];
-        document.getElementById('bj-player-hand').innerHTML = ''; document.getElementById('bj-dealer-hand').innerHTML = '';
-        bjHand.forEach(c => renderCard(c, 'bj-player-hand')); renderCard(bjDealer[0], 'bj-dealer-hand');
-        document.getElementById('bj-player-score').textContent = 'Score: ' + getBJScore(bjHand);
-        document.getElementById('bj-dealer-score').textContent = 'Shows: ' + bjDealer[0].v;
+        let result;
+        try { result = await apiCall('blackjack', { action:'deal', bet:bjBet }); }
+        catch(err) { userData.chips+=bjBet; addProfit('blackjack',bjBet); updateUI(); bjActive=false; toast('Error: '+err.message,'error'); return; }
+        bjHand = result.playerHand; bjDealer = [result.dealerCard];
+        document.getElementById('bj-player-hand').innerHTML=''; document.getElementById('bj-dealer-hand').innerHTML='';
+        bjHand.forEach(c => renderCard(c,'bj-player-hand')); renderCard(result.dealerCard,'bj-dealer-hand');
+        document.getElementById('bj-player-score').textContent = 'Score: '+getBJScore(bjHand);
+        document.getElementById('bj-dealer-score').textContent = 'Shows: '+result.dealerCard.v;
         document.getElementById('bj-deal-btn').style.visibility='hidden'; document.getElementById('bj-deal-btn').style.pointerEvents='none';
-        document.getElementById('bj-status').textContent = 'VS';
+        document.getElementById('bj-status').textContent='VS';
         bjUpdateCounters();
-        // If dealer shows Ace, offer insurance before anything else
-        if(bjDealer[0].v === 'A') {
-            const insAmt = Math.floor(bjBet / 2);
-            document.getElementById('bj-insurance-info').innerHTML = `Side bet: ${insAmt} <svg class=\"ic ic-star\" viewBox=\"0 0 16 16\" width=\"13\" height=\"13\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8\" fill=\"#f1c40f\" stroke=\"#c9a800\" stroke-width=\"0.4\"/></svg> — pays 2:1 if dealer has Blackjack`;
-            document.getElementById('bj-ins-yes').innerHTML = `INSURE (${insAmt} <svg class=\"ic ic-star\" viewBox=\"0 0 16 16\" width=\"13\" height=\"13\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8\" fill=\"#f1c40f\" stroke=\"#c9a800\" stroke-width=\"0.4\"/></svg>)`;
-            document.getElementById('bj-insurance-prompt').classList.remove('hidden');
-            // Hide action buttons until insurance decision made
+        // Handle natural blackjack
+        if(result.playerBJ) {
             bjHideActionButtons();
-        } else {
-            bjShowActionButtons();
-            bjCheckNaturalBlackjack();
-        }
-    }
-    function bjShowActionButtons() {
-        const hitBtn = document.getElementById('bj-hit-btn');
-        const standBtn = document.getElementById('bj-stand-btn');
-        const dblBtn = document.getElementById('bj-double-btn');
-        const splitBtn = document.getElementById('bj-split-btn');
-        hitBtn.classList.remove('hidden'); hitBtn.style.visibility='visible'; hitBtn.style.pointerEvents='auto';
-        standBtn.classList.remove('hidden'); standBtn.style.visibility='visible'; standBtn.style.pointerEvents='auto';
-        const activeHand = bjSplitPhase === 2 ? bjSplitHand : bjHand;
-        if(userData.chips >= bjBet && activeHand.length === 2 && bjSplitPhase !== 2) {
-            dblBtn.classList.remove('hidden'); dblBtn.style.visibility='visible'; dblBtn.style.pointerEvents='auto';
-        } else {
-            dblBtn.classList.remove('hidden'); dblBtn.style.visibility='hidden'; dblBtn.style.pointerEvents='none';
-        }
-        // Show split button only on initial 2 cards with matching ranks and not already splitting
-        if(bjSplitPhase === 0 && bjHand.length === 2 && userData.chips >= bjBet) {
-            const valOf = c => ['10','J','Q','K'].includes(c.v) ? '10' : c.v;
-            if(valOf(bjHand[0]) === valOf(bjHand[1])) {
-                splitBtn.style.visibility='visible'; splitBtn.style.pointerEvents='auto';
-            } else {
-                splitBtn.style.visibility='hidden'; splitBtn.style.pointerEvents='none';
-            }
-        } else {
-            splitBtn.style.visibility='hidden'; splitBtn.style.pointerEvents='none';
-        }
-    }
-    function bjHideActionButtons() {
-        const hitBtn = document.getElementById('bj-hit-btn');
-        const standBtn = document.getElementById('bj-stand-btn');
-        const dblBtn = document.getElementById('bj-double-btn');
-        const splitBtn = document.getElementById('bj-split-btn');
-        hitBtn.style.visibility='hidden'; hitBtn.style.pointerEvents='none';
-        standBtn.style.visibility='hidden'; standBtn.style.pointerEvents='none';
-        dblBtn.style.visibility='hidden'; dblBtn.style.pointerEvents='none';
-        splitBtn.style.visibility='hidden'; splitBtn.style.pointerEvents='none';
-    }
-    function bjCheckNaturalBlackjack() {
-        // Natural blackjack: 21 on first two cards
-        if(getBJScore(bjHand) === 21 && bjHand.length === 2) {
-            // RIGGING: 15% of the time, swap dealer hole card to a 10-value so dealer also has BJ
-            if(Math.random() < 0.15) {
-                const dealerUpVal = bjDealer[0].v;
-                if(dealerUpVal === 'A' || ['10','J','Q','K'].includes(dealerUpVal)) {
-                    // Dealer shows A or 10-val — find matching card to complete BJ
-                    const needAce = ['10','J','Q','K'].includes(dealerUpVal);
-                    const needTen = dealerUpVal === 'A';
-                    const swapIdx = deck.findIndex(c => needAce ? c.v === 'A' : ['10','J','Q','K'].includes(c.v));
-                    if(swapIdx !== -1) {
-                        bjDealer[1] = deck.splice(swapIdx, 1)[0]; // swap hole card
-                        deck.push({v:'7', s:'♠'}); // put a dummy card back
-                    }
+            setTimeout(async () => {
+                let res2;
+                try { res2 = await apiCall('blackjack', { action:'stand' }); } catch(e) { return; }
+                applyServerBalance(res2.chips);
+                res2.dealerHand.slice(1).forEach(c => renderCard(c,'bj-dealer-hand'));
+                document.getElementById('bj-dealer-score').textContent='Score: '+getBJScore(res2.dealerHand);
+                bjUpdateCounters(); bjActive=false; clearGameState('blackjack'); bjHideActionButtons();
+                if(result.dealerBJ) {
+                    userData.chips+=bjBet; addProfit('blackjack',bjBet); addHistory("Blackjack",bjBet,1,bjBet);
+                    document.getElementById('bj-status').textContent='🤝 BOTH BLACKJACK — Push!';
+                    toast('🤝 Both Blackjack — bet returned!','success');
                 } else {
-                    // Dealer shows a non-BJ card — force their hole card to be a 10-val
-                    // and show card to be an Ace (swap both)
-                    const aceIdx = deck.findIndex(c => c.v === 'A');
-                    const tenIdx = deck.findIndex(c => ['10','J','Q','K'].includes(c.v));
-                    if(aceIdx !== -1 && tenIdx !== -1) {
-                        bjDealer[0] = deck.splice(aceIdx, 1)[0];
-                        bjDealer[1] = deck.splice(tenIdx > aceIdx ? tenIdx-1 : tenIdx, 1)[0];
-                        // Re-render dealer's visible card
-                        document.getElementById('bj-dealer-hand').innerHTML = '';
-                        renderCard(bjDealer[0], 'bj-dealer-hand');
-                    }
-                }
-            }
-            setTimeout(() => {
-                // Reveal dealer hole card first
-                renderCard(bjDealer[1], 'bj-dealer-hand');
-                const ds = getBJScore(bjDealer);
-                document.getElementById('bj-dealer-score').textContent = 'Score: ' + ds;
-                bjUpdateCounters();
-                bjActive = false; clearGameState('blackjack');
-                bjHideActionButtons();
-                if(ds === 21 && bjDealer.length === 2) {
-                    // Both have blackjack — push, return bet
-                    userData.chips += bjBet; addProfit('blackjack', bjBet);
-                    addHistory("Blackjack", bjBet, 1, bjBet);
-                    document.getElementById('bj-status').textContent = '🤝 BOTH BLACKJACK — Push! Bet Returned';
-                    toast('🤝 Both Blackjack — bet returned!', 'success');
-                } else {
-                    // Player natural blackjack wins 1.2x (6:5 payout)
-                    bjWinAmount = Math.floor(bjBet * 2.2);
-                    userData.chips += bjWinAmount; play('win'); showWinOverlay(2.2, bjWinAmount);
-                    document.querySelector('.bj-area')?.classList.remove('lose-shake');
-                    document.querySelector('.bj-area')?.classList.add('win-glow');
-                    addHistory("Blackjack", bjBet, 2.2, bjWinAmount); addProfit('blackjack', bjWinAmount);
-                    document.getElementById('bj-status').innerHTML = '<svg class=\"ic ic-card\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"2\" y=\"1\" width=\"12\" height=\"14\" rx=\"2\" fill=\"#f0f0f0\" stroke=\"#bbb\" stroke-width=\"0.5\"/><text x=\"8\" y=\"11\" text-anchor=\"middle\" fill=\"#e74c3c\" font-size=\"9\" font-weight=\"900\" font-family=\"serif\">J</text></svg> BLACKJACK! +120%!';
+                    bjWinAmount=res2.payout; addProfit('blackjack',res2.payout); addHistory("Blackjack",bjBet,2.2,res2.payout);
+                    play('win'); showWinOverlay(2.2,res2.payout);
+                    document.getElementById('bj-status').innerHTML='<svg class="ic ic-card" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="1" width="12" height="14" rx="2" fill="#f0f0f0" stroke="#bbb" stroke-width="0.5"/><text x="8" y="11" text-anchor="middle" fill="#e74c3c" font-size="9" font-weight="900" font-family="serif">J</text></svg> BLACKJACK! +120%!';
                 }
                 document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
                 updateUI();
             }, 500);
+            return;
         }
-    }
-    function bjTakeInsurance() {
-        const insAmt = Math.floor(bjBet / 2);
-        if(userData.chips < insAmt) { toast('Not enough ★ for insurance!', 'error'); return; }
-        bjInsurance = insAmt;
-        userData.chips -= bjInsurance; addProfit('blackjack', -bjInsurance); updateUI();
-        toast(`Insured for ${insAmt} ★!`, 'success');
-        document.getElementById('bj-insurance-prompt').classList.add('hidden');
-        bjAfterInsuranceDecision();
-    }
-    function bjDeclineInsurance() {
-        bjInsurance = 0;
-        document.getElementById('bj-insurance-prompt').classList.add('hidden');
-        bjAfterInsuranceDecision();
-    }
-    function bjAfterInsuranceDecision() {
-        // Check if dealer has blackjack
-        const dealerBJ = getBJScore(bjDealer) === 21 && bjDealer.length === 2;
-        if(dealerBJ) {
-            // Reveal dealer hole card
-            renderCard(bjDealer[1], 'bj-dealer-hand');
-            document.getElementById('bj-dealer-score').textContent = 'Score: 21';
-            bjActive = false; clearGameState('blackjack');
-            let msg = '';
-            if(bjInsurance > 0) {
-                // Insurance pays 2:1
-                const insPayout = bjInsurance * 3; // get back stake + 2x
-                userData.chips += insPayout; addProfit('blackjack', insPayout);
-                toast(`Insurance pays ${insPayout} ★!`, 'success');
-            }
-            // Check if player also has blackjack
-            const playerBJ = getBJScore(bjHand) === 21 && bjHand.length === 2;
-            if(playerBJ) {
-                // Push on main bet
-                userData.chips += bjBet; addProfit('blackjack', bjBet);
-                addHistory("Blackjack", bjBet, 1, bjBet);
-                msg = bjInsurance > 0 ? '🛡️ INSURED + TIE!' : '🤝 BOTH BLACKJACK — TIE';
-            } else {
-                addHistory("Blackjack", bjBet, 0, -bjBet);
-                msg = bjInsurance > 0 ? '🛡️ INSURANCE SAVES YOU!' : '😞 DEALER BLACKJACK';
-                document.querySelector('.bj-area')?.classList.remove('win-glow');
-                document.querySelector('.bj-area')?.classList.add('lose-shake');
-                play('boom');
-            }
-            document.getElementById('bj-status').textContent = msg;
-            document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
+        // Insurance offer
+        if(result.dealerShowsAce) {
+            const insAmt = Math.floor(bjBet/2);
+            document.getElementById('bj-insurance-info').innerHTML=`Side bet: ${insAmt} ★ — pays 2:1 if dealer has Blackjack`;
+            document.getElementById('bj-ins-yes').innerHTML=`INSURE (${insAmt} ★)`;
+            document.getElementById('bj-insurance-prompt').classList.remove('hidden');
             bjHideActionButtons();
-            bjUpdateCounters(); updateUI();
         } else {
-            // No dealer blackjack — lose insurance (already deducted), continue play
-            if(bjInsurance > 0) toast(`No dealer Blackjack — insurance lost`, 'error');
             bjShowActionButtons();
-            bjCheckNaturalBlackjack();
         }
     }
-    // === FAIR PLAY - NO RIGGING ===
-    // All rigging functions have been removed for balanced gameplay!
-    // Removed rigging function - fair play only!
-    // =====================================================
 
-    function bjHit() {
-        if(!bjActive) return;
-        const activeHand = bjSplitPhase === 2 ? bjSplitHand : bjHand;
-        const handEl = bjSplitPhase === 2 ? 'bj-split-hand' : 'bj-player-hand';
-        const scoreEl = bjSplitPhase === 2 ? 'bj-split-score' : 'bj-player-score';
-        document.getElementById('bj-double-btn').style.visibility='hidden'; document.getElementById('bj-double-btn').style.pointerEvents='none';
-        document.getElementById('bj-split-btn').style.visibility='hidden'; document.getElementById('bj-split-btn').style.pointerEvents='none';
-        // Fair play - no card rigging!
-        let c = deck.pop(); activeHand.push(c); renderCard(c, handEl);
-        document.getElementById(scoreEl).textContent = 'Score: ' + getBJScore(activeHand);
-        bjUpdateCounters(); saveGameState();
-        let newScore = getBJScore(activeHand);
-        if(newScore === 21 && activeHand.length >= 5) {
-            bjStand();
-        } else if(newScore > 21) {
-            bjStand();
-        }
-    }
-    function bjStand() {
-        // If in first split hand, switch to second hand
-        if(bjSplitPhase === 1) {
-            bjSplitPhase = 2;
-            document.getElementById('bj-hand-indicator').textContent = '▶ HAND 2';
-            document.getElementById('bj-player-score').textContent = 'Score: ' + getBJScore(bjHand) + ' ✓';
-            document.getElementById('bj-status').textContent = 'Playing Hand 2';
-            bjShowActionButtons();
-            return;
-        }
-        // If in second split hand, resolve both
-        if(bjSplitPhase === 2) {
-            bjActive=false; clearGameState('blackjack');
-            document.getElementById('bj-insurance-prompt').classList.add('hidden');
-            renderCard(bjDealer[1], 'bj-dealer-hand');
-            let ds = getBJScore(bjDealer);
-            // Fair dealer play - no rigging!
-            while(ds < 17 || (ds === 17 && isSoftHand(bjDealer))) { let c = deck.pop(); bjDealer.push(c); renderCard(c, 'bj-dealer-hand', false); ds = getBJScore(bjDealer); }
-            document.getElementById('bj-dealer-score').textContent = 'Score: ' + ds;
-            bjUpdateCounters();
-            const ps1 = getBJScore(bjHand), ps2 = getBJScore(bjSplitHand);
-            let win1=0, win2=0, r1='', r2='';
-            // Hand 1
-            if(ps1 > 21) { r1='H1:💥'; }
-            else if(ds > 21 || ps1 > ds) { win1=bjBet*2; userData.chips+=win1; addProfit('blackjack',win1); r1='H1:🏆'; }
-            else if(ps1===ds) { userData.chips+=bjBet; addProfit('blackjack',bjBet); r1='H1:🤝'; }
-            else { r1='H1:❌'; }
-            // Hand 2
-            if(ps2 > 21) { r2='H2:💥'; }
-            else if(ds > 21 || ps2 > ds) { win2=bjSplitBet*2; userData.chips+=win2; addProfit('blackjack',win2); r2='H2:🏆'; }
-            else if(ps2===ds) { userData.chips+=bjSplitBet; addProfit('blackjack',bjSplitBet); r2='H2:🤝'; }
-            else { r2='H2:❌'; }
-            document.getElementById('bj-player-score').textContent = 'Score: ' + ps1;
-            document.getElementById('bj-split-score').textContent = 'Score: ' + ps2;
-            document.getElementById('bj-status').textContent = r1 + '  ' + r2;
-            const totalBet = bjBet + bjSplitBet, totalWin = win1 + win2;
-            if(totalWin > 0) { play('win'); showWinOverlay(totalWin/totalBet, totalWin); document.querySelector('.bj-area')?.classList.remove('lose-shake'); document.querySelector('.bj-area')?.classList.add('win-glow'); }
-            else { play('boom'); document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('lose-shake'); }
-            addHistory("Blackjack Split", totalBet, totalWin > 0 ? totalWin/totalBet : 0, totalWin > 0 ? totalWin : -totalBet);
-            bjSplitPhase=0; bjSplitHand=[]; bjSplitBet=0;
-            document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
-            bjHideActionButtons(); updateUI();
-            return;
-        }
-        // Normal (no split) stand
-        bjActive=false; clearGameState('blackjack');
+    async function bjTakeInsurance() {
+        const insAmt = Math.floor(bjBet/2);
+        if(userData.chips < insAmt) { toast('Not enough ★ for insurance!','error'); return; }
+        bjInsurance=insAmt; userData.chips-=bjInsurance; addProfit('blackjack',-bjInsurance); updateUI();
+        toast(`Insured for ${insAmt} ★!`,'success');
         document.getElementById('bj-insurance-prompt').classList.add('hidden');
-        renderCard(bjDealer[1], 'bj-dealer-hand');
-        let ds = getBJScore(bjDealer), ps = getBJScore(bjHand);
-
-        // Fair dealer play - follows standard blackjack rules!
-
-        while(ds < 17 || (ds === 17 && isSoftHand(bjDealer))) { let c = deck.pop(); bjDealer.push(c); renderCard(c, 'bj-dealer-hand', false); ds = getBJScore(bjDealer); }
-        document.getElementById('bj-dealer-score').textContent = 'Score: ' + ds;
-        document.getElementById('bj-player-score').textContent = 'Score: ' + ps;
-        bjUpdateCounters();
-        
-        // Check for 5-card 21 (automatic win with bonus)
-        if(ps === 21 && bjHand.length >= 5) {
-            bjWinAmount = bjBet * 2.5; // 2.5x payout for 5-card 21
-            userData.chips += bjWinAmount; play('win'); showWinOverlay(2.5, bjWinAmount);
-            document.querySelector('.bj-area')?.classList.remove('lose-shake'); document.querySelector('.bj-area')?.classList.add('win-glow');
-            addHistory("Blackjack", bjBet, 2.5, bjWinAmount); addProfit('blackjack', bjWinAmount);
-            document.getElementById('bj-status').textContent = '🌟 5-CARD 21! YOU WIN!';
-        } else if(ps <= 21 && (ds > 21 || ps > ds)) {
-            // Player wins
-            bjWinAmount = bjBet*2;
-            userData.chips += bjWinAmount; play('win'); showWinOverlay(2, bjWinAmount);
-            document.querySelector('.bj-area')?.classList.remove('lose-shake'); document.querySelector('.bj-area')?.classList.add('win-glow');
-            addHistory("Blackjack", bjBet, 2, bjWinAmount); addProfit('blackjack', bjWinAmount);
-            document.getElementById('bj-status').textContent = '🏆 YOU WIN!';
-        } else if(ps > 21) {
-            play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet);
-            document.getElementById('bj-status').textContent = '💥 BUST!';
-            document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('lose-shake');
-        } else if(ps === ds) {
-            userData.chips += bjBet; addProfit('blackjack', bjBet);
-            addHistory("Blackjack", bjBet, 1, bjBet);
-            document.getElementById('bj-status').textContent = '🤝 TIE — Bet Returned!';
-            document.querySelector('.bj-area')?.classList.remove('win-glow', 'lose-shake');
-            toast('🤝 Tie — bet returned!', 'success');
+        let res;
+        try { res = await apiCall('blackjack', { action:'insurance', take:true }); }
+        catch(err) { toast('Error: '+err.message,'error'); return; }
+        if(res.dealerBJ) {
+            applyServerBalance(res.chips);
+            res.dealerHand.slice(1).forEach(c => renderCard(c,'bj-dealer-hand'));
+            document.getElementById('bj-dealer-score').textContent='Score: 21';
+            bjActive=false; clearGameState('blackjack'); bjHideActionButtons();
+            const msg=res.playerBJ?'🤝 BOTH BLACKJACK — TIE':'🛡️ INSURANCE SAVES YOU!';
+            if(res.playerBJ) { addHistory("Blackjack",bjBet,1,bjBet); toast('🤝 Both BJ—tie!','success'); }
+            else { addHistory("Blackjack",bjBet,0,-bjBet); play('boom'); }
+            document.getElementById('bj-status').textContent=msg;
+            document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
+            updateUI();
         } else {
-            play('boom'); addHistory("Blackjack", bjBet, 0, -bjBet);
-            document.getElementById('bj-status').textContent = '😞 DEALER WINS';
-            document.querySelector('.bj-area')?.classList.remove('win-glow'); document.querySelector('.bj-area')?.classList.add('lose-shake');
+            bjShowActionButtons();
         }
+    }
+
+    async function bjDeclineInsurance() {
+        bjInsurance=0;
+        document.getElementById('bj-insurance-prompt').classList.add('hidden');
+        let res;
+        try { res = await apiCall('blackjack', { action:'insurance', take:false }); }
+        catch(err) { toast('Error: '+err.message,'error'); return; }
+        if(res.dealerBJ) {
+            applyServerBalance(res.chips);
+            document.getElementById('bj-dealer-score').textContent='Score: 21';
+            bjActive=false; clearGameState('blackjack'); bjHideActionButtons();
+            addHistory("Blackjack",bjBet,0,-bjBet); play('boom');
+            document.getElementById('bj-status').textContent='😞 DEALER BLACKJACK';
+            document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
+            updateUI();
+        } else {
+            bjShowActionButtons();
+        }
+    }
+
+    async function bjHit() {
+        if(!bjActive) return; bjHideActionButtons();
+        let res;
+        try { res = await apiCall('blackjack', { action:'hit' }); }
+        catch(err) { bjShowActionButtons(); toast('Error: '+err.message,'error'); return; }
+        renderCard(res.card,'bj-player-hand');
+        bjHand.push(res.card);
+        document.getElementById('bj-player-score').textContent='Score: '+res.score;
+        bjUpdateCounters();
+        if(res.bust) {
+            applyServerBalance(res.chips);
+            bjActive=false; clearGameState('blackjack');
+            addHistory("Blackjack",bjBet,0,-bjBet); addProfit('blackjack',-bjBet);
+            document.getElementById('bj-status').textContent='💥 BUST!';
+            document.querySelector('.bj-area')?.classList.add('lose-shake');
+            play('boom'); updateUI();
+            document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
+        } else {
+            bjShowActionButtons();
+        }
+    }
+
+    async function bjStand() {
+        if(!bjActive) return; bjHideActionButtons();
+        let res;
+        try { res = await apiCall('blackjack', { action:'stand' }); }
+        catch(err) { bjShowActionButtons(); toast('Error: '+err.message,'error'); return; }
+        applyServerBalance(res.chips);
+        res.dealerHand.slice(bjDealer.length).forEach(c => renderCard(c,'bj-dealer-hand'));
+        bjDealer=res.dealerHand;
+        const ds=getBJScore(bjDealer);
+        document.getElementById('bj-dealer-score').textContent='Score: '+ds;
+        bjUpdateCounters(); bjActive=false; clearGameState('blackjack');
+        const ps=getBJScore(bjHand);
+        if(res.outcome==='win'||res.outcome==='dealer_bust') {
+            addHistory("Blackjack",bjBet,2,res.payout); addProfit('blackjack',res.payout);
+            play('win'); showWinOverlay(2,res.payout);
+            document.getElementById('bj-status').textContent = res.outcome==='dealer_bust'?'💥 DEALER BUST! You Win!':'🏆 YOU WIN!';
+            document.querySelector('.bj-area')?.classList.add('win-glow');
+        } else if(res.outcome==='push') {
+            addHistory("Blackjack",bjBet,1,bjBet); addProfit('blackjack',bjBet);
+            document.getElementById('bj-status').textContent='🤝 PUSH — Bet Returned';
+            toast('Push — bet returned!','success');
+        } else {
+            addHistory("Blackjack",bjBet,0,-bjBet); addProfit('blackjack',-bjBet);
+            play('boom'); document.getElementById('bj-status').textContent='😞 DEALER WINS';
+            document.querySelector('.bj-area')?.classList.add('lose-shake');
+        }
+        updateUI();
         document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
-        bjHideActionButtons();
-        updateUI();
-    }
-    function bjSplit() {
-        if(!bjActive || bjHand.length !== 2 || bjSplitPhase !== 0) return;
-        const valOf = c => ['10','J','Q','K'].includes(c.v) ? '10' : c.v;
-        if(valOf(bjHand[0]) !== valOf(bjHand[1])) { toast('Cards must match to split!', 'error'); return; }
-        if(userData.chips < bjBet) { toast('Not enough ★ to split!', 'error'); return; }
-        userData.chips -= bjBet; addProfit('blackjack', -bjBet); bjSplitBet = bjBet; updateUI();
-        // Split: move second card to split hand, deal one to each
-        bjSplitHand = [bjHand.pop()];
-        bjHand.push(deck.pop());
-        bjSplitHand.push(deck.pop());
-        bjSplitPhase = 1;
-        // Show split UI
-        document.getElementById('bj-split-area').style.display = 'block';
-        document.getElementById('bj-hand1-label').style.display = 'block';
-        document.getElementById('bj-hand-indicator').style.display = 'block';
-        document.getElementById('bj-hand-indicator').textContent = '▶ HAND 1';
-        // Re-render both hands
-        document.getElementById('bj-player-hand').innerHTML = '';
-        bjHand.forEach(c => renderCard(c, 'bj-player-hand'));
-        document.getElementById('bj-split-hand').innerHTML = '';
-        bjSplitHand.forEach(c => renderCard(c, 'bj-split-hand'));
-        document.getElementById('bj-player-score').textContent = 'Score: ' + getBJScore(bjHand);
-        document.getElementById('bj-split-score').textContent = 'Score: ' + getBJScore(bjSplitHand);
-        document.getElementById('bj-status').textContent = 'Playing Hand 1';
-        bjUpdateCounters();
-        bjShowActionButtons();
-        toast(`Split! Playing Hand 1. Hand 2 bet: ${bjSplitBet} ★`, 'success');
-    }
-    function bjDouble() {
-        if(!bjActive || bjHand.length !== 2) return;
-        if(userData.chips < bjBet) { toast('Not enough ★ to double!', 'error'); return; }
-        // Deduct the extra bet
-        userData.chips -= bjBet;
-        addProfit('blackjack', -bjBet);
-        bjBet *= 2;
-        updateUI();
-        toast(`Bet doubled to ${bjBet} ★!`, 'success');
-        // Hide double button (can't double again)
-        document.getElementById('bj-double-btn').style.visibility='hidden'; document.getElementById('bj-double-btn').style.pointerEvents='none';
-        // Deal exactly one card then stand
-        let c = deck.pop(); bjHand.push(c); renderCard(c, 'bj-player-hand');
-        document.getElementById('bj-player-score').textContent = 'Score: ' + getBJScore(bjHand);
-        bjUpdateCounters();
-        // Auto-stand after the one card
-        setTimeout(() => bjStand(), 600);
     }
 
-
-    // BEEQUIP WAXING
-    const BEEQUIPS = [
-        { id:'toyDrum', name:'Toy Drum', img:'data:image/jpeg;base64,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', cost:300, color:'#12c97a', desc:'Classic bee equipment. Level 7, limit 2.',
-          baseStats: () => {
-            const stats = [];
-            stats.push({ label:'Gather Amount', val: rng(10,20), type:'pos', mult: 0 });
-            stats.push({ label:'Bee Attack', val: rng(1,5), type:'pos', mult: 0 });
-            stats.push({ label:'Energy', val: -rng(10,20), type:'neg', mult: 0 });
-            if(Math.random()<0.5) stats.push({ label:'Critical Chance', val: rng(1,5), type:'pos', mult: 0 });
-            if(Math.random()<0.6) stats.push({ label:'Ability: Haste', val: null, type:'special', mult: 0 });
-            return stats;
-          }
-        },
-        { id:'pinkShades', name:'Pink Shades', img:'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAkGBwgHBgkIBwgKCgkLDRYPDQwMDRsUFRAWIB0iIiAdHx8kKDQsJCYxJx8fLT0tMTU3Ojo6Iys/RD84QzQ5Ojf/2wBDAQoKCg0MDRoPDxo3JR8lNzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzf/wAARCABrAIMDASIAAhEBAxEB/8QAGgAAAgMBAQAAAAAAAAAAAAAAAAECBAYFA//EAC8QAAIBAwMDAwQBAwUAAAAAAAECAAMEEQUhMQYSYUFRcRMUIpGBMqHRFSNSseH/xAAZAQEAAwEBAAAAAAAAAAAAAAAAAQMEAgX/xAAkEQACAgICAgICAwAAAAAAAAAAAQIDBBESITFBEyIFMhUjYf/aAAwDAQACEQMRAD8AWN4Rwl3kp0KEcJOgKEcJAFCOEAUI44BGElCBojCShAIwkoQCMJKEAeISWIYkoCiksQxIBGEliRqOlJC7sFUckmCdhPKtc0aOfq1VXG5BO/6mf1HV69zXNCxJCjYso3M8E0yo5L3dY5POTkmWV1Ts/VGirGst8GmoXVCuf9msj/BntiZKtp1S2Bq2tViV3ODgzrdP373dFqdZu50PJ5IkWVyrepHNtEqv2OtCSxET2gk7ADJnBTsi7LTUs7BVHqTgSt/qNmDg3NPPHMz97XrarfGlSfFFCQMHbHvPRtIohDhyXxz5l1ePZZHkjVVh2WR5I0qMrqGUgg8EGOZ7py4qUrp7Oq2QclQT6j/yaMASntdMzSi4vTIwkoQRsliOGIQQEImYKpZjgAZJJwBM9q+tu1T7bT2LEj8nUHIPsP8AMHUYuT0jo6rqdKxpnBDVDsFB3/mZ9nvtVYGoxWnnjgCetrprM4rXbFmO+Cck/Jl6tXo21MdzKqgbKDzN1OHtc7XpHqY+CkudvgrqlvptItsW9SeSZSAvNUZ2ogqiKTngHHp8x0kqaxfKqowpKctg7AZmttrala0VpUVwoGD5lN+RyfCvpIqycrb4V+DL6VdA02pVnGRnk+kfT7dusOlNvwYEHzidG76boVqzVKVU0+45K9uRn9y1pmk0dOJcN3udu5hjA8SudrnFRfootyHZWov0dCcHqXUGpKtrQOGcfkRyB7TuVaiUabVHZQFBPMyNmr6jqFS5q4Kg5+PYSK63ZNRRxRU3Vz17LunW4tbYu4wxGSfac46lVW6d1XvQbYHpL+s1jTtSFO7HA+Jd6dsaaWC1qih2q77jgTblWuvjXX6PRy73TquHo52g0atzqv3hTtRckkjHII2/c1USqqbIoUewGI5gb29s8mUnJ7YQhCQckscxYkyIY8QDM689e61Sjp9JiqsBkZ2JPvLTaKmkMFd0dyM9+c48eJU1RO7qaiv1Pp5C/keBPbrBGtlVFrmpkglgec+ksxbIwsc5d6Xg9fAjCMXNrej0qBnU9jDJGx5xOJe6Zckly31B87/qVrm5rUFplHYELk78z2tNeqhQKyBj7iannY+THVnRondRetT6LWlaudOAoVrcKpO5AwT/AJly86lQEC0pFjjlh6/xK9vdWuoN9OpSHceMjmezLY2hwQqttkEZMiOHGS5RmuJn/jov7KXRVbUdXu8hCUU/8Rj9HmDWuqVlC1Lpyp5DOTLVfUre3UEgkngASpU6hphsJSJ+Z2qsOK+09lscXEgvtIg2lXZGPq5+TOnY2v2lqqldzuTjYmeWnapTvHK9pVsZxn0lrqTWcafb2dGkUqrglsYyACP7yxzpx4qypbTNCjRRB2wOPfN93fUramQw7gDgZ+Zr6FFaFFKaAAKMATkaDozWzC5uCGqEZAG+MzuATzrLPknyZ4V9rsnyI4hiTx4hjxOCghiEnjxCASxDEliLEAy3UlOm+r2quQisAGbOMDPMl1Va00p0ltqn1UUjLA52xOh1Jpv3tmalJM1qYyuOSPUTgWGoolIW9yCMbZI48Gd0QUpOLlraPRwrFpwfs5eoEhwvHaoEpUt2mkr6ZbXbGpSuDlhwCDPBenmUkiuvgkbzh/jb/EVtFrw7G9rssaTbY7XA2HJ+RKutIRqSEjZgADjkidH8dMsu3v7m9M8kyBNLUqSOXxVTnPoZvljKOL8Cf28mxwSp+LfZyNSOCgzuBOaQe6du+025eoCqdygcgiUV026asE+kwz6kbCeQsW5dcTz3RZvwWum0Juy2DgKf+52eq6zV/sbU2/0mCjDEYLbiQsLZNMol3Ze7OST49JFri76m1JGcItOhjJXbAzt8k4m2+mVdNcJL/TRkf1Y6g/Jp6C9tBAdyFAP6npiAGAB7DEeJSjxRYhiPEMSQLEI8QgE8QxHCALE5V/oVleMzMhRzyy7f2nWhjeOiU9GWr9LOhJtbo4A2DDG/yJXfRtXRQEqB9+A3E2OM+8MfMlSkvDLFdOPhmQtunry5qg37FUG5AOSZ63fTFVHL2FftBP8ASxO38+s1WIYkbbe99kO2Te99mMXS9bpEhSGAOxLZz+5P7HXsf0qT8ibCE7Vti8SLFk2r2Y6noWpXlQC8cU0A5zn+00WmaZR02iUpDLNuzHky/jxDGZxJuT22VSslP9nsjFjxJwg4IY8Qx4k4QCGPEJOEAcI4QBQjhAFCOEAUI4SGBQjhJAoRwgChHCAKEcIAoRwgH//Z', cost:300, color:'#e91e8c', desc:'Exclusive beequip. Level 10, limit 1, Gifted only.',
-          baseStats: () => {
-            const stats = [];
-            stats.push({ label:'Ability Pollen', val: rng(15,65), type:'pos', mult: 0 });
-            stats.push({ label:'Critical Power', val: rng(25,50), type:'pos', mult: 0 });
-            stats.push({ label:'Critical Chance', val: rng(20,68), type:'pos', mult: 0 });
-            stats.push({ label:'Super-Crit Chance', val: rng(10,55), type:'pos', mult: 0 });
-            if(Math.random()<0.5) stats.push({ label:'Ability: Focus', val: null, type:'special', mult: 0 });
-            return stats;
-          }
-        },
-        { id:'poinsettia', name:'Poinsettia', img:'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAkGBwgHBgkIBwgKCgkLDRYPDQwMDRsUFRAWIB0iIiAdHx8kKDQsJCYxJx8fLT0tMTU3Ojo6Iys/RD84QzQ5Ojf/2wBDAQoKCg0MDRoPDxo3JR8lNzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzf/wAARCAB7AHsDASIAAhEBAxEB/8QAGwAAAgMBAQEAAAAAAAAAAAAAAAUDBAYCAQf/xAAzEAEAAQMCBAUCBAYDAQAAAAABAgADEQQhBRIxQVFhcYGREyIyobHBFCNC0eHwBhUkQ//EABsBAAEFAQEAAAAAAAAAAAAAAAABAgMEBQYH/8QAIxEAAgICAgIDAQEBAAAAAAAAAAECAwQREiEFMRMiQTJxgf/aAAwDAQACEQMRAD8A+G0UUUAFFFFABRRUungXb9u3JxGciK+GWgBpHgjynPfCX9QRzjyyNVdfoJ6TEiXPadubGMPh19fitvwPSQ1FrVzmuLcDCBhyKj5bG1K+I6IYztzj/Ln+GXhvnz/3amclvRceHP4VbHsxtFM9Twi9ajzWUuh1AxL47+1L5wlbmxnFjKOySMI08pnFFFFABRRRQAUUUUAFFFTQ09+cSULNyUc4GMVKAIaKluWLtoJXLU4D0ZRTNd6fSX9SSbNvmI9dw/WgCCmPBbMrmr+pty2xzkyZTB+77VNpeDqjqZYE/DB3H3MfFOOE8KxcjY08ZLdkffIXb2MYML80jehYrlJRQ54XebPDrlqMd7slZDhDYxjG/R+WukHI4R2cmRqxxKFqzqI2rESEbcIxQO5nq93Cb1XXBmqkm+WzucSuMKVBoq3dHbmvI8ib46j7dvalHEeHxvDbuRI3D8MwPzfDy7dvN/A3Xt0qLV2vq2lN5R3MG74nv/anV2PemZ2d4yudbnBaZgL1uVm7O3PHNFRw1HWsvcJhqLn1LtjMkBedFx07+nxVe9wbT8qfRlBOshdvzSrPJHNypsj7Rm68p5Pgltn9l+UYeEokk/QqlqeG3tNa+rJjKA78q7GcDvSkbTRQooooEJtNCM9TahMWMpgh1xmtrwzQR1PNElyQth9sQzvnp4GzWItXJWrsLkcZhIkZ8StDouL2pyiE52bib7oPkOf1wdvVJJ/gyxScfqzQz4LI/BfFXpKOPzFzRHgqbzvBjqRjnJ5K/tXuj4tIlG1qjfOOfom+Nz9/yprmamOncx2qtKU17Mydt8Hpsp2tBpreZlok9Dmch54ds020j9PT3L8jLEcHTYM496rSI4IjhasXIpwq4Q64Vwds7vxTOTZp+Di7ctOYluylcnKcn7pKrjGVrnOxnrXVczM48qam9no0oqK2gOm3auu3lXMXdK9UBXoGaX9BP6bZBNwgdetAyeleLnK9KGTGEpiZBT1DapkYM2ttkGovRHkIxnLuoOHwPFpHxbWWP4e5ZjMlcljJF2juO/b2K74xfvWdPH6IkZqSmH4e4ZxtnL8NZ6p4rSMC612S2eUUUUpCe16CuDq1rLGlt2f5dmMbeDlymJJnoobufH+xVn+GXrIx5GaRySJa6Z2fyKuEx1MLUreohKMI/g59ke5jr59jZ8a1PD9dKWlIyFlDERXAnZ9TGH28aXQ01uO8lk56BgfXv+dWo3YxAI4AwBsFV7JJrou1eKVjTuLEr05dZoeBtU2m1t6wyB5oyMMZ5T161QbquwB57143JON8Ye3eoe12bdNdFL3FDDRaW7rdTDT2cc8suVQAFVQexXXEdBf0F36V+JlMxlFzGR4jt07jh+StHwvhdnRmn1ULk5X2MZSioRSRhMAuwqb7oVZ4nas66zG1fh90JCJsmHcPUyfD2KoSymrNL0Lb5SMbNfhj5aPU2tPC/dsTjamHLJMDnc9M9s9e1VrziODq/pWz45e5uC344ACOAMYCRtisZIFym/byq1RY7O2TU5Pz0vRFVvR6WOrlKF3JAjlRxvnYz8vtVdjHtTDS3LcbRGGefqj1XG6eXlVmT66MTyitqofDsW8S4NOwSnZC9Z/qEFPUxhPPy6Vk+KcOhat/X04kR++HXHn5H96+j2EgrNQdseLSfjOhhHOq08f5cnFyONor39Ho/wCafXY/TOUxsqXLhYfOaKY8U0Lp5t22fyZOdv6F7UuqwaQ30PFW2FrUnNANph9x6+JT+xfMRc80H8MjfZ6Viqv8O4hLSZhI57Tvy5wj4lNcdklVsq3tGvEcI7PeiqOl1UZ2ydqRO24zhymfHw6d6b8Js/8AYXmMYMYxBnJcgPQOmVx+S9qglBo3MfKhb0/ZHY097UT5LNuUnuhgPVdj3pppuBrh1NzGcPLDd912+M1e1Ops8OtRsWoEpGxEcAeL5rv579KV6jiGov5GfLF6xgYPfu+7UZpRq67NToLv8NajbJMi2BFmmeUADIGcHTq49KsvFNITSd2zGWMIzBHwRRrE2tXqLact6eAwCqY8MO1cXrs712VyaMpOXBgNsYPaqk8OE5bK0/HqU9l/jmv/AIq9K3ZR00HMQMEnGFy9TKh2x08aV1KbhUTVmqKhHii28ZVwSgFeiiJnJuI4RrygqVkUYb6Yw09368QltOJvjonj/erPNbjFhOPNCWRi7iNKbc23cJxdxzjxO9NbRG9iQ5EyPgf7tUb6OL83gLHs+SC+rEPE+FtmErts59NI3EMxHxO55/OKzc+BkpLb1MIQekZZyVtuKcRsWtNPT2pRuXJjFByRHZy9M9cH+ualf00Fjc1VuEzrFHJVmmTa+xFhznKH3MlRRRUpaHfArEeSd9MyXkieHRWvoli1/wBRwkHBeluvXMk9+gejjzrK/wDE9NzXtDalLIYuGOhsyD52f81quOSFswHcGSHngH8mobZaWjb8RRylzFMpM5K7qqq5VoYvXOWugxQodards6dVrXZzjArXjv0rtMmK5iJu0qYko/8AEdBjao3v71b09hmk57QHId3yPKu72ihy81uXKuXDudu/U/OiL7MjK8zi12/C2UKGpXT3TpBd8AIr7G9RoiiIjhEwj4U//CSvIqt9SPCo9XdvR0/LC5KNvLzRHAjtv4nl51I0SCQj0RHHg0q6fYmTRG+pxktmZ4prp6ZjbtRMzjln4bpsdM7fDSBVVcrWj4zp5XNLIAZWZMtuuO+PLp8VnKsr0cnKPF8TyiiilEN7/wASeXV6Id+a1t5fZn9vzpzxN/8Afc9v0KRcPmWNVGfMW22fbv02xjfy29qn1fEJXbj9PMpyd5pu+hj0OlQWRcmdB4zJrxqnObLdcTlGG85APTLjPp40g1HGLVtnzX5ymOGMM7/tt6/NU7vGrf8A87M5bOeZI4e3TOe3h+9IqSS3zqfUImkua61H8OZvkYM+rXuj18XUhdtwISE3c4Xor08vfPasbd4rqrkeUY2xMPIdfPPb2qfh/EpRl9PVTZQXJOTliu/w/vT/AIkZeT5LIvi470fRfpSMylsBlc5K6zGUFdw6/PSlPC+KBbNNq54hg5Lm7gzsPl5/6Oi0kQijFM5OmP3qtJOL7ORuUoSfMitwjPOJ8qb4TcPHOayPFddC3eu6mZJjO445eu646+R+VP8Ai2sjpYy01nDdnHEpG5Eep6p8D51iOOaglKOniv2PNPDkXG3wZ+fKp6Yv2y/gxmvtsc6biBdBtXya/wBK7+517+nrV+zqoT2kkUN8uz6Pt3rCQnK3MlCTGR0kOEphp+L3bUSN2Bcid1xJ9/8AFSOCZuU51tT97RpdfZHMuXmhI5ZD32xv7bVkNfZhp9XctW1YmMZ8wcU2ONadAY3sbZwGz80n1l/+J1M7pHlJYwZ6YMU6KaIL7I2T5JFeiiilIRja4rqbVqMMQly7EpiuPmo9VxLUaiBCUiEcYkQyc3rVKigAooooAKKKKAGvC+I/SxY1D/L7Sesf8VpLHH5aew2I6qwxM4kyFieTn+9YeimuKl7GTrhP+kP+J8UIDGxcJ3Z7tyMs8vmJ3/SkCq5d1ryinDkklpBRRRQKFFFFAH//2Q==', cost:300, color:'#e74c3c', desc:'Red hive beequip. Level 6, limit 2.',
-          baseStats: () => {
-            const stats = [];
-            stats.push({ label:'Red Gather Amount', val: rng(10,20), type:'pos', mult: 0 });
-            stats.push({ label:'Pollination Chance', val: rng(10,20), type:'pos', mult: 0 });
-            return stats;
-          }
-        },
-        { id:'smiley', name:'Smiley Sticker', img:'data:image/jpeg;base64,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', cost:100, color:'#0fd68a', desc:'Gifted only beequip. Level 7, limit 2.',
-          baseStats: () => {
-            const stats = [];
-            stats.push({ label:'Energy', val: rng(15,25), type:'pos', mult: 0 });
-            stats.push({ label:'Bomb Pollen', val: rng(10,20), type:'pos', mult: 0 });
-            stats.push({ label:'Mark Duration', val: rng(5,10), type:'pos', mult: 0 });
-            return stats;
-          }
-        },
-        { id:'reindeer', name:'Reindeer Antlers', img:'data:image/jpeg;base64,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', cost:300, color:'#27ae60', desc:'Beesmas beequip. Limit 1, Puppy Bee.',
-          baseStats: () => {
-            const stats = [];
-            stats.push({ label:'Convert Amount', val: rng(10,15), type:'pos', mult: 0 });
-            stats.push({ label:'Ability Pollen', val: rng(10,15), type:'pos', mult: 0 });
-            stats.push({ label:'Move Speed', val: rng(2,8), type:'pos', mult: 0 });
-            if(Math.random()<0.5) stats.push({ label:'Ability: Focus', val: null, type:'special', mult: 0 });
-            if(Math.random()<0.5) stats.push({ label:'Ability: Reindeer Fetch', val: null, type:'special', mult: 0 });
-            return stats;
-          }
-        }
-    ];
-    function rng(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
-
-    let bwState = {
-        beequip: null, stats: [], waxesUsed: [], potential: 0,
-        destroyed: false
-    };
-
-    function bwInit() {
-        const grid = document.getElementById('bq-shop-grid');
-        grid.innerHTML = '';
-        BEEQUIPS.forEach(bq => {
-            const card = document.createElement('div');
-            card.className = 'bq-card';
-            const iconHtml = bq.img
-                ? `<img src="${bq.img}" style="width:36px;height:36px;object-fit:contain;border-radius:6px;" />`
-                : `<div class="bq-icon">${bq.icon}</div>`;
-            card.innerHTML = `${iconHtml}<div class="bq-name">${bq.name}</div><div class="bq-cost">Cost: ${bq.cost} <svg class=\"ic ic-star\" viewBox=\"0 0 16 16\" width=\"13\" height=\"13\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"8,1 10.3,5.8 15.5,6.6 11.5,10.4 12.5,15.5 8,13.0 3.5,15.5 4.5,10.4 0.5,6.6 5.7,5.8\" fill=\"#0fd68a\" stroke=\"#c9a800\" stroke-width=\"0.4\"/></svg></div>`;
-            card.onclick = () => bwBuyBeequip(bq);
-            grid.appendChild(card);
-        });
-        // Also add free play option
-        const free = document.createElement('div');
-        free.className = 'bq-card';
-        free.innerHTML = `<div class="bq-icon">🎁</div><div class="bq-name">Free Play</div><div class="bq-cost" style="color:#27ae60">Random · Free</div>`;
-        free.onclick = () => bwBuyBeequip(BEEQUIPS[Math.floor(Math.random()*BEEQUIPS.length)], true);
-        grid.appendChild(free);
-    }
-
-    function bwBuyBeequip(bq, free=false) {
-        if(!free) {
-            if(userData.chips < bq.cost) { bwLog('Not enough ★ Stars!', 'bad'); return; }
-            bwState.balBefore = userData.chips;
-            userData.chips -= bq.cost; updateUI();
-        }
-        bwState.beequip = bq;
-        bwState.stats = bq.baseStats();
-        bwState.waxesUsed = [];
-        bwState.potential = 0;
-        bwState.destroyed = false;
-        document.getElementById('bw-shop').classList.add('hidden');
-        document.getElementById('bw-main').classList.remove('hidden');
-        bwRender();
-        bwLog(free ? 'Free Play Beequip minted! Stats generated.' : `Bought ${bq.name} for ${bq.cost} ★. Stats generated.`, 'info');
-    }
-
-    function bwBack() {
-        document.getElementById('bw-shop').classList.remove('hidden');
-        document.getElementById('bw-main').classList.add('hidden');
-    }
-
-    function bwRender() {
-        const bq = bwState.beequip;
-        if(bq.img) {
-            document.getElementById('bq-disp-icon').innerHTML = `<img src="${bq.img}" style="width:40px;height:40px;object-fit:contain;border-radius:6px;" />`;
+    async function bjDouble() {
+        if(!bjActive || userData.chips < bjBet) return; bjHideActionButtons();
+        userData.chips -= bjBet; addProfit('blackjack',-bjBet); updateUI();
+        let res;
+        try { res = await apiCall('blackjack', { action:'double' }); }
+        catch(err) { userData.chips+=bjBet; addProfit('blackjack',bjBet); updateUI(); bjShowActionButtons(); toast('Error: '+err.message,'error'); return; }
+        applyServerBalance(res.chips);
+        renderCard(res.card,'bj-player-hand');
+        bjHand=res.playerHand;
+        document.getElementById('bj-player-score').textContent='Score: '+getBJScore(bjHand);
+        res.dealerHand.slice(bjDealer.length).forEach(c => renderCard(c,'bj-dealer-hand'));
+        bjDealer=res.dealerHand;
+        document.getElementById('bj-dealer-score').textContent='Score: '+getBJScore(bjDealer);
+        bjUpdateCounters(); bjActive=false; clearGameState('blackjack');
+        if(res.outcome==='win'||res.outcome==='dealer_bust') {
+            addHistory("Blackjack",bjBet*2,2,res.payout); addProfit('blackjack',res.payout);
+            play('win'); showWinOverlay(2,res.payout);
+            document.getElementById('bj-status').textContent='🏆 DOUBLE WIN!';
+            document.querySelector('.bj-area')?.classList.add('win-glow');
+        } else if(res.outcome==='push') {
+            addHistory("Blackjack",bjBet*2,1,bjBet*2); addProfit('blackjack',bjBet*2);
+            document.getElementById('bj-status').textContent='🤝 PUSH'; toast('Push!','success');
+        } else if(res.outcome==='bust') {
+            addHistory("Blackjack",bjBet*2,0,-(bjBet*2)); addProfit('blackjack',-(bjBet*2));
+            play('boom'); document.getElementById('bj-status').textContent='💥 BUST!';
+            document.querySelector('.bj-area')?.classList.add('lose-shake');
         } else {
-            document.getElementById('bq-disp-icon').innerText = bq.icon;
-        }
-        document.getElementById('bq-disp-name').innerText = bq.name;
-        document.getElementById('bq-disp-pot').innerText = `★★★★★ · Potential: ${bwState.potential}/10`;
-        // Show sell preview
-        if(!bwState.destroyed) {
-            const preview = bwGetReward();
-            const modeStr = preview.mode ? ` · Mode: ${preview.mode}` : '';
-            const scpStr = preview.scp !== null ? ` · SCP: ${preview.scp}` : '';
-            document.getElementById('bq-hive-bonus').innerText = `$ Est. Sell: ~${preview.reward} ★${modeStr}${scpStr}`;
-        } else {
-            document.getElementById('bq-hive-bonus').innerText = `💥 DESTROYED`;
-        }
-        document.getElementById('bq-wax-count').innerText = bwState.waxesUsed.length;
-        // Slots
-        const slots = document.getElementById('bq-slots');
-        slots.innerHTML = '';
-        for(let i=0;i<5;i++){
-            const s=document.createElement('div'); s.className='bq-slot';
-            if(bwState.waxesUsed[i]){
-                const w=bwState.waxesUsed[i];
-                s.classList.add('used-'+w);
-                s.innerText = w==='soft'?'🟡':w==='hard'?'🔵':w==='caustic'?'🟢':'🟣';
-            }
-            slots.appendChild(s);
-        }
-        // Stats
-        const statsDiv = document.getElementById('bq-stats-display');
-        statsDiv.innerHTML = bwState.stats.map(st => {
-            const cls = st.type==='pos'?'bq-stat-pos':st.type==='neg'?'bq-stat-neg':st.type==='hive'?'bq-stat-neutral':'bq-stat-neutral';
-            const isHive = st.type==='hive';
-            const pct = ['Chance','Power','Pollen','Amount','Rate','Gather','Love','Bond','Convert','Token','Crit','Speed','Duration'].some(k=>st.label.includes(k));
-            const val = st.val===null ? '' : (st.type==='neg'?`${st.val}%`:`+${st.val}${pct?'%':''}`);
-            const prefix = isHive ? '[Hive Bonus] +' : '';
-            return `<div class="${cls}">${st.val===null?`+Ability: <b>${st.label.replace('Ability: ','')}</b>`:`${prefix}${st.label} (${val})`}</div>`;
-        }).join('');
-
-        // Destroyed state
-        if(bwState.destroyed) document.getElementById('bq-active-card').classList.add('bq-destroyed');
-        else document.getElementById('bq-active-card').classList.remove('bq-destroyed');
-    }
-
-    function bwLog(msg, type='info') {
-        const log = document.getElementById('bw-log');
-        const div = document.createElement('div');
-        div.className = 'log-'+type;
-        div.innerText = msg;
-        log.appendChild(div);
-        log.scrollTop = log.scrollHeight;
-    }
-
-    function applyWax(type) {
-        if(bwState.destroyed){ bwLog('Beequip is destroyed! Go back and buy a new one.', 'bad'); return; }
-        if(bwState.waxesUsed.length >= 5){ bwLog('Max 5 waxes reached! Sell this beequip or go back.', 'bad'); return; }
-        const inv = bwState.inv;
-        // Check inventory / cost
-        if(type==='soft'){ /* always free */ }
-        else if(type==='hard'){
-            if(userData.chips < 2){ bwLog('Not enough ★ for Hard Wax (costs 2 ★)!','bad'); return; }
-            userData.chips -= 2; updateUI();
-        }
-        else if(type==='caustic'){
-            if(userData.chips < 20){ bwLog('Not enough ★ for Caustic Wax (costs 20 ★)!','bad'); return; }
-            userData.chips -= 20; updateUI();
-        } else if(type==='swirled'){
-            if(userData.chips < 20){ bwLog('Not enough ★ for Swirled Wax (costs 20 ★)!','bad'); return; }
-            userData.chips -= 20; updateUI();
-        }
-
-        if(type==='swirled'){
-            const hadCaustic = bwState.waxesUsed.includes('caustic');
-            if(!hadCaustic) {
-                bwLog('⚠️ Swirled Wax only works after Caustic Wax!', 'bad');
-                // Refund
-                userData.chips += 20; updateUI();
-                return;
-            }
-            // Reroll only the hive bonus stat, keep everything else
-            const hivePools = {
-                toyDrum:    [{ label:'Hive: Bee Ability Pollen', type:'hive', mult:0.8 }],
-                pinkShades: [{ label:'Hive: Super-Crit Chance', type:'hive', mult:0.85 },
-                             { label:'Hive: Super-Crit Power', type:'hive', mult:0.9 }],
-                poinsettia: [{ label:'Hive: Bee Gather Pollen', type:'hive', mult:0.75 },
-                             { label:'Hive: Red Pollen', type:'hive', mult:0.8 }],
-                smiley:     [{ label:'Hive: Bee Ability Pollen', type:'hive', mult:0.75 },
-                             { label:'Hive: Convert Rate', type:'hive', mult:0.8 }],
-                reindeer:   [{ label:'Hive: Baby Love', type:'hive', mult:0.75 }]
-            };
-            const pool = hivePools[bwState.beequip.id] || [];
-            const hasHive = bwState.stats.some(s => s.type==='hive');
-            if(pool.length > 0) {
-                // Remove old hive stats
-                bwState.stats = bwState.stats.filter(s => s.type !== 'hive');
-                // Pick new random hive stat from pool
-                const pick = pool[Math.floor(Math.random()*pool.length)];
-                bwState.stats.push({ ...pick, val: rng(1, 8) });
-                bwLog('🟣 Swirled Wax rerolled the Hive Bonus!', 'purple');
-            } else {
-                bwLog('🟣 Swirled Wax used but no Hive Bonus available for this beequip.', 'info');
-            }
-            bwState.waxesUsed.push('swirled');
-            bwRender(); return;
-        }
-
-        const roll = Math.random();
-        let success = false;
-        let potGain = 0;
-        if(type==='soft'){ success=true; potGain=1; }
-        else if(type==='hard'){ success=roll<0.30; potGain=2; }
-        else if(type==='caustic'){
-            if(roll<0.20){ success=true; potGain=4; }
-            else {
-                bwState.waxesUsed.push('caustic');
-                bwState.destroyed=true;
-                bwLog('🟢 Caustic Wax used... 💥 THE WAX DESTROYED THE BEEQUIP!', 'bad');
-                play('boom');
-                bwRender(); return;
-            }
-        }
-
-        if(success){
-            bwState.potential += potGain;
-            bwState.waxesUsed.push(type);
-            // Improve stats (only val, not mult — mult is exclusive to hive bonuses)
-            bwState.stats = bwState.stats.map(st => {
-                if(st.val!==null && st.type !== 'hive'){
-                    const boost = Math.ceil(potGain * (1+Math.random()));
-                    st.val = st.type==='neg' ? st.val + Math.floor(boost/2) : st.val + boost;
-                    // mult stays 0 for non-hive stats
-                }
-                return st;
-            });
-            // Caustic wax success: chance to add a Hive Bonus stat
-            if(type==='caustic') {
-                const hivePools = {
-                    toyDrum:    [{ label:'Hive: Bee Ability Pollen', val: rng(1,5), type:'hive', mult:0.8 }],
-                    pinkShades: [{ label:'Hive: Super-Crit Chance', val: rng(1,5), type:'hive', mult:0.85 },
-                                 { label:'Hive: Super-Crit Power', val: rng(1,5), type:'hive', mult:0.9 }],
-                    poinsettia: [{ label:'Hive: Bee Gather Pollen', val: rng(1,5), type:'hive', mult:0.75 },
-                                 { label:'Hive: Red Pollen', val: rng(1,5), type:'hive', mult:0.8 }],
-                    smiley:     [{ label:'Hive: Bee Ability Pollen', val: rng(1,5), type:'hive', mult:0.75 },
-                                 { label:'Hive: Convert Rate', val: rng(1,5), type:'hive', mult:0.8 }],
-                    reindeer:   [{ label:'Hive: Baby Love', val: rng(1,5), type:'hive', mult:0.75 }]
-                };
-                const pool = hivePools[bwState.beequip.id] || [];
-                const alreadyHasHive = bwState.stats.some(s => s.type==='hive');
-                if(pool.length > 0 && !alreadyHasHive) {
-                    const pick = pool[Math.floor(Math.random()*pool.length)];
-                    bwState.stats.push({...pick, val: rng(1,5)});
-                    bwLog('🟢 Caustic Wax unlocked a Hive Bonus stat!', 'purple');
-                } else if(alreadyHasHive) {
-                    // Boost existing hive stat
-                    bwState.stats = bwState.stats.map(st => {
-                        if(st.type==='hive') { st.val += rng(1,3); st.mult = Math.min(2.5, (st.mult||1)+0.1); }
-                        return st;
-                    });
-                    bwLog('🟢 Caustic Wax boosted the Hive Bonus!', 'purple');
-                }
-            }
-            const waxName = type==='soft'?'Soft':type==='hard'?'Hard':'Caustic';
-            bwLog(`✅ ${waxName} Wax improved the Beequip! +${potGain} potential.`, 'good');
-        } else {
-            bwState.waxesUsed.push(type);
-            bwLog(`❌ Hard Wax failed to improve the Beequip. No change.`, 'bad');
-        }
-        bwRender();
-    }
-
-    function bwGetReward() {
-        const bq = bwState.beequip;
-        const stats = bwState.stats;
-
-        if(bq.id === 'pinkShades') {
-            // SCP = Hive: Super-Crit Power value (from hive bonus only)
-            const hiveSCPStat = stats.find(s => s.label === 'Hive: Super-Crit Power' && s.type === 'hive');
-            const hiveSCCStat = stats.find(s => s.label === 'Hive: Super-Crit Chance' && s.type === 'hive');
-            const scp = hiveSCPStat ? hiveSCPStat.val : 0;
-            const hasFocus = stats.some(s => s.label === 'Ability: Focus' && s.val === null);
-            const hasSCC = !!hiveSCCStat;
-            // Reward tables (max 12000)
-            const tables = {
-                'NONE':       {0:67,2:67,3:67,4:67,5:67,6:105,7:180,8:285,9:360,10:690,11:1080,12:1875,13:2400,14:3150,15:4800},
-                'FOCUS':      {0:67,2:67,3:67,4:67,5:67,6:112,7:195,8:300,9:390,10:735,11:1125,12:2100,13:2850,14:3750,15:5700},
-                'SCC':        {0:67,2:165,3:270,4:465,5:795,6:1350,7:2100,8:3000,9:4500,10:6000,11:7500,12:7500,13:7500,14:7500,15:7500},
-                'FOCUS+SCC':  {0:90,2:195,3:330,4:525,5:870,6:1470,7:2325,8:3300,9:4950,10:6000,11:7500,12:6750,13:7500,14:7500,15:7500}
-            };
-            let mode = 'NONE';
-            if(hasFocus && hasSCC) mode = 'FOCUS+SCC';
-            else if(hasFocus) mode = 'FOCUS';
-            else if(hasSCC) mode = 'SCC';
-            const table = tables[mode];
-            // Find closest SCP tier (SCP = Hive: Super-Crit Power value)
-            const tiers = Object.keys(table).map(Number).sort((a,b)=>a-b);
-            let tier = tiers[0];
-            for(let t of tiers) { if(scp >= t) tier = t; }
-            const base = table[tier];
-            const reward = Math.min(12000, Math.floor(base * (1 + bwState.potential * 0.05)));
-            return { reward, mode, scp, tier };
-        }
-
-        // Generic reward for other beequips based on potential and hive bonuses only
-        const pot = bwState.potential;
-        const hiveMult = stats.filter(s => s.type==='hive').reduce((acc, st) => acc * (st.mult||1), 1);
-        const reward = Math.floor((10 + pot * 15 + Math.random()*10*pot) * Math.max(1, hiveMult));
-        return { reward, mode: null, scp: null, tier: null };
-    }
-
-    function bwSellBeequip() {
-        if(!bwState.beequip) return;
-        if(bwState.destroyed) { bwLog('Destroyed beequip has no sell value.', 'bad'); setTimeout(()=>bwBack(), 1000); return; }
-        const { reward, mode, scp, tier } = bwGetReward();
-        if(reward > 0) {
-            userData.chips += reward;
-            play('win');
-           ;
-            addHistory("Beequip Waxing", bwState.beequip.cost, reward/bwState.beequip.cost, reward, bwState.balBefore);
-            const modeStr = mode ? ` [${mode}, ${scp} SCP]` : '';
-            bwLog(`$ Sold ${bwState.beequip.name} for ${reward} ★!${modeStr}`, 'good');
-        } else {
-            bwLog('No reward — try waxing first!', 'bad');
+            addHistory("Blackjack",bjBet*2,0,-(bjBet*2)); addProfit('blackjack',-(bjBet*2));
+            play('boom'); document.getElementById('bj-status').textContent='😞 DEALER WINS';
         }
         updateUI();
-        setTimeout(()=>bwBack(), 1200);
+        document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
     }
-
-    // ══════════════════════════════════════════════
-    // TOAST NOTIFICATION SYSTEM
-    // ══════════════════════════════════════════════
-    function toast(msg, type = 'info', duration = 3000) {
-        const icons = { success:'✅', error:'❌', warn:'⚠️', info:'ℹ️' };
-        const container = document.getElementById('toast-container');
-        const el = document.createElement('div');
-        el.className = `toast toast-${type}`;
-        el.innerHTML = `<span>${icons[type]||''}</span><span>${msg}</span>`;
-        container.appendChild(el);
-        setTimeout(() => {
-            el.classList.add('toast-exit');
-            setTimeout(() => el.remove(), 320);
-        }, duration);
-    }
-
-    // ══════════════════════════════════════════════
-    // BET LOCK — prevents double-click chip drain
-    // ══════════════════════════════════════════════
-    let _betLocked = false;
-    let _lastBetTime = 0;
-    const BET_COOLDOWN_MS = 600;
-
-    function acquireBetLock() {
-        const now = Date.now();
-        if(_betLocked) { toast('Please wait…', 'warn', 3000); return false; }
-        if(now - _lastBetTime < BET_COOLDOWN_MS) { toast('Slow down!', 'warn', 3000); return false; }
-        _betLocked = true;
-        _lastBetTime = now;
-        return true;
-    }
-    function releaseBetLock() { _betLocked = false; }
-
-    // ══════════════════════════════════════════════
-    // ANTICHEAT ENGINE
-    // ══════════════════════════════════════════════
-    let _acChipsSnapshot = 0;
-    let _acEnabled = false;
-    let _acCheckInterval = null;
-    const _acAllowedSources = new Set(); // timestamps of legitimate chip changes
-
-    function acInit(chips) {
-        _acChipsSnapshot = chips;
-        _acEnabled = true;
-        // Check every 2s if chips match our snapshot
-        _acCheckInterval = setInterval(acCheck, 2000);
-    }
-
-    function acLegitChange(newChips) {
-        _acChipsSnapshot = newChips;
-        _acAllowedSources.add(Date.now());
-    }
-
-    function acCheck() {
-        if(!_acEnabled || !userData) return;
-        if(fpEnabled) return; // Free Play uses fake chips — skip anticheat
-        const actual = Math.floor(userData.chips);
-        const snap = Math.floor(_acChipsSnapshot);
-        // Allow small floating point differences
-        if(Math.abs(actual - snap) > 1 && !_acPendingLegit()) {
-            acTrigger('Chip value tampered: expected ' + snap + ' got ' + actual);
-        }
-    }
-
-    function _acPendingLegit() {
-        const now = Date.now();
-        for(let ts of _acAllowedSources) {
-            if(now - ts < 4000) return true;
-        }
-        // Cleanup old entries
-        _acAllowedSources.forEach(ts => { if(now - ts > 4000) _acAllowedSources.delete(ts); });
-        return false;
-    }
-
-    // DevTools detection removed
-
-    function acTrigger(reason) {
-        _acEnabled = false;
-        clearInterval(_acCheckInterval);
-        console.warn('[AC]', reason);
-        document.getElementById('ac-warning').classList.add('show');
-        // Reset to snapshot value and save
-        if(userData) {
-            userData.chips = _acChipsSnapshot;
-            dbSet('users', currentUser, userData);
-        }
-    }
-
-    // Wrap updateUI to track chip snapshots
-    const _origUpdateUI = updateUI;
-    // We'll patch updateUI after defining it — see below
-
-    // ══════════════════════════════════════════════
-    // PROVABLY FAIR ENGINE
-    // ══════════════════════════════════════════════
-    const pfState = {
-        serverSeed: '',
-        serverSeedHash: '',
-        prevServerSeed: null,
-        clientSeed: 'client-seed-' + Math.random().toString(36).slice(2,8),
-        nonce: 0,
-        history: [],
-        copied: null,
-        activeTab: 'seeds'
-    };
-
-    function pfBytesToHex(bytes) {
-        return Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join('');
-    }
-    function pfHexToBytes(hex) {
-        const a = new Uint8Array(hex.length/2);
-        for(let i=0;i<hex.length;i+=2) a[i/2]=parseInt(hex.slice(i,i+2),16);
-        return a;
-    }
-    function pfRandomHex(len=64){
-        const a=new Uint8Array(len/2); crypto.getRandomValues(a); return pfBytesToHex(a);
-    }
-    async function pfSha256(hex){
-        const h=await crypto.subtle.digest('SHA-256', pfHexToBytes(hex));
-        return pfBytesToHex(new Uint8Array(h));
-    }
-    async function pfHmac(key, msg){
-        const enc=new TextEncoder();
-        const ck=await crypto.subtle.importKey('raw',enc.encode(key),{name:'HMAC',hash:'SHA-256'},false,['sign']);
-        const sig=await crypto.subtle.sign('HMAC',ck,enc.encode(msg));
-        return pfBytesToHex(new Uint8Array(sig));
-    }
-    function pfHmacToFloat(hmac){ return parseInt(hmac.slice(0,8),16)/0x100000000; }
-
-    // Public: call this instead of Math.random() from game code
-    async function pfRoll(){
-        const msg = `${pfState.clientSeed}:${pfState.nonce}`;
-        const hmac = await pfHmac(pfState.serverSeed, msg);
-        const float = pfHmacToFloat(hmac);
-        const roll = Math.floor(float*10000)/100;
-        const entry = {
-            serverSeedHash: pfState.serverSeedHash,
-            clientSeed: pfState.clientSeed,
-            nonce: pfState.nonce,
-            hmac, float, roll,
-            ts: new Date().toLocaleTimeString()
-        };
-        pfState.history.unshift(entry);
-        if(pfState.history.length>30) pfState.history.pop();
-        pfState.nonce++;
-        pfRenderNonce();
-        pfRenderResult(entry);
-        pfRenderHistory();
-        return float; // [0,1)
-    }
-
-    async function pfInit(){
-        const seed = pfRandomHex(64);
-        const hash = await pfSha256(seed);
-        pfState.serverSeed = seed;
-        pfState.serverSeedHash = hash;
-        pfState.nonce = 0;
-        document.getElementById('pf-hash-display').textContent = hash.slice(0,28)+'…';
-        document.getElementById('pf-client-input').value = pfState.clientSeed;
-        pfRenderNonce();
-    }
-
-    function pfRenderNonce(){
-        document.getElementById('pf-nonce-display').textContent = pfState.nonce;
-    }
-
-    function pfRenderResult(e){
-        document.getElementById('pf-result-area').innerHTML = `
-            <div class="pf-result-box">
-                <div class="pf-result-header">
-                    <span class="pf-result-title">Last Roll</span>
-                    <span class="pf-roll-badge">${e.roll.toFixed(2)}</span>
-                </div>
-                <div class="pf-row"><span class="pf-rl">HMAC</span><span class="pf-rv">${e.hmac.slice(0,26)}… <button class="pf-copy-btn" onclick="pfCopy('${e.hmac}','lhmac')">⧉</button></span></div>
-                <div class="pf-row"><span class="pf-rl">Nonce</span><span class="pf-rv">${e.nonce}</span></div>
-                <div class="pf-row"><span class="pf-rl">Float</span><span class="pf-rv">${e.float.toFixed(8)}</span></div>
-            </div>`;
-    }
-
-    function pfRenderHistory(){
-        const el = document.getElementById('pf-history-list');
-        if(!pfState.history.length){ el.innerHTML='<p class="pf-hint">No rolls yet.</p>'; return; }
-        el.innerHTML = pfState.history.map((h,i)=>`
-            <div class="pf-history-row">
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <span class="pf-roll-badge">${h.roll.toFixed(2)}</span>
-                    <div>
-                        <div style="font-size:11px;color:#9ca3af;">Nonce ${h.nonce} · ${h.ts}</div>
-                        <div style="font-size:11px;color:#6b7280;">${h.hmac.slice(0,22)}…</div>
-                    </div>
-                </div>
-                <button class="pf-copy-btn" onclick="pfCopy(JSON.stringify(pfState.history[${i}],null,2),'hist${i}')">⧉</button>
-            </div>`).join('');
-    }
-
-    async function pfRotate(){
-        const btn = document.getElementById('pf-rotate-btn');
-        btn.textContent='Rotating…'; btn.disabled=true;
-        pfState.prevServerSeed = { seed: pfState.serverSeed, hash: pfState.serverSeedHash, clientSeed: pfState.clientSeed, nonce: pfState.nonce };
-        const seed = pfRandomHex(64);
-        const hash = await pfSha256(seed);
-        pfState.serverSeed = seed;
-        pfState.serverSeedHash = hash;
-        pfState.nonce = 0;
-        document.getElementById('pf-hash-display').textContent = hash.slice(0,28)+'…';
-        pfRenderNonce();
-        // show revealed seed
-        const prev = pfState.prevServerSeed;
-        document.getElementById('pf-reveal-area').innerHTML = `
-            <div class="pf-reveal-box">
-                <span style="display:block;font-size:13px;font-weight:700;color:#60a5fa;margin-bottom:8px;">🔓 Previous Seed Revealed</span>
-                <div class="pf-row"><span class="pf-rl">Seed</span><span class="pf-rv">${prev.seed.slice(0,24)}… <button class="pf-copy-btn" onclick="pfCopy('${prev.seed}','prev')">⧉</button></span></div>
-                <div class="pf-row"><span class="pf-rl">Hash</span><span class="pf-rv">${prev.hash.slice(0,24)}…</span></div>
-                <p class="pf-hint" style="margin-top:6px;">SHA256(revealed seed) = hash you saw before — verify it independently!</p>
-            </div>`;
-        btn.textContent='⟳ Rotate Server Seed'; btn.disabled=false;
-    }
-
-    function pfUpdateClient(){
-        const v = document.getElementById('pf-client-input').value.trim();
-        if(v) { pfState.clientSeed = v; pfState.nonce = 0; pfRenderNonce(); }
-    }
-    function pfRandomizeClient(){
-        const v = 'client-'+pfRandomHex(8);
-        document.getElementById('pf-client-input').value = v;
-        pfState.clientSeed = v; pfState.nonce = 0; pfRenderNonce();
-    }
-
-    async function pfVerify(){
-        const seed = document.getElementById('pfv-seed').value.trim();
-        const client = document.getElementById('pfv-client').value.trim();
-        const nonce = parseInt(document.getElementById('pfv-nonce').value)||0;
-        if(!seed||!client){ document.getElementById('pfv-result').innerHTML='<p style="color:#ef4444;">Fill in all fields.</p>'; return; }
-        try {
-            const hmac = await pfHmac(seed, `${client}:${nonce}`);
-            const float = pfHmacToFloat(hmac);
-            const roll = Math.floor(float*10000)/100;
-            const hash = await pfSha256(seed);
-            document.getElementById('pfv-result').innerHTML = `
-                <div class="pf-result-box" style="margin-top:14px;">
-                    <div class="pf-result-header"><span class="pf-result-title">✓ Verified</span><span class="pf-roll-badge">${roll.toFixed(2)}</span></div>
-                    <div class="pf-row"><span class="pf-rl">HMAC</span><span class="pf-rv">${hmac.slice(0,28)}…</span></div>
-                    <div class="pf-row"><span class="pf-rl">Hash</span><span class="pf-rv">${hash.slice(0,28)}…</span></div>
-                    <div class="pf-row"><span class="pf-rl">Float</span><span class="pf-rv">${float.toFixed(8)}</span></div>
-                </div>`;
-        } catch(e) {
-            document.getElementById('pfv-result').innerHTML='<p style="color:#ef4444;">Verification failed.</p>';
-        }
-    }
-
-    function pfCopy(text, key){
-        navigator.clipboard.writeText(text);
-        // flash feedback via alert-less approach
-        const prev = pfState.copied;
-        pfState.copied = key;
-        setTimeout(()=>{ if(pfState.copied===key) pfState.copied=null; },1500);
-    }
-
-    function pfTab(t){
-        pfState.activeTab = t;
-        ['seeds','verify','history'].forEach(n=>{
-            document.getElementById('pftab-'+n).classList.toggle('active', n===t);
-            document.getElementById('pfpanel-'+n).style.display = n===t ? '' : 'none';
-        });
-        if(t==='history') pfRenderHistory();
-    }
-
-    function pfOpen(){ document.getElementById('pf-overlay').classList.add('open'); }
-    function pfClose(){ document.getElementById('pf-overlay').classList.remove('open'); }
-    function pfOverlayClick(e){ if(e.target===document.getElementById('pf-overlay')) pfClose(); }
-
-    window.onload = async () => {
-        pfInit();
-
-        // Step 1: If Discord just redirected back with a token in the URL,
-        // stash it in sessionStorage and reload to a clean URL immediately.
-        if(window.location.hash.includes('access_token')) {
-            const p = new URLSearchParams(window.location.hash.substring(1));
-            const token = p.get('access_token');
-            if(token) {
-                sessionStorage.setItem('dc_token', token);
-                window.location.replace(DISCORD_REDIRECT);
-                return;
-            }
-        }
-
-        // Step 2: On the clean reload, pick up the stashed token and log in.
-        const pendingToken = sessionStorage.getItem('dc_token');
-        if(pendingToken) {
-            sessionStorage.setItem('dc_token_live', pendingToken); // keep for edge function calls
-            localStorage.setItem('dc_token_live', pendingToken); // persist across refreshes
-            sessionStorage.removeItem('dc_token');
-            await processDiscordToken(pendingToken);
-            return;
-        }
-
-        // Step 3: Already logged in — restore session.
-        if(currentUser) {
-            // First try localStorage cache for instant load with correct balance
-            const _cachedRaw = localStorage.getItem('swarm_userdata_' + currentUser);
-            let _cachedData = null;
-            try { _cachedData = _cachedRaw ? JSON.parse(_cachedRaw) : null; } catch(e) {}
-
-            const _isDiscordUser = currentUser.startsWith('discord_');
-
-            // Fetch from server too, but only use it if chips are HIGHER (admin deposit etc.)
-            let _serverData = null;
-            // Username/password users can't write to Supabase (RLS blocks it), so the server
-            // value is always stale — don't fetch it at all, just use localStorage.
-            if(_isDiscordUser) {
-                try { _serverData = await dbGet('users', currentUser); } catch(e) {}
-            }
-
-            if(_isDiscordUser) {
-                // localStorage is kept in sync on every updateUI() call during gameplay.
-                // It is always the most up-to-date source for chip balance.
-                // The server value can be STALE if the Edge Function save failed after a loss
-                // (server still holds the pre-loss balance), so we must NOT blindly prefer
-                // the server when it has more chips — that would restore lost coins on refresh.
-                //
-                // The ONLY time the server should override localStorage is when an admin/bot
-                // explicitly updated the balance (_bot_updated flag), which is handled below.
-
-                if(_serverData && _cachedData) {
-                    // localStorage chips are always the source of truth.
-                    // Merge server fields (displayName, avatarUrl, etc.) but keep local chips.
-                    userData = Object.assign({}, _serverData, { chips: _cachedData.chips });
-                    localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(userData));
-                    // Don't call dbSet here — dc_token_live is gone after refresh (sessionStorage cleared)
-                    // so the Edge Function call would fail anyway. The next updateUI() during gameplay
-                    // will sync the correct balance back to the server.
-                } else {
-                    userData = _cachedData || _serverData;
-                    if(_serverData && !_cachedData) {
-                        localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_serverData));
-                    }
-                }
-            } else {
-                // Username/password users: localStorage IS the source of truth.
-                // Only fall back to server if no local cache at all (brand new device).
-                userData = _cachedData;
-                if(!userData) {
-                    try { _serverData = await dbGet('users', currentUser); } catch(e) {}
-                    userData = _serverData;
-                }
-            }
-
-            // Apply bot deposit/withdraw using relative delta so stale server balance doesn't matter
-            if(userData && userData._bot_updated) {
-                console.log('[onload] Bot update detected');
-                const _SYM_RAW2 = Symbol.for('bss_raw');
-                const _raw2 = (userData && userData[_SYM_RAW2]) ? userData[_SYM_RAW2] : userData;
-                if(typeof _raw2._bot_delta === 'number') {
-                    // Apply relative delta on top of real local balance
-                    _raw2.chips = Math.max(0, (_cachedData ? _cachedData.chips : _raw2.chips) + _raw2._bot_delta);
-                    console.log('[onload] Applied delta:', _raw2._bot_delta, '→ new chips:', _raw2.chips);
-                }
-                delete _raw2._bot_updated;
-                delete _raw2._bot_delta;
-                localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_raw2));
-                const _token = sessionStorage.getItem('dc_token_live') || localStorage.getItem('dc_token_live');
-                if(_token) {
-                    try {
-                        await fetch(`${EDGE_BASE}/save-user`, {
-                            method: 'POST',
-                            headers: { 
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${SUPABASE_KEY}`
-                            },
-                            body: JSON.stringify({ discord_token: _token, data: _raw2 })
-                        });
-                    } catch(e) { console.error('Failed to clear _bot_updated on load:', e); }
-                }
-                userData = _raw2;
-            }
-
-            if(userData) {
-                await loginSuccess();
-                if(userData.discord && userData.displayName && userData.avatarUrl) {
-                    injectDiscordAvatar(userData.displayName, userData.avatarUrl);
-                }
-            }
-        }
-
-        // Bot deposits/withdrawals are applied on next page load via _bot_updated flag check above.
-
-        // Poll server every 10s — ONLY apply balance if bot set _bot_updated flag.
-        setInterval(async () => {
-            if(!currentUser || !userData) return;
-            const fresh = await dbGet('users', currentUser);
-            if(fresh && fresh._bot_updated) {
-                const _SYM_RAW = Symbol.for('bss_raw');
-                const raw = (userData && userData[_SYM_RAW]) ? userData[_SYM_RAW] : userData;
-                raw.chips = fresh.chips;
-                delete raw._bot_updated;
-                localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(raw));
-                const token = sessionStorage.getItem('dc_token_live') || localStorage.getItem('dc_token_live');
-                if(token) {
-                    try {
-                        await fetch(`${EDGE_BASE}/save-user`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_KEY}` },
-                            body: JSON.stringify({ discord_token: token, data: raw })
-                        });
-                    } catch(e) { console.error('Failed to clear _bot_updated via edge:', e); }
-                }
-                updateUI();
-            }
-        }, 10000);
-    };
-
-    // ── Pull-to-refresh guard ──────────────────────────────────────────────────
-    (function() {
-        function isAtTop() {
-            // Check every possible scroller
-            const els = [
-                document.querySelector('.main-wrapper'),
-                document.documentElement,
-                document.body
-            ];
-            for (const el of els) {
-                if (el && el.scrollTop > 5) return false;
-            }
-            return true;
-        }
-
-        function updateOverscroll() {
-            const el = document.querySelector('.main-wrapper');
-            if (!el) return;
-            if (isAtTop()) {
-                el.style.overscrollBehaviorY = 'auto';
-                document.body.style.overscrollBehaviorY = 'auto';
-            } else {
-                el.style.overscrollBehaviorY = 'none';
-                document.body.style.overscrollBehaviorY = 'none';
-            }
-        }
-
-        document.querySelector('.main-wrapper')?.addEventListener('scroll', updateOverscroll, { passive: true });
-        document.addEventListener('touchstart', updateOverscroll, { passive: true });
-        window.addEventListener('load', updateOverscroll);
-    })();
-    // ──────────────────────────────────────────────────────────────────────────
 
     // ====================================================
     // STICKER PRINTER GAME
