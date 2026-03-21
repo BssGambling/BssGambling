@@ -60,12 +60,19 @@ module.exports = async (req, res) => {
     const oldBalance = Math.floor(userData.chips ?? 0);
 
     if (action === 'deposit') {
+      // Hard cap — can never exceed MAX_CHIPS regardless of amount
+      if (oldBalance >= MAX_CHIPS) {
+        return res.status(400).json({ error: `Player already at max balance (${MAX_CHIPS})` });
+      }
       const amt = Math.max(1, Math.min(MAX_CHIPS, Math.floor(amount)));
       const newBalance = Math.min(MAX_CHIPS, oldBalance + amt);
+      // Log the admin action with timestamp for audit trail
+      const adminLog = { action: 'deposit', by: user_id, target: targetId, amount: amt, oldBalance, newBalance, at: new Date().toISOString() };
       await supabase.from('users').upsert(
-        { id: targetId, data: { ...userData, chips: newBalance } },
+        { id: targetId, data: { ...userData, chips: newBalance, lastAdminAction: adminLog } },
         { onConflict: 'id' }
       );
+      console.log(`[ADMIN] ${user_id} deposited ${amt} to ${targetId} (${oldBalance} -> ${newBalance})`);
       return res.json({ ok: true, oldBalance, newBalance });
     }
 
@@ -81,10 +88,12 @@ module.exports = async (req, res) => {
 
     if (action === 'set') {
       const newBalance = Math.max(0, Math.min(MAX_CHIPS, Math.floor(amount)));
+      const adminLog = { action: 'set', by: user_id, target: targetId, newBalance, oldBalance, at: new Date().toISOString() };
       await supabase.from('users').upsert(
-        { id: targetId, data: { ...userData, chips: newBalance } },
+        { id: targetId, data: { ...userData, chips: newBalance, lastAdminAction: adminLog } },
         { onConflict: 'id' }
       );
+      console.log(`[ADMIN] ${user_id} set ${targetId} chips to ${newBalance}`);
       return res.json({ ok: true, oldBalance, newBalance });
     }
 
