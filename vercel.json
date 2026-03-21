@@ -1,5 +1,8 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
+    { "source": "/api/bet", "destination": "/api/bet" },
+    { "source": "/api/mines", "destination": "/api/mines" },
+    { "source": "/api/tower", "destination": "/api/tower" },
+    { "source": "/api/blackjack", "destination": "/api/blackjack" }
   ]
 }
