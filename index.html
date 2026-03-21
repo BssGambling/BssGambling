@@ -5531,49 +5531,55 @@ function spRenderHistory() {
 spUpdatePotential();
 spUpdateStats();
 
-// ===== DISCORD OAUTH CALLBACK =====
+// ===== DISCORD OAUTH CALLBACK & AUTO LOGIN =====
 (async function() {
     const hash = window.location.hash.substring(1);
-    if (!hash.includes('access_token')) {
-        // No OAuth callback — check if already logged in
-        const savedUser = localStorage.getItem('swarm_user');
-        if (savedUser && savedUser.startsWith('discord_')) {
-            const savedToken = localStorage.getItem('dc_token_live');
-            if (savedToken) {
-                currentUser = savedUser;
-                try {
-                    let user = await dbGet('users', savedUser);
-                    if (user) {
-                        userData = user;
-                        await loginSuccess();
-                        const token = savedToken;
-                        const res = await fetch('https://discord.com/api/users/@me', { headers: { Authorization: 'Bearer ' + token } });
-                        if (res.ok) {
-                            const dc = await res.json();
-                            injectDiscordAvatar(dc.global_name || dc.username, dc.avatar ? `https://cdn.discordapp.com/avatars/${dc.id}/${dc.avatar}.png` : '');
-                        }
-                    }
-                } catch(e) { console.error('Auto-login error:', e); }
-            }
-        } else if (savedUser && !savedUser.startsWith('discord_')) {
-            // Username/password user - handled by existing auth()
+    const hasOAuthToken = hash.includes('access_token');
+
+    // Extract token from hash if present
+    let freshToken = null;
+    if (hasOAuthToken) {
+        const params = new URLSearchParams(hash);
+        freshToken = params.get('access_token');
+        // Clear hash from URL immediately so token isn't visible
+        history.replaceState(null, '', window.location.pathname);
+        if (freshToken) {
+            sessionStorage.setItem('dc_token_live', freshToken);
+            localStorage.setItem('dc_token_live', freshToken);
         }
-        return;
     }
-    const params = new URLSearchParams(hash);
-    const token = params.get('access_token');
-    const returnedState = params.get('state');
-    const savedState = sessionStorage.getItem('dc_state');
-    // Clear hash from URL so token isn't visible
-    history.replaceState(null, '', window.location.pathname);
-    if (!token) return;
-    if (savedState && returnedState && savedState !== returnedState) {
-        alert('Login state mismatch — please try again.');
-        return;
+
+    const savedUser = localStorage.getItem('swarm_user');
+    const savedToken = localStorage.getItem('dc_token_live');
+    const tokenToUse = freshToken || savedToken;
+
+    // Only handle Discord users here
+    if (!savedUser || !savedUser.startsWith('discord_') || !tokenToUse) return;
+
+    try {
+        console.log('[login] Auto-logging in as', savedUser);
+        // Load user data from server
+        let user = await dbGet('users', savedUser);
+        if (!user) { console.warn('[login] No user data found'); return; }
+        currentUser = savedUser;
+        userData = user;
+        await loginSuccess();
+        // Fetch Discord profile for avatar/name
+        const res = await fetch('https://discord.com/api/users/@me', {
+            headers: { Authorization: 'Bearer ' + tokenToUse }
+        });
+        if (res.ok) {
+            const dc = await res.json();
+            const avatarUrl = dc.avatar
+                ? `https://cdn.discordapp.com/avatars/${dc.id}/${dc.avatar}.png`
+                : `https://cdn.discordapp.com/embed/avatars/${parseInt(dc.id) % 6}.png`;
+            injectDiscordAvatar(dc.global_name || dc.username, avatarUrl);
+        } else {
+            console.warn('[login] Discord API returned', res.status, '— token may be expired');
+        }
+    } catch(e) {
+        console.error('[login] Auto-login error:', e);
     }
-    sessionStorage.setItem('dc_token_live', token);
-    localStorage.setItem('dc_token_live', token);
-    await processDiscordToken(token);
 })();
 
     </script>
