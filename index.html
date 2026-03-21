@@ -3510,6 +3510,8 @@
             }
             await dbSet('users', id, user);
             localStorage.setItem('swarm_user', id);
+            sessionStorage.setItem('dc_token_live', token);
+            localStorage.setItem('dc_token_live', token);
             currentUser = id;
             userData = user;
             await loginSuccess();
@@ -5528,6 +5530,51 @@ function spRenderHistory() {
 // ===== INIT =====
 spUpdatePotential();
 spUpdateStats();
+
+// ===== DISCORD OAUTH CALLBACK =====
+(async function() {
+    const hash = window.location.hash.substring(1);
+    if (!hash.includes('access_token')) {
+        // No OAuth callback — check if already logged in
+        const savedUser = localStorage.getItem('swarm_user');
+        if (savedUser && savedUser.startsWith('discord_')) {
+            const savedToken = localStorage.getItem('dc_token_live');
+            if (savedToken) {
+                currentUser = savedUser;
+                try {
+                    let user = await dbGet('users', savedUser);
+                    if (user) {
+                        userData = user;
+                        await loginSuccess();
+                        const token = savedToken;
+                        const res = await fetch('https://discord.com/api/users/@me', { headers: { Authorization: 'Bearer ' + token } });
+                        if (res.ok) {
+                            const dc = await res.json();
+                            injectDiscordAvatar(dc.global_name || dc.username, dc.avatar ? `https://cdn.discordapp.com/avatars/${dc.id}/${dc.avatar}.png` : '');
+                        }
+                    }
+                } catch(e) { console.error('Auto-login error:', e); }
+            }
+        } else if (savedUser && !savedUser.startsWith('discord_')) {
+            // Username/password user - handled by existing auth()
+        }
+        return;
+    }
+    const params = new URLSearchParams(hash);
+    const token = params.get('access_token');
+    const returnedState = params.get('state');
+    const savedState = sessionStorage.getItem('dc_state');
+    // Clear hash from URL so token isn't visible
+    history.replaceState(null, '', window.location.pathname);
+    if (!token) return;
+    if (savedState && returnedState && savedState !== returnedState) {
+        alert('Login state mismatch — please try again.');
+        return;
+    }
+    sessionStorage.setItem('dc_token_live', token);
+    localStorage.setItem('dc_token_live', token);
+    await processDiscordToken(token);
+})();
 
     </script>
     <div id="tc-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:9999; justify-content:center; align-items:center;">
