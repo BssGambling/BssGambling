@@ -3324,7 +3324,7 @@
 
         // For users table — route through Edge Function so anon key can't write chips directly
         if(table === 'users') {
-            const token = sessionStorage.getItem('dc_token_live');
+            const token = sessionStorage.getItem('dc_token_live') || localStorage.getItem('dc_token_live');
             
             // Try Edge Function for Discord users (preferred method)
             if(token && id.startsWith('discord_')) {
@@ -6493,6 +6493,7 @@
         const pendingToken = sessionStorage.getItem('dc_token');
         if(pendingToken) {
             sessionStorage.setItem('dc_token_live', pendingToken); // keep for edge function calls
+            localStorage.setItem('dc_token_live', pendingToken); // persist across refreshes
             sessionStorage.removeItem('dc_token');
             await processDiscordToken(pendingToken);
             return;
@@ -6553,7 +6554,7 @@
             if(userData && userData._bot_updated) {
                 console.log('[onload] Clearing _bot_updated flag from server...');
                 delete userData._bot_updated;
-                const _token = sessionStorage.getItem('dc_token_live');
+                const _token = sessionStorage.getItem('dc_token_live') || localStorage.getItem('dc_token_live');
                 if(_token) {
                     const _raw = (userData && userData[Symbol.for('bss_raw')]) ? userData[Symbol.for('bss_raw')] : userData;
                     try {
@@ -6587,7 +6588,7 @@
                 localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(raw));
                 // Use Edge Function to save back WITHOUT _bot_updated
                 // (RLS blocks anon key from writing directly)
-                const token = sessionStorage.getItem('dc_token_live');
+                const token = sessionStorage.getItem('dc_token_live') || localStorage.getItem('dc_token_live');
                 if(token) {
                     try {
                         await fetch(`${EDGE_BASE}/save-user`, {
