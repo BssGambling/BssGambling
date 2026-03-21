@@ -6591,6 +6591,30 @@
         }
 
         // Bot deposits/withdrawals are applied on next page load via _bot_updated flag check above.
+
+        // Poll server every 10s — ONLY apply balance if bot set _bot_updated flag.
+        setInterval(async () => {
+            if(!currentUser || !userData) return;
+            const fresh = await dbGet('users', currentUser);
+            if(fresh && fresh._bot_updated) {
+                const _SYM_RAW = Symbol.for('bss_raw');
+                const raw = (userData && userData[_SYM_RAW]) ? userData[_SYM_RAW] : userData;
+                raw.chips = fresh.chips;
+                delete raw._bot_updated;
+                localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(raw));
+                const token = sessionStorage.getItem('dc_token_live') || localStorage.getItem('dc_token_live');
+                if(token) {
+                    try {
+                        await fetch(`${EDGE_BASE}/save-user`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_KEY}` },
+                            body: JSON.stringify({ discord_token: token, data: raw })
+                        });
+                    } catch(e) { console.error('Failed to clear _bot_updated via edge:', e); }
+                }
+                updateUI();
+            }
+        }, 10000);
     };
 
     // ── Pull-to-refresh guard ──────────────────────────────────────────────────
