@@ -3312,7 +3312,6 @@
 
     const EDGE_BASE = "https://uohmshxaypofbdnuaiwj.supabase.co/functions/v1";
     const API_BASE = "https://bssgambling.online/api";
-
     function getToken() { return sessionStorage.getItem('dc_token_live') || localStorage.getItem('dc_token_live'); }
     async function apiCall(endpoint, body) {
         const r = await fetch(`${API_BASE}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ user_id: currentUser, discord_token: getToken(), ...body }) });
@@ -4622,47 +4621,37 @@
         if(isAtCoinCap()) return;
         if(!acquireBetLock()) return;
         if(mActive) { releaseBetLock(); return; }
-        if(mRevealTimeout) { clearTimeout(mRevealTimeout); mRevealTimeout = null; }
-        mBet = Math.max(50, Math.min(600, parseInt(document.getElementById('m-bet').value) || 50));
+        if(mRevealTimeout) { clearTimeout(mRevealTimeout); mRevealTimeout=null; }
+        mBet = Math.max(50, Math.min(600, parseInt(document.getElementById('m-bet').value)||50));
         document.getElementById('m-bet').value = mBet;
         if(!userData || mBet > userData.chips) { toast('Not enough ★!','error'); releaseBetLock(); return; }
-        mBombCount = parseInt(document.getElementById('m-mine-slider')?.value || 3);
+        mBombCount = parseInt(document.getElementById('m-mine-slider')?.value||3);
         if(mBombCount >= mGridSize) { toast('Too many mines!','error'); releaseBetLock(); return; }
-        mBalBefore = userData.chips; userData.chips -= mBet; mActive = true; mMult = 1; mBombs = []; mGemsFound = 0;
+        mBalBefore=userData.chips; userData.chips-=mBet; mActive=true; mMult=1; mBombs=[]; mGemsFound=0;
         updateUI(); addProfit('mines',-mBet); releaseBetLock(); mGameUI();
-        // Call server to start game (bombs generated server-side)
-        try {
-            await apiCall('mines', { action:'start', bet:mBet, bombCount:mBombCount });
-        } catch(err) {
-            userData.chips += mBet; addProfit('mines',mBet); mActive=false; updateUI(); mResetUI();
-            toast('Error: '+err.message,'error'); return;
-        }
-        // Build clickable board (no bomb positions stored client-side)
-        const board = document.getElementById('m-board');
-        board.innerHTML = ''; board.className = 'm-grid g25';
-        for(let i=0; i<mGridSize; i++) {
-            const t = document.createElement('div');
-            t.className = 'tile';
-            t.onclick = async function() {
-                if(!mActive || t.dataset.revealed) return;
-                t.dataset.revealed = '1';
-                t.onclick = null;
+        try { await apiCall('mines', { action:'start', bet:mBet, bombCount:mBombCount }); }
+        catch(err) { userData.chips+=mBet; addProfit('mines',mBet); mActive=false; updateUI(); mResetUI(); toast('Error: '+err.message,'error'); return; }
+        const board=document.getElementById('m-board');
+        board.innerHTML=''; board.className='m-grid g25';
+        for(let i=0;i<mGridSize;i++) {
+            const t=document.createElement('div'); t.className='tile';
+            t.onclick=async function() {
+                if(!mActive||t.dataset.revealed) return;
+                t.dataset.revealed='1'; t.onclick=null;
                 let res;
-                try { res = await apiCall('mines', { action:'reveal', tileIndex:i }); }
+                try { res=await apiCall('mines',{action:'reveal',tileIndex:i}); }
                 catch(err) { t.dataset.revealed=''; t.onclick=arguments.callee; toast('Error: '+err.message,'error'); return; }
                 if(res.isBomb) {
-                    t.innerHTML = BOMB_SVG; t.classList.add('bomb'); play('boom'); mActive = false;
+                    t.innerHTML=BOMB_SVG; t.classList.add('bomb'); play('boom'); mActive=false;
                     applyServerBalance(res.chips);
-                    // Reveal all bombs from server
-                    document.querySelectorAll('#m-board .tile').forEach(function(tile, idx) {
-                        if(!tile.dataset.revealed && res.bombPositions.includes(idx)) { tile.innerHTML=BOMB_SVG; tile.classList.add('bomb'); tile.dataset.revealed='1'; }
+                    document.querySelectorAll('#m-board .tile').forEach(function(tile,idx) {
+                        if(!tile.dataset.revealed&&res.bombPositions.includes(idx)) { tile.innerHTML=BOMB_SVG; tile.classList.add('bomb'); tile.dataset.revealed='1'; }
                     });
                     addHistory('Mines',mBet,0,-mBet,mBalBefore); clearGameState('mines');
-                    mRevealTimeout = setTimeout(function() { mRevealTimeout=null; mGemsFound=0; mMult=1; mBombs=[]; buildEmptyMinesBoard(); mResetUI(); }, 1800);
+                    mRevealTimeout=setTimeout(function() { mRevealTimeout=null; mGemsFound=0; mMult=1; mBombs=[]; buildEmptyMinesBoard(); mResetUI(); },1800);
                 } else {
-                    t.innerHTML = GEM_SVG; t.classList.add('gem'); play('star');
-                    mGemsFound = res.gemsFound; mMult = res.mult;
-                    mShowCashBtn(); saveGameState();
+                    t.innerHTML=GEM_SVG; t.classList.add('gem'); play('star');
+                    mGemsFound=res.gemsFound; mMult=res.mult; mShowCashBtn(); saveGameState();
                 }
             };
             board.appendChild(t);
@@ -4670,24 +4659,24 @@
     }
 
     async function cashoutMines() {
-        if(!mActive || mGemsFound < 1) return;
-        mActive = false;
-        const cashBtn = document.getElementById('m-cash');
+        if(!mActive||mGemsFound<1) return;
+        mActive=false;
+        const cashBtn=document.getElementById('m-cash');
         if(cashBtn) { cashBtn.classList.add('hidden'); cashBtn.disabled=true; }
         let result;
-        try { result = await apiCall('mines', { action:'cashout' }); }
-        catch(err) { mActive=true; if(cashBtn) { cashBtn.classList.remove('hidden'); cashBtn.disabled=false; } toast('Error: '+err.message,'error'); return; }
+        try { result=await apiCall('mines',{action:'cashout'}); }
+        catch(err) { mActive=true; if(cashBtn){cashBtn.classList.remove('hidden');cashBtn.disabled=false;} toast('Error: '+err.message,'error'); return; }
         applyServerBalance(result.chips);
         play('win'); showWinOverlay(result.mult,result.win);
         addHistory('Mines',mBet,result.mult,result.win,mBalBefore); clearGameState('mines');
         addProfit('mines',result.win); updateUI();
-        document.querySelectorAll('#m-board .tile').forEach(function(tile, idx) {
+        document.querySelectorAll('#m-board .tile').forEach(function(tile,idx) {
             if(tile.dataset.revealed) return;
             if(result.bombPositions.includes(idx)) { tile.innerHTML=BOMB_SVG; tile.classList.add('bomb'); }
             else { tile.innerHTML=GEM_SVG; tile.classList.add('gem'); tile.style.opacity='0.3'; }
         });
         if(mRevealTimeout) { clearTimeout(mRevealTimeout); mRevealTimeout=null; }
-        mRevealTimeout = setTimeout(function() { mRevealTimeout=null; mGemsFound=0; mMult=1; mBombs=[]; buildEmptyMinesBoard(); mResetUI(); }, 2500);
+        mRevealTimeout=setTimeout(function() { mRevealTimeout=null; mGemsFound=0; mMult=1; mBombs=[]; buildEmptyMinesBoard(); mResetUI(); },2500);
     }
 
     // TOWER
@@ -4757,107 +4746,83 @@
 
     async function startTower() {
         if(!acquireBetLock()) return;
-        tBet = clampBet(document.getElementById('t-bet').value);
-        document.getElementById('t-bet').value = tBet;
-        if(tBet > userData.chips || tBet < MIN_BET) { toast('Not enough ★!','error'); releaseBetLock(); return; }
-        tCurrentRisk = document.getElementById('t-risk').value;
-        userData.chips -= tBet; addProfit('tower',-tBet); updateUI(); releaseBetLock();
-        document.getElementById('t-start').disabled = true;
-        document.getElementById('t-risk').disabled = true;
-        document.getElementById('t-bet').disabled = true;
-        document.getElementById('t-cash').classList.add('hidden');
-        document.getElementById('t-mult-disp').textContent = '1.00×';
-        document.getElementById('t-profit-disp').value = '0.00 ★';
-        document.getElementById('tower-status').textContent = 'Choose a tile!';
+        tBet=clampBet(document.getElementById('t-bet').value);
+        document.getElementById('t-bet').value=tBet;
+        if(tBet>userData.chips||tBet<MIN_BET) { toast('Not enough ★!','error'); releaseBetLock(); return; }
+        tCurrentRisk=document.getElementById('t-risk').value;
+        userData.chips-=tBet; addProfit('tower',-tBet); updateUI(); releaseBetLock();
+        document.getElementById('t-start').disabled=true; document.getElementById('t-risk').disabled=true;
+        document.getElementById('t-bet').disabled=true; document.getElementById('t-cash').classList.add('hidden');
+        document.getElementById('t-mult-disp').textContent='1.00×'; document.getElementById('t-profit-disp').value='0.00 ★';
+        document.getElementById('tower-status').textContent='Choose a tile!';
         buildTowerBoard();
-        let startResult;
-        try { startResult = await apiCall('tower', { action:'start', bet:tBet, risk:tCurrentRisk }); }
-        catch(err) { userData.chips += tBet; addProfit('tower',tBet); updateUI(); document.getElementById('t-start').disabled=false; document.getElementById('t-risk').disabled=false; document.getElementById('t-bet').disabled=false; toast('Error: '+err.message,'error'); return; }
-        tActive = true; tLevel = 0;
-        tActivateRow(0);
+        try { await apiCall('tower',{action:'start',bet:tBet,risk:tCurrentRisk}); }
+        catch(err) { userData.chips+=tBet; addProfit('tower',tBet); updateUI(); document.getElementById('t-start').disabled=false; document.getElementById('t-risk').disabled=false; document.getElementById('t-bet').disabled=false; toast('Error: '+err.message,'error'); return; }
+        tActive=true; tLevel=0; tActivateRow(0);
     }
 
     function tActivateRow(rowIdx) {
-        for(let j=0; j<tGetCols(); j++) {
-            const tile = document.getElementById(`t-tile-${rowIdx}-${j}`);
+        for(let j=0;j<tGetCols();j++) {
+            const tile=document.getElementById(`t-tile-${rowIdx}-${j}`);
             if(!tile) return;
-            tile.className = 'tw-tile tw-active';
-            tile.onclick = () => tClickTile(rowIdx, j);
+            tile.className='tw-tile tw-active';
+            tile.onclick=()=>tClickTile(rowIdx,j);
         }
     }
 
-    async function tClickTile(rowIdx, colIdx) {
-        if(!tActive || rowIdx !== tLevel) return;
-        // Disable all tiles in this row immediately to prevent double-clicks
-        for(let j=0; j<tGetCols(); j++) {
-            const t = document.getElementById(`t-tile-${rowIdx}-${j}`);
-            if(t) t.onclick = null;
-        }
+    async function tClickTile(rowIdx,colIdx) {
+        if(!tActive||rowIdx!==tLevel) return;
+        for(let j=0;j<tGetCols();j++) { const t=document.getElementById(`t-tile-${rowIdx}-${j}`); if(t) t.onclick=null; }
         let res;
-        try { res = await apiCall('tower', { action:'click', colIndex:colIdx }); }
+        try { res=await apiCall('tower',{action:'click',colIndex:colIdx}); }
         catch(err) { toast('Error: '+err.message,'error'); tActivateRow(rowIdx); return; }
-        const tile = document.getElementById(`t-tile-${rowIdx}-${colIdx}`);
-        const mults = tGetMults();
+        const tile=document.getElementById(`t-tile-${rowIdx}-${colIdx}`);
+        const mults=tGetMults();
         if(res.isBomb) {
-            tile.innerHTML = '💥'; tile.className = 'tw-tile tw-bomb';
-            for(let j=0; j<tGetCols(); j++) {
-                if(j !== colIdx) {
-                    const t2 = document.getElementById(`t-tile-${rowIdx}-${j}`);
-                    if(res.bombCols && res.bombCols.includes(j)) { t2.innerHTML='💥'; t2.className='tw-tile tw-bomb'; }
-                    else { t2.className='tw-tile tw-safe'; }
-                }
+            tile.innerHTML='💥'; tile.className='tw-tile tw-bomb';
+            for(let j=0;j<tGetCols();j++) {
+                if(j!==colIdx) { const t2=document.getElementById(`t-tile-${rowIdx}-${j}`); if(res.bombCols&&res.bombCols.includes(j)){t2.innerHTML='💥';t2.className='tw-tile tw-bomb';}else{t2.className='tw-tile tw-safe';} t2.onclick=null; }
             }
-            applyServerBalance(res.chips);
-            play('boom'); tActive=false;
-            document.getElementById('tower-status').textContent = '💥 Boom! You lost!';
-            document.getElementById('t-mult-disp').textContent = '0×';
-            document.getElementById('t-profit-disp').value = `-${tBet} ★`;
+            applyServerBalance(res.chips); play('boom'); tActive=false;
+            document.getElementById('tower-status').textContent='💥 Boom! You lost!';
+            document.getElementById('t-mult-disp').textContent='0×'; document.getElementById('t-profit-disp').value=`-${tBet} ★`;
             document.getElementById('t-start').disabled=false; document.getElementById('t-risk').disabled=false;
             document.getElementById('t-bet').disabled=false; document.getElementById('t-cash').classList.add('hidden');
             addHistory("Tower",tBet,0,-tBet); clearGameState('tower');
         } else {
-            tile.innerHTML = '<svg class="ic ic-gem" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 14.5,5.5 8,15 1.5,5.5" fill="#1abc9c" stroke="#16a085" stroke-width="0.4"/><polygon points="8,1 14.5,5.5 8,7.5 1.5,5.5" fill="#2ecc71" opacity="0.55"/></svg>';
-            tile.className = 'tw-tile tw-gem';
-            for(let j=0; j<tGetCols(); j++) {
-                if(j !== colIdx) { const t2=document.getElementById(`t-tile-${rowIdx}-${j}`); t2.className='tw-tile tw-safe'; t2.onclick=null; }
-            }
-            play('star'); tLevel = res.level;
-            const m = mults[rowIdx];
-            const potentialWin = Math.floor(tBet * m);
-            document.getElementById('t-mult-disp').textContent = m.toFixed(2)+'×';
-            document.getElementById('t-profit-disp').value = `+${potentialWin} ★`;
+            tile.innerHTML='<svg class="ic ic-gem" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1 14.5,5.5 8,15 1.5,5.5" fill="#1abc9c" stroke="#16a085" stroke-width="0.4"/><polygon points="8,1 14.5,5.5 8,7.5 1.5,5.5" fill="#2ecc71" opacity="0.55"/></svg>';
+            tile.className='tw-tile tw-gem';
+            for(let j=0;j<tGetCols();j++) { if(j!==colIdx){const t2=document.getElementById(`t-tile-${rowIdx}-${j}`);t2.className='tw-tile tw-safe';t2.onclick=null;} }
+            play('star'); tLevel=res.level;
+            const m=mults[rowIdx];
+            document.getElementById('t-mult-disp').textContent=m.toFixed(2)+'×';
+            document.getElementById('t-profit-disp').value=`+${Math.floor(tBet*m)} ★`;
             if(res.isComplete) {
-                applyServerBalance(res.chips);
-                play('win'); showWinOverlay(m, res.win);
-                addHistory("Tower",tBet,m,res.win); clearGameState('tower');
-                addProfit('tower',res.win); tActive=false; updateUI();
+                applyServerBalance(res.chips); play('win'); showWinOverlay(m,res.win);
+                addHistory("Tower",tBet,m,res.win); clearGameState('tower'); addProfit('tower',res.win); tActive=false; updateUI();
                 document.getElementById('t-start').disabled=false; document.getElementById('t-risk').disabled=false;
                 document.getElementById('t-bet').disabled=false; document.getElementById('t-cash').classList.add('hidden');
-                document.getElementById('tower-status').textContent = `✅ Completed at ${m.toFixed(2)}×!`;
+                document.getElementById('tower-status').textContent=`✅ Completed at ${m.toFixed(2)}×!`;
             } else {
-                document.getElementById('tower-status').textContent = `Floor ${tLevel}/${9} — keep climbing!`;
-                document.getElementById('t-cash').classList.remove('hidden');
-                tActivateRow(tLevel);
+                document.getElementById('tower-status').textContent=`Floor ${tLevel}/9 — keep climbing!`;
+                document.getElementById('t-cash').classList.remove('hidden'); tActivateRow(tLevel);
             }
         }
     }
 
     async function cashoutTower() {
         if(!tActive) return;
-        const cashBtn = document.getElementById('t-cash');
-        if(cashBtn) cashBtn.disabled = true;
+        const cashBtn=document.getElementById('t-cash'); if(cashBtn) cashBtn.disabled=true;
         let result;
-        try { result = await apiCall('tower', { action:'cashout' }); }
+        try { result=await apiCall('tower',{action:'cashout'}); }
         catch(err) { if(cashBtn) cashBtn.disabled=false; toast('Error: '+err.message,'error'); return; }
-        applyServerBalance(result.chips);
-        play('win'); showWinOverlay(result.mult, result.win);
+        applyServerBalance(result.chips); play('win'); showWinOverlay(result.mult,result.win);
         addHistory("Tower",tBet,result.mult,result.win); clearGameState('tower');
         addProfit('tower',result.win); tActive=false; updateUI();
         document.getElementById('t-start').disabled=false; document.getElementById('t-risk').disabled=false;
         document.getElementById('t-bet').disabled=false; document.getElementById('t-cash').classList.add('hidden');
-        document.getElementById('tower-status').textContent = `✅ Cashed out at ${result.mult.toFixed(2)}×!`;
+        document.getElementById('tower-status').textContent=`✅ Cashed out at ${result.mult.toFixed(2)}×!`;
     }
-
     // BLACKJACK & BACCARAT (Simplified helper)
     let deck = [];
     function createDeck() {
@@ -4910,190 +4875,112 @@
     }
     async function startBlackjack() {
         if(!acquireBetLock()) return;
-        bjBet = clampBet(document.getElementById('bj-bet').value);
-        document.getElementById('bj-bet').value = bjBet;
-        if(bjBet > userData.chips) { toast('Not enough ★!','error'); releaseBetLock(); return; }
-        userData.chips -= bjBet; addProfit('blackjack',-bjBet); updateUI(); bjActive=true;
-        bjWinAmount=0; bjInsurance=0; bjSplitPhase=0; bjSplitHand=[]; bjSplitBet=0;
+        bjBet=clampBet(document.getElementById('bj-bet').value);
+        document.getElementById('bj-bet').value=bjBet;
+        if(bjBet>userData.chips){toast('Not enough ★!','error');releaseBetLock();return;}
+        userData.chips-=bjBet; addProfit('blackjack',-bjBet); updateUI(); bjActive=true;
+        bjWinAmount=0;bjInsurance=0;bjSplitPhase=0;bjSplitHand=[];bjSplitBet=0;
         document.getElementById('bj-split-area').style.display='none';
         document.getElementById('bj-hand-indicator').style.display='none';
         document.getElementById('bj-hand1-label').style.display='none';
         releaseBetLock();
         let result;
-        try { result = await apiCall('blackjack', { action:'deal', bet:bjBet }); }
-        catch(err) { userData.chips+=bjBet; addProfit('blackjack',bjBet); updateUI(); bjActive=false; toast('Error: '+err.message,'error'); return; }
-        bjHand = result.playerHand; bjDealer = [result.dealerCard];
+        try { result=await apiCall('blackjack',{action:'deal',bet:bjBet}); }
+        catch(err){userData.chips+=bjBet;addProfit('blackjack',bjBet);updateUI();bjActive=false;toast('Error: '+err.message,'error');return;}
+        bjHand=result.playerHand; bjDealer=[result.dealerCard];
         document.getElementById('bj-player-hand').innerHTML=''; document.getElementById('bj-dealer-hand').innerHTML='';
-        bjHand.forEach(c => renderCard(c,'bj-player-hand')); renderCard(result.dealerCard,'bj-dealer-hand');
-        document.getElementById('bj-player-score').textContent = 'Score: '+getBJScore(bjHand);
-        document.getElementById('bj-dealer-score').textContent = 'Shows: '+result.dealerCard.v;
+        bjHand.forEach(card=>renderCard(card,'bj-player-hand')); renderCard(result.dealerCard,'bj-dealer-hand');
+        document.getElementById('bj-player-score').textContent='Score: '+getBJScore(bjHand);
+        document.getElementById('bj-dealer-score').textContent='Shows: '+result.dealerCard.v;
         document.getElementById('bj-deal-btn').style.visibility='hidden'; document.getElementById('bj-deal-btn').style.pointerEvents='none';
-        document.getElementById('bj-status').textContent='VS';
-        bjUpdateCounters();
-        // Handle natural blackjack
+        document.getElementById('bj-status').textContent='VS'; bjUpdateCounters();
         if(result.playerBJ) {
             bjHideActionButtons();
-            setTimeout(async () => {
-                let res2;
-                try { res2 = await apiCall('blackjack', { action:'stand' }); } catch(e) { return; }
+            setTimeout(async()=>{
+                let res2; try{res2=await apiCall('blackjack',{action:'stand'});}catch(e){return;}
                 applyServerBalance(res2.chips);
-                res2.dealerHand.slice(1).forEach(c => renderCard(c,'bj-dealer-hand'));
+                res2.dealerHand.slice(1).forEach(card=>renderCard(card,'bj-dealer-hand'));
                 document.getElementById('bj-dealer-score').textContent='Score: '+getBJScore(res2.dealerHand);
                 bjUpdateCounters(); bjActive=false; clearGameState('blackjack'); bjHideActionButtons();
-                if(result.dealerBJ) {
-                    userData.chips+=bjBet; addProfit('blackjack',bjBet); addHistory("Blackjack",bjBet,1,bjBet);
-                    document.getElementById('bj-status').textContent='🤝 BOTH BLACKJACK — Push!';
-                    toast('🤝 Both Blackjack — bet returned!','success');
-                } else {
-                    bjWinAmount=res2.payout; addProfit('blackjack',res2.payout); addHistory("Blackjack",bjBet,2.2,res2.payout);
-                    play('win'); showWinOverlay(2.2,res2.payout);
-                    document.getElementById('bj-status').innerHTML='<svg class="ic ic-card" viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="1" width="12" height="14" rx="2" fill="#f0f0f0" stroke="#bbb" stroke-width="0.5"/><text x="8" y="11" text-anchor="middle" fill="#e74c3c" font-size="9" font-weight="900" font-family="serif">J</text></svg> BLACKJACK! +120%!';
-                }
-                document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
-                updateUI();
-            }, 500);
-            return;
+                if(result.dealerBJ){userData.chips+=bjBet;addProfit('blackjack',bjBet);addHistory("Blackjack",bjBet,1,bjBet);document.getElementById('bj-status').textContent='🤝 BOTH BLACKJACK — Push!';toast('🤝 Both BJ — bet returned!','success');}
+                else{bjWinAmount=res2.payout;addProfit('blackjack',res2.payout);addHistory("Blackjack",bjBet,2.2,res2.payout);play('win');showWinOverlay(2.2,res2.payout);document.getElementById('bj-status').innerHTML='BLACKJACK! +120%!';}
+                document.getElementById('bj-deal-btn').style.visibility='visible';document.getElementById('bj-deal-btn').style.pointerEvents='auto';updateUI();
+            },500); return;
         }
-        // Insurance offer
-        if(result.dealerShowsAce) {
-            const insAmt = Math.floor(bjBet/2);
+        if(result.dealerShowsAce){
+            const insAmt=Math.floor(bjBet/2);
             document.getElementById('bj-insurance-info').innerHTML=`Side bet: ${insAmt} ★ — pays 2:1 if dealer has Blackjack`;
             document.getElementById('bj-ins-yes').innerHTML=`INSURE (${insAmt} ★)`;
-            document.getElementById('bj-insurance-prompt').classList.remove('hidden');
-            bjHideActionButtons();
-        } else {
-            bjShowActionButtons();
-        }
+            document.getElementById('bj-insurance-prompt').classList.remove('hidden'); bjHideActionButtons();
+        } else { bjShowActionButtons(); bjCheckNaturalBlackjack(); }
     }
-
     async function bjTakeInsurance() {
-        const insAmt = Math.floor(bjBet/2);
-        if(userData.chips < insAmt) { toast('Not enough ★ for insurance!','error'); return; }
+        const insAmt=Math.floor(bjBet/2);
+        if(userData.chips<insAmt){toast('Not enough ★!','error');return;}
         bjInsurance=insAmt; userData.chips-=bjInsurance; addProfit('blackjack',-bjInsurance); updateUI();
-        toast(`Insured for ${insAmt} ★!`,'success');
         document.getElementById('bj-insurance-prompt').classList.add('hidden');
-        let res;
-        try { res = await apiCall('blackjack', { action:'insurance', take:true }); }
-        catch(err) { toast('Error: '+err.message,'error'); return; }
-        if(res.dealerBJ) {
+        let res; try{res=await apiCall('blackjack',{action:'insurance',take:true});}catch(err){toast('Error: '+err.message,'error');return;}
+        if(res.dealerBJ){
             applyServerBalance(res.chips);
-            res.dealerHand.slice(1).forEach(c => renderCard(c,'bj-dealer-hand'));
+            res.dealerHand.slice(1).forEach(card=>renderCard(card,'bj-dealer-hand'));
             document.getElementById('bj-dealer-score').textContent='Score: 21';
-            bjActive=false; clearGameState('blackjack'); bjHideActionButtons();
-            const msg=res.playerBJ?'🤝 BOTH BLACKJACK — TIE':'🛡️ INSURANCE SAVES YOU!';
-            if(res.playerBJ) { addHistory("Blackjack",bjBet,1,bjBet); toast('🤝 Both BJ—tie!','success'); }
-            else { addHistory("Blackjack",bjBet,0,-bjBet); play('boom'); }
-            document.getElementById('bj-status').textContent=msg;
-            document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
-            updateUI();
-        } else {
-            bjShowActionButtons();
-        }
+            bjActive=false;clearGameState('blackjack');bjHideActionButtons();
+            if(res.playerBJ){addHistory("Blackjack",bjBet,1,bjBet);toast('🤝 Both BJ!','success');}
+            else{addHistory("Blackjack",bjBet,0,-bjBet);play('boom');}
+            document.getElementById('bj-status').textContent=res.playerBJ?'🤝 TIE':'🛡️ INSURANCE SAVES YOU!';
+            document.getElementById('bj-deal-btn').style.visibility='visible';document.getElementById('bj-deal-btn').style.pointerEvents='auto';updateUI();
+        } else { bjShowActionButtons(); }
     }
-
     async function bjDeclineInsurance() {
-        bjInsurance=0;
-        document.getElementById('bj-insurance-prompt').classList.add('hidden');
-        let res;
-        try { res = await apiCall('blackjack', { action:'insurance', take:false }); }
-        catch(err) { toast('Error: '+err.message,'error'); return; }
-        if(res.dealerBJ) {
+        bjInsurance=0; document.getElementById('bj-insurance-prompt').classList.add('hidden');
+        let res; try{res=await apiCall('blackjack',{action:'insurance',take:false});}catch(err){toast('Error: '+err.message,'error');return;}
+        if(res.dealerBJ){
             applyServerBalance(res.chips);
             document.getElementById('bj-dealer-score').textContent='Score: 21';
-            bjActive=false; clearGameState('blackjack'); bjHideActionButtons();
-            addHistory("Blackjack",bjBet,0,-bjBet); play('boom');
+            bjActive=false;clearGameState('blackjack');bjHideActionButtons();
+            addHistory("Blackjack",bjBet,0,-bjBet);play('boom');
             document.getElementById('bj-status').textContent='😞 DEALER BLACKJACK';
-            document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
-            updateUI();
-        } else {
-            bjShowActionButtons();
-        }
+            document.getElementById('bj-deal-btn').style.visibility='visible';document.getElementById('bj-deal-btn').style.pointerEvents='auto';updateUI();
+        } else { bjShowActionButtons(); }
     }
-
     async function bjHit() {
         if(!bjActive) return; bjHideActionButtons();
-        let res;
-        try { res = await apiCall('blackjack', { action:'hit' }); }
-        catch(err) { bjShowActionButtons(); toast('Error: '+err.message,'error'); return; }
-        renderCard(res.card,'bj-player-hand');
-        bjHand.push(res.card);
-        document.getElementById('bj-player-score').textContent='Score: '+res.score;
-        bjUpdateCounters();
-        if(res.bust) {
-            applyServerBalance(res.chips);
-            bjActive=false; clearGameState('blackjack');
+        let res; try{res=await apiCall('blackjack',{action:'hit'});}catch(err){bjShowActionButtons();toast('Error: '+err.message,'error');return;}
+        renderCard(res.card,'bj-player-hand'); bjHand.push(res.card);
+        document.getElementById('bj-player-score').textContent='Score: '+res.score; bjUpdateCounters();
+        if(res.bust){
+            applyServerBalance(res.chips); bjActive=false; clearGameState('blackjack');
             addHistory("Blackjack",bjBet,0,-bjBet); addProfit('blackjack',-bjBet);
-            document.getElementById('bj-status').textContent='💥 BUST!';
-            document.querySelector('.bj-area')?.classList.add('lose-shake');
-            play('boom'); updateUI();
-            document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
-        } else {
-            bjShowActionButtons();
-        }
+            document.getElementById('bj-status').textContent='💥 BUST!'; play('boom'); updateUI();
+            document.getElementById('bj-deal-btn').style.visibility='visible';document.getElementById('bj-deal-btn').style.pointerEvents='auto';
+        } else { bjShowActionButtons(); }
     }
-
     async function bjStand() {
         if(!bjActive) return; bjHideActionButtons();
-        let res;
-        try { res = await apiCall('blackjack', { action:'stand' }); }
-        catch(err) { bjShowActionButtons(); toast('Error: '+err.message,'error'); return; }
+        let res; try{res=await apiCall('blackjack',{action:'stand'});}catch(err){bjShowActionButtons();toast('Error: '+err.message,'error');return;}
         applyServerBalance(res.chips);
-        res.dealerHand.slice(bjDealer.length).forEach(c => renderCard(c,'bj-dealer-hand'));
-        bjDealer=res.dealerHand;
-        const ds=getBJScore(bjDealer);
-        document.getElementById('bj-dealer-score').textContent='Score: '+ds;
-        bjUpdateCounters(); bjActive=false; clearGameState('blackjack');
-        const ps=getBJScore(bjHand);
-        if(res.outcome==='win'||res.outcome==='dealer_bust') {
-            addHistory("Blackjack",bjBet,2,res.payout); addProfit('blackjack',res.payout);
-            play('win'); showWinOverlay(2,res.payout);
-            document.getElementById('bj-status').textContent = res.outcome==='dealer_bust'?'💥 DEALER BUST! You Win!':'🏆 YOU WIN!';
-            document.querySelector('.bj-area')?.classList.add('win-glow');
-        } else if(res.outcome==='push') {
-            addHistory("Blackjack",bjBet,1,bjBet); addProfit('blackjack',bjBet);
-            document.getElementById('bj-status').textContent='🤝 PUSH — Bet Returned';
-            toast('Push — bet returned!','success');
-        } else {
-            addHistory("Blackjack",bjBet,0,-bjBet); addProfit('blackjack',-bjBet);
-            play('boom'); document.getElementById('bj-status').textContent='😞 DEALER WINS';
-            document.querySelector('.bj-area')?.classList.add('lose-shake');
-        }
-        updateUI();
-        document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
-    }
-
-    async function bjDouble() {
-        if(!bjActive || userData.chips < bjBet) return; bjHideActionButtons();
-        userData.chips -= bjBet; addProfit('blackjack',-bjBet); updateUI();
-        let res;
-        try { res = await apiCall('blackjack', { action:'double' }); }
-        catch(err) { userData.chips+=bjBet; addProfit('blackjack',bjBet); updateUI(); bjShowActionButtons(); toast('Error: '+err.message,'error'); return; }
-        applyServerBalance(res.chips);
-        renderCard(res.card,'bj-player-hand');
-        bjHand=res.playerHand;
-        document.getElementById('bj-player-score').textContent='Score: '+getBJScore(bjHand);
-        res.dealerHand.slice(bjDealer.length).forEach(c => renderCard(c,'bj-dealer-hand'));
-        bjDealer=res.dealerHand;
+        res.dealerHand.slice(bjDealer.length).forEach(card=>renderCard(card,'bj-dealer-hand')); bjDealer=res.dealerHand;
         document.getElementById('bj-dealer-score').textContent='Score: '+getBJScore(bjDealer);
         bjUpdateCounters(); bjActive=false; clearGameState('blackjack');
-        if(res.outcome==='win'||res.outcome==='dealer_bust') {
-            addHistory("Blackjack",bjBet*2,2,res.payout); addProfit('blackjack',res.payout);
-            play('win'); showWinOverlay(2,res.payout);
-            document.getElementById('bj-status').textContent='🏆 DOUBLE WIN!';
-            document.querySelector('.bj-area')?.classList.add('win-glow');
-        } else if(res.outcome==='push') {
-            addHistory("Blackjack",bjBet*2,1,bjBet*2); addProfit('blackjack',bjBet*2);
-            document.getElementById('bj-status').textContent='🤝 PUSH'; toast('Push!','success');
-        } else if(res.outcome==='bust') {
-            addHistory("Blackjack",bjBet*2,0,-(bjBet*2)); addProfit('blackjack',-(bjBet*2));
-            play('boom'); document.getElementById('bj-status').textContent='💥 BUST!';
-            document.querySelector('.bj-area')?.classList.add('lose-shake');
-        } else {
-            addHistory("Blackjack",bjBet*2,0,-(bjBet*2)); addProfit('blackjack',-(bjBet*2));
-            play('boom'); document.getElementById('bj-status').textContent='😞 DEALER WINS';
-        }
-        updateUI();
-        document.getElementById('bj-deal-btn').style.visibility='visible'; document.getElementById('bj-deal-btn').style.pointerEvents='auto';
+        if(res.outcome==='win'||res.outcome==='dealer_bust'){addHistory("Blackjack",bjBet,2,res.payout);addProfit('blackjack',res.payout);play('win');showWinOverlay(2,res.payout);document.getElementById('bj-status').textContent=res.outcome==='dealer_bust'?'💥 DEALER BUST! You Win!':'🏆 YOU WIN!';document.querySelector('.bj-area')?.classList.add('win-glow');}
+        else if(res.outcome==='push'){addHistory("Blackjack",bjBet,1,bjBet);addProfit('blackjack',bjBet);document.getElementById('bj-status').textContent='🤝 PUSH — Bet Returned';toast('Push!','success');}
+        else{addHistory("Blackjack",bjBet,0,-bjBet);addProfit('blackjack',-bjBet);play('boom');document.getElementById('bj-status').textContent='😞 DEALER WINS';document.querySelector('.bj-area')?.classList.add('lose-shake');}
+        updateUI(); document.getElementById('bj-deal-btn').style.visibility='visible';document.getElementById('bj-deal-btn').style.pointerEvents='auto';
+    }
+    async function bjDouble() {
+        if(!bjActive||userData.chips<bjBet) return; bjHideActionButtons();
+        userData.chips-=bjBet; addProfit('blackjack',-bjBet); updateUI();
+        let res; try{res=await apiCall('blackjack',{action:'double'});}catch(err){userData.chips+=bjBet;addProfit('blackjack',bjBet);updateUI();bjShowActionButtons();toast('Error: '+err.message,'error');return;}
+        applyServerBalance(res.chips);
+        renderCard(res.card,'bj-player-hand'); bjHand=res.playerHand;
+        document.getElementById('bj-player-score').textContent='Score: '+getBJScore(bjHand);
+        res.dealerHand.slice(bjDealer.length).forEach(card=>renderCard(card,'bj-dealer-hand')); bjDealer=res.dealerHand;
+        document.getElementById('bj-dealer-score').textContent='Score: '+getBJScore(bjDealer);
+        bjUpdateCounters(); bjActive=false; clearGameState('blackjack');
+        if(res.outcome==='win'||res.outcome==='dealer_bust'){addHistory("Blackjack",bjBet*2,2,res.payout);addProfit('blackjack',res.payout);play('win');showWinOverlay(2,res.payout);document.getElementById('bj-status').textContent='🏆 DOUBLE WIN!';document.querySelector('.bj-area')?.classList.add('win-glow');}
+        else if(res.outcome==='push'){addHistory("Blackjack",bjBet*2,1,bjBet*2);addProfit('blackjack',bjBet*2);document.getElementById('bj-status').textContent='🤝 PUSH';}
+        else{addHistory("Blackjack",bjBet*2,0,-(bjBet*2));addProfit('blackjack',-(bjBet*2));play('boom');document.getElementById('bj-status').textContent='😞 DEALER WINS';document.querySelector('.bj-area')?.classList.add('lose-shake');}
+        updateUI(); document.getElementById('bj-deal-btn').style.visibility='visible';document.getElementById('bj-deal-btn').style.pointerEvents='auto';
     }
 
     // ====================================================
@@ -5537,22 +5424,12 @@ setInterval(async () => {
     try {
         const fresh = await dbGet('users', currentUser);
         if (!fresh || !fresh._bot_updated) return;
-        // Bot updated balance — apply it
         const newChips = fresh.chips ?? 0;
         if (typeof acLegitChange === 'function') acLegitChange(newChips);
         const raw = (userData && userData[Symbol.for('bss_raw')]) ? userData[Symbol.for('bss_raw')] : userData;
         if (raw) raw.chips = newChips;
         updateUI();
-        toast('💰 Balance updated by admin!', 'success');
-        // Clear the flag via save-user (chips not included so flag gets dropped)
-        const token = getToken();
-        if (token) {
-            fetch(`${EDGE_BASE}/save-user`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_KEY}` },
-                body: JSON.stringify({ discord_token: token, data: { displayName: fresh.displayName, avatarUrl: fresh.avatarUrl, discord: true } })
-            }).catch(() => {});
-        }
+        toast('💰 Balance updated!', 'success');
     } catch(e) {}
 }, 10000);
 
@@ -5560,51 +5437,34 @@ setInterval(async () => {
 (async function() {
     const hash = window.location.hash.substring(1);
     const hasOAuthToken = hash.includes('access_token');
-
-    // Extract token from hash if present
     let freshToken = null;
     if (hasOAuthToken) {
         const params = new URLSearchParams(hash);
         freshToken = params.get('access_token');
-        // Clear hash from URL immediately so token isn't visible
         window.history.replaceState(null, '', window.location.pathname);
         if (freshToken) {
             sessionStorage.setItem('dc_token_live', freshToken);
             localStorage.setItem('dc_token_live', freshToken);
         }
     }
-
     const savedUser = localStorage.getItem('swarm_user');
     const savedToken = localStorage.getItem('dc_token_live');
     const tokenToUse = freshToken || savedToken;
-
-    // Only handle Discord users here
     if (!savedUser || !savedUser.startsWith('discord_') || !tokenToUse) return;
-
     try {
         console.log('[login] Auto-logging in as', savedUser);
-        // Load user data from server
         let user = await dbGet('users', savedUser);
         if (!user) { console.warn('[login] No user data found'); return; }
         currentUser = savedUser;
         userData = user;
         await loginSuccess();
-        // Fetch Discord profile for avatar/name
-        const res = await fetch('https://discord.com/api/users/@me', {
-            headers: { Authorization: 'Bearer ' + tokenToUse }
-        });
+        const res = await fetch('https://discord.com/api/users/@me', { headers: { Authorization: 'Bearer ' + tokenToUse } });
         if (res.ok) {
             const dc = await res.json();
-            const avatarUrl = dc.avatar
-                ? `https://cdn.discordapp.com/avatars/${dc.id}/${dc.avatar}.png`
-                : `https://cdn.discordapp.com/embed/avatars/${parseInt(dc.id) % 6}.png`;
+            const avatarUrl = dc.avatar ? `https://cdn.discordapp.com/avatars/${dc.id}/${dc.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${parseInt(dc.id) % 6}.png`;
             injectDiscordAvatar(dc.global_name || dc.username, avatarUrl);
-        } else {
-            console.warn('[login] Discord API returned', res.status, '— token may be expired');
         }
-    } catch(e) {
-        console.error('[login] Auto-login error:', e);
-    }
+    } catch(e) { console.error('[login] Auto-login error:', e); }
 })();
 
     </script>
