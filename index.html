@@ -3331,7 +3331,10 @@
                 try {
                     const response = await fetch(`${EDGE_BASE}/save-user`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${SUPABASE_KEY}`
+                        },
                         body: JSON.stringify({ discord_token: token, data: rawVal })
                     });
                     if(response.ok) return; // Success, exit here
@@ -6550,21 +6553,33 @@
                 }
             }
 
-            // Clean up _bot_updated flag via Edge Function (RLS blocks anon writes)
+            // Apply bot deposit/withdraw using relative delta so stale server balance doesn't matter
             if(userData && userData._bot_updated) {
-                console.log('[onload] Clearing _bot_updated flag from server...');
-                delete userData._bot_updated;
+                console.log('[onload] Bot update detected');
+                const _SYM_RAW2 = Symbol.for('bss_raw');
+                const _raw2 = (userData && userData[_SYM_RAW2]) ? userData[_SYM_RAW2] : userData;
+                if(typeof _raw2._bot_delta === 'number') {
+                    // Apply relative delta on top of real local balance
+                    _raw2.chips = Math.max(0, (_cachedData ? _cachedData.chips : _raw2.chips) + _raw2._bot_delta);
+                    console.log('[onload] Applied delta:', _raw2._bot_delta, '→ new chips:', _raw2.chips);
+                }
+                delete _raw2._bot_updated;
+                delete _raw2._bot_delta;
+                localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(_raw2));
                 const _token = sessionStorage.getItem('dc_token_live') || localStorage.getItem('dc_token_live');
                 if(_token) {
-                    const _raw = (userData && userData[Symbol.for('bss_raw')]) ? userData[Symbol.for('bss_raw')] : userData;
                     try {
                         await fetch(`${EDGE_BASE}/save-user`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ discord_token: _token, data: _raw })
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${SUPABASE_KEY}`
+                            },
+                            body: JSON.stringify({ discord_token: _token, data: _raw2 })
                         });
                     } catch(e) { console.error('Failed to clear _bot_updated on load:', e); }
                 }
+                userData = _raw2;
             }
 
             if(userData) {
@@ -6575,32 +6590,7 @@
             }
         }
 
-        // Poll server every 10s — ONLY apply balance if bot set _bot_updated flag.
-        // Tab switching never triggers this, so coins won't reset.
-        setInterval(async () => {
-            if(!currentUser || !userData) return;
-            const fresh = await dbGet('users', currentUser);
-            if(fresh && fresh._bot_updated) {
-                const _SYM_RAW = Symbol.for('bss_raw');
-                const raw = (userData && userData[_SYM_RAW]) ? userData[_SYM_RAW] : userData;
-                raw.chips = fresh.chips;
-                delete raw._bot_updated;
-                localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(raw));
-                // Use Edge Function to save back WITHOUT _bot_updated
-                // (RLS blocks anon key from writing directly)
-                const token = sessionStorage.getItem('dc_token_live') || localStorage.getItem('dc_token_live');
-                if(token) {
-                    try {
-                        await fetch(`${EDGE_BASE}/save-user`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ discord_token: token, data: raw })
-                        });
-                    } catch(e) { console.error('Failed to clear _bot_updated via edge:', e); }
-                }
-                updateUI();
-            }
-        }, 10000);
+        // Bot deposits/withdrawals are applied on next page load via _bot_updated flag check above.
     };
 
     // ── Pull-to-refresh guard ──────────────────────────────────────────────────
