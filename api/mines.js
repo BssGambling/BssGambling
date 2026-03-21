@@ -2,6 +2,31 @@ const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const MAX_CHIPS = 1_000_000;
 
+async function sendBetWebhook(playerName, game, bet, payout, balBefore) {
+    const WEBHOOK_BETS = process.env.DISCORD_WEBHOOK_BETS;
+    if(!WEBHOOK_BETS) return;
+    const isWin = payout > bet;
+    const profit = payout - bet;
+    try {
+        await fetch(WEBHOOK_BETS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ embeds: [{
+                title: (isWin ? '✅ ' : '❌ ') + game,
+                color: isWin ? 0x27ae60 : 0xe74c3c,
+                description: '**Player:** ' + playerName + '\n**Bet:** ' + bet + ' ★\n**' + (isWin ? 'Payout' : 'Lost') + ':** ' + (isWin ? '+' + payout : '-' + bet) + ' ★\n\n**Balance:** ' + balBefore + ' → ' + (balBefore - bet + payout),
+                fields: [
+                    { name: 'Result', value: isWin ? '🟢 WIN' : '🔴 LOSS', inline: true },
+                    { name: 'Profit', value: (profit >= 0 ? '+' : '') + profit + ' ★', inline: true }
+                ],
+                footer: { text: 'BSS Gambling' },
+                timestamp: new Date().toISOString()
+            }]})
+        });
+    } catch(e) {}
+}
+
+
 const MINES_MULT = {
   1:[,1.03,1.08,1.12,1.18,1.24,1.30,1.37,1.46,1.55,1.65,1.77,1.90,2.06,2.25,2.47,2.75,3.09,3.54,4.12,4.95,6.19,8.25,12.38,24.75],
   2:[,1.08,1.17,1.29,1.41,1.56,1.74,1.94,2.18,2.47,2.83,3.26,3.81,4.50,5.40,6.60,8.25,10.61,14.14,19.80,29.70,49.50,99,297],
@@ -86,6 +111,8 @@ module.exports = async (req, res) => {
       const win = Math.floor(game.bet * mult);
       const newChips = Math.min(MAX_CHIPS, currentChips + win);
       await supabase.from('users').upsert({ id: user_id, data: { ...userData, chips: newChips, active_game: null } }, { onConflict: 'id' });
+      const pName = userData?.displayName || userData?.discordName || user_id;
+      sendBetWebhook(pName, 'Mines', game.bet, newChips - currentChips + game.bet, game.balBefore || currentChips + game.bet);
       return res.json({ ok: true, mult, win, chips: newChips, bombPositions: game.bombs });
     }
 
