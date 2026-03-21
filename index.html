@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -4014,7 +4013,7 @@
             return; // Don't save to Firebase or run anticheat in FP mode
         }
         // Sync anticheat snapshot on every legitimate updateUI call
-        if(_acEnabled) acLegitChange(userData.chips);
+        if(typeof _acEnabled !== 'undefined' && _acEnabled) acLegitChange(userData.chips);
         dbSet('users', currentUser, userData);
 
         // Dim FP button when any game is active (prevents confusion)
@@ -4491,6 +4490,8 @@
     // [cite: 153-264] - Tu vložena veškerá původní logika pro Mines, Roulette, Blackjack atd.
 
     // ── MINES ───────────────────────────────────────────────────────────────────
+    let isRSpinning = false;
+    let currentBets = {};
     let mActive = false;
     let mMult = 1;
     let mBet = 0;
