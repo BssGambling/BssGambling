@@ -4319,38 +4319,14 @@
     }
 
     async function adminGiveChips() {
-        const raw = document.getElementById('adm-target').value.trim();
-        const amount = parseInt(document.getElementById('adm-amount').value);
-        if(!raw || isNaN(amount)) return alert('Enter a username/ID and amount!');
-        try {
-            const r = await fetch('/api/admin', { method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({ user_id: currentUser, discord_token: getToken(), action:'deposit', target_id: raw, amount }) });
-            const d = await r.json();
-            if(!r.ok) return alert('Error: ' + d.error);
-            if(raw === currentUser || ('discord_'+raw) === currentUser) { userData.chips = d.newBalance; updateUI(); }
-            admLog(`✅ Gave ${amount}★ to ${raw} (${d.oldBalance} → ${d.newBalance})`); play('admin_give');
-            alert(`Done! ${raw}: ${d.oldBalance} → ${d.newBalance} ★`);
-        } catch(e) { alert('Error: ' + e.message); }
+        alert('Giving coins is disabled. Coins can only be earned through gameplay.');
     }
 
     // ═══════════════════════════════════════════════
     // NEW ADMIN DEPOSIT & WITHDRAW FUNCTIONS
     // ═══════════════════════════════════════════════
     async function adminDeposit() {
-        const raw = document.getElementById('adm-deposit-target').value.trim();
-        const amount = parseInt(document.getElementById('adm-deposit-amount').value);
-        if(!raw || isNaN(amount) || amount <= 0) { play('error'); return alert('Enter a valid ID and positive amount!'); }
-        try {
-            const r = await fetch('/api/admin', { method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({ user_id: currentUser, discord_token: getToken(), action:'deposit', target_id: raw, amount }) });
-            const d = await r.json();
-            if(!r.ok) return alert('Error: ' + d.error);
-            if(raw === currentUser || ('discord_'+raw) === currentUser) { userData.chips = d.newBalance; updateUI(); }
-            admLog(`💰 Deposited ${amount}★ to ${raw} (${d.oldBalance} → ${d.newBalance})`); play('admin_give');
-            alert(`✅ Deposited ${amount}★!\n\n${d.oldBalance} → ${d.newBalance} ★`);
-            document.getElementById('adm-deposit-target').value = '';
-            document.getElementById('adm-deposit-amount').value = '';
-        } catch(e) { alert('Error: ' + e.message); }
+        alert('Deposits are disabled. Coins can only be earned through gameplay.');
     }
 
         async function adminWithdraw() {
