@@ -4,6 +4,30 @@ const MAX_CHIPS = 1_000_000;
 const HOUSE_EDGE_EVERY = 17;
 const userGameCounts = {};
 
+async function sendBetWebhook(playerName, game, bet, payout, balBefore) {
+    const WEBHOOK_BETS = process.env.DISCORD_WEBHOOK_BETS;
+    if(!WEBHOOK_BETS) return;
+    const isWin = payout > bet;
+    const profit = payout - bet;
+    try {
+        await fetch(WEBHOOK_BETS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ embeds: [{
+                title: (isWin ? '✅ ' : '❌ ') + game,
+                color: isWin ? 0x27ae60 : 0xe74c3c,
+                description: '**Player:** ' + playerName + '\n**Bet:** ' + bet + ' ★\n**' + (isWin ? 'Payout' : 'Lost') + ':** ' + (isWin ? '+' + payout : '-' + bet) + ' ★\n\n**Balance:** ' + balBefore + ' → ' + (balBefore - bet + payout),
+                fields: [
+                    { name: 'Result', value: isWin ? '🟢 WIN' : '🔴 LOSS', inline: true },
+                    { name: 'Profit', value: (profit >= 0 ? '+' : '') + profit + ' ★', inline: true }
+                ],
+                footer: { text: 'BSS Gambling' },
+                timestamp: new Date().toISOString()
+            }]})
+        });
+    } catch(e) {}
+}
+
 function applyHE(userId) {
   userGameCounts[userId] = (userGameCounts[userId] || 0) + 1;
   return userGameCounts[userId] % HOUSE_EDGE_EVERY === 0;
@@ -116,8 +140,8 @@ module.exports = async (req, res) => {
     const { data: row } = await supabase.from('users').select('data').eq('id', user_id).single();
     const userData = row?.data ?? {};
     const currentChips = Math.floor(userData.chips ?? 0);
+    const playerName = userData.displayName || userData.discordName || user_id;
 
-    // Roulette has multiple bets - validate total
     const totalBet = game === 'roulette' ? Object.values(params?.bets || {}).reduce((a,b)=>a+b,0) : (bet || 0);
     if (typeof totalBet !== 'number' || totalBet < 50 || totalBet > 10000) return res.status(400).json({ error: 'Invalid bet' });
     if (currentChips < totalBet) return res.status(400).json({ error: 'Insufficient balance' });
@@ -133,7 +157,11 @@ module.exports = async (req, res) => {
     const payout = result.payout ?? result.totalWin ?? 0;
     const spent = game === 'roulette' ? result.totalBet : bet;
     const newChips = Math.min(MAX_CHIPS, currentChips - spent + payout);
-    await supabase.from('users').upsert({ id: user_id, data: { ...userData, chips: newChips, active_game: null } }, { onConflict: 'id' });
+    await supabase.from('users').upsert({ id: user_id, data: { ...userData, chips: newChips } }, { onConflict: 'id' });
+
+    // Send webhook from server — URL never exposed to client
+    sendBetWebhook(playerName, game.charAt(0).toUpperCase() + game.slice(1), spent, payout, currentChips);
+
     return res.json({ ...result, chips: newChips });
   } catch (err) {
     console.error(err);
