@@ -3980,6 +3980,49 @@
     function clampBet(v) { return Math.max(MIN_BET, Math.min(MAX_BET, parseInt(v) || MIN_BET)); }
     function isAtCoinCap() { return !fpEnabled && Math.floor(getChips()) >= MAX_COINS; }
 
+    // ── Bet Lock (prevents double-spending during async API calls) ──────────
+    let _betLocked = false;
+    function acquireBetLock() {
+        if (_betLocked) return false;
+        _betLocked = true;
+        return true;
+    }
+    function releaseBetLock() { _betLocked = false; }
+
+    // ── Toast notifications ─────────────────────────────────────────────────
+    function toast(msg, type, duration) {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+        duration = duration || 2800;
+        const el = document.createElement('div');
+        el.className = 'toast ' + (type || 'success');
+        el.textContent = msg;
+        container.appendChild(el);
+        setTimeout(() => {
+            el.classList.add('toast-exit');
+            setTimeout(() => el.remove(), 350);
+        }, duration);
+    }
+
+    // ── Crash game state (referenced in backToMenu / isFPGameActive) ────────
+    let crashActive = false;
+    let crashInterval = null;
+
+    // ── Blackjack UI helpers ────────────────────────────────────────────────
+    function bjShowActionButtons() {
+        const ids = ['bj-hit-btn','bj-stand-btn','bj-double-btn'];
+        ids.forEach(id => { const el = document.getElementById(id); if(el){ el.style.visibility='visible'; el.style.pointerEvents='auto'; el.disabled=false; } });
+    }
+    function bjHideActionButtons() {
+        const ids = ['bj-hit-btn','bj-stand-btn','bj-double-btn'];
+        ids.forEach(id => { const el = document.getElementById(id); if(el){ el.style.visibility='hidden'; el.style.pointerEvents='none'; el.disabled=true; } });
+    }
+    function bjCheckNaturalBlackjack() {
+        if(bjHand.length === 2 && getBJScore(bjHand) === 21) {
+            bjHideActionButtons();
+        }
+    }
+
     // ── House Edge Counter ──────────────────────────────────────────────────
     // House edge only activates on every 10th game. All other 9 are fair.
     let _gameCount = 0;
@@ -4071,7 +4114,8 @@
             if(el) el.classList.add('hidden');
         });
         document.getElementById('game-'+g).classList.remove('hidden');
-        if(g==='keno') initKenoGrid();
+        if(g==='keno') initKenoBoard();
+        if(g==='roulette') initRouletteBoard();
         if(g==='tower') buildTowerBoard();
         if(g==='sticker') spInitGame();
         if(g==='mines') { setTimeout(buildEmptyMinesBoard, 50); }
@@ -4983,6 +5027,409 @@
         else if(res.outcome==='push'){addHistory("Blackjack",bjBet*2,1,bjBet*2);addProfit('blackjack',bjBet*2);document.getElementById('bj-status').textContent='🤝 PUSH';}
         else{addHistory("Blackjack",bjBet*2,0,-(bjBet*2));addProfit('blackjack',-(bjBet*2));play('boom');document.getElementById('bj-status').textContent='😞 DEALER WINS';document.querySelector('.bj-area')?.classList.add('lose-shake');}
         updateUI(); document.getElementById('bj-deal-btn').style.visibility='visible';document.getElementById('bj-deal-btn').style.pointerEvents='auto';
+    }
+
+    // ====================================================
+    // DICE GAME
+    // ====================================================
+    let dWinCond = 'high';
+    function dSetWinCond(cond) {
+        dWinCond = cond;
+        document.getElementById('d-wc-high').classList.toggle('active', cond === 'high');
+        document.getElementById('d-wc-low').classList.toggle('active', cond === 'low');
+        const tbRow = document.getElementById('d-tiebreak-row');
+        const count = parseInt(document.getElementById('d-count-slider').value || 1);
+        if(tbRow) { tbRow.style.opacity = count >= 2 ? '1' : '0.4'; tbRow.style.pointerEvents = count >= 2 ? '' : 'none'; }
+        dUpdatePotential();
+    }
+    function dSliderUpdate(v) {
+        document.getElementById('d-count-lbl').textContent = v;
+        const tbRow = document.getElementById('d-tiebreak-row');
+        if(tbRow) { tbRow.style.opacity = parseInt(v) >= 2 ? '1' : '0.4'; tbRow.style.pointerEvents = parseInt(v) >= 2 ? '' : 'none'; }
+        dUpdatePotential();
+    }
+    function dUpdatePotential() {
+        const bet = Math.max(50, Math.min(1000, parseInt(document.getElementById('d-bet')?.value || 50)));
+        const el = document.getElementById('d-potential');
+        if(el) el.innerHTML = 'Potential Win: <strong>' + Math.floor(bet * 2) + ' COINS</strong>';
+    }
+    function makeDieEl(val) {
+        const d = document.createElement('div');
+        d.className = 'dg-die';
+        d.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:linear-gradient(135deg,#1e2a3a,#141c28);border:2px solid rgba(15,214,138,0.4);border-radius:12px;font-size:22px;font-weight:900;font-family:JetBrains Mono,monospace;color:#0fd68a;margin:4px;box-shadow:0 0 12px rgba(15,214,138,0.2);';
+        d.textContent = val;
+        return d;
+    }
+    async function playDice() {
+        if(!acquireBetLock()) return;
+        if(isAtCoinCap()) { releaseBetLock(); return; }
+        const bet = clampBet(document.getElementById('d-bet').value);
+        document.getElementById('d-bet').value = bet;
+        if(!userData || bet > userData.chips) { toast('Not enough ★!','error'); releaseBetLock(); return; }
+        const diceCount = parseInt(document.getElementById('d-count-slider').value || 1);
+        const tiebreak = document.getElementById('d-tiebreak')?.checked && diceCount >= 2;
+        const rollSecond = document.getElementById('d-rollsecond')?.checked;
+        const btn = document.getElementById('d-roll-btn');
+        btn.disabled = true;
+        userData.chips -= bet; addProfit('dice', -bet); updateUI();
+        // Show rolling animation
+        const youPlaceholder = document.getElementById('d-you-placeholder');
+        const compPlaceholder = document.getElementById('d-comp-placeholder');
+        const youDice = document.getElementById('d-you-dice');
+        const compDice = document.getElementById('d-comp-dice');
+        if(youPlaceholder) youPlaceholder.textContent = '🎲';
+        if(compPlaceholder) compPlaceholder.textContent = '🎲';
+        if(youDice) youDice.style.display = 'none';
+        if(compDice) compDice.style.display = 'none';
+        let result;
+        try {
+            result = await apiCall('bet', { game:'dice', bet, params:{ diceCount, winCond: dWinCond, tiebreak } });
+        } catch(err) {
+            userData.chips += bet; addProfit('dice', bet); updateUI();
+            toast('Error: ' + err.message, 'error'); btn.disabled = false; releaseBetLock(); return;
+        }
+        releaseBetLock();
+        // Display results
+        if(youPlaceholder) youPlaceholder.style.display = 'none';
+        if(compPlaceholder) compPlaceholder.style.display = 'none';
+        if(youDice) { youDice.style.display = 'flex'; youDice.innerHTML = ''; result.yourRolls.forEach(v => youDice.appendChild(makeDieEl(v))); }
+        if(compDice) { compDice.style.display = 'flex'; compDice.innerHTML = ''; result.compRolls.forEach(v => compDice.appendChild(makeDieEl(v))); }
+        // Highlight winner
+        const youCard = document.getElementById('d-card-you');
+        const compCard = document.getElementById('d-card-comp');
+        if(youCard) youCard.style.borderColor = result.tie ? '#f39c12' : result.playerWins ? '#0fd68a' : '#e74c3c';
+        if(compCard) compCard.style.borderColor = result.tie ? '#f39c12' : result.playerWins ? '#e74c3c' : '#0fd68a';
+        if(result.playerWins) {
+            applyServerBalance(result.chips); addProfit('dice', result.payout);
+            addHistory('Dice', bet, 2, result.payout); play('win'); showWinOverlay(2, result.payout);
+        } else if(result.tie) {
+            applyServerBalance(result.chips); addProfit('dice', bet);
+            addHistory('Dice', bet, 1, bet); toast('🤝 Tie — bet returned!', 'success');
+        } else {
+            applyServerBalance(result.chips); addHistory('Dice', bet, 0, -bet); play('boom');
+        }
+        updateUI();
+        setTimeout(() => {
+            if(youPlaceholder) { youPlaceholder.textContent = '?'; youPlaceholder.style.display = ''; }
+            if(compPlaceholder) { compPlaceholder.textContent = '?'; compPlaceholder.style.display = ''; }
+            if(youDice) youDice.style.display = 'none';
+            if(compDice) compDice.style.display = 'none';
+            if(youCard) youCard.style.borderColor = '';
+            if(compCard) compCard.style.borderColor = '';
+            btn.disabled = false;
+        }, 2200);
+    }
+
+    // ====================================================
+    // COIN FLIP GAME
+    // ====================================================
+    async function playCoinFlip() {
+        if(!acquireBetLock()) return;
+        if(isAtCoinCap()) { releaseBetLock(); return; }
+        const bet = clampBet(document.getElementById('cf-bet').value);
+        document.getElementById('cf-bet').value = bet;
+        if(!userData || bet > userData.chips) { toast('Not enough ★!','error'); releaseBetLock(); return; }
+        const choice = document.getElementById('cf-choice').value;
+        const btn = document.getElementById('cf-btn');
+        btn.disabled = true;
+        userData.chips -= bet; addProfit('coinflip', -bet); updateUI();
+        // Spin animation
+        const coin = document.getElementById('coin-obj');
+        if(coin) coin.classList.add('cf-spinning');
+        let result;
+        try {
+            result = await apiCall('bet', { game:'coinflip', bet, params:{ choice } });
+        } catch(err) {
+            userData.chips += bet; addProfit('coinflip', bet); updateUI();
+            if(coin) coin.classList.remove('cf-spinning');
+            toast('Error: ' + err.message, 'error'); btn.disabled = false; releaseBetLock(); return;
+        }
+        releaseBetLock();
+        if(coin) {
+            coin.classList.remove('cf-spinning');
+            // Show result side
+            coin.style.transition = 'transform 0.4s ease';
+            coin.style.transform = result.result === 'T' ? 'rotateY(180deg)' : 'rotateY(0deg)';
+        }
+        if(result.win) {
+            applyServerBalance(result.chips); addProfit('coinflip', result.payout);
+            addHistory('Coinflip', bet, 2, result.payout); play('win'); showWinOverlay(2, result.payout);
+        } else {
+            applyServerBalance(result.chips); addHistory('Coinflip', bet, 0, -bet); play('boom');
+            toast('😞 ' + (result.result === 'H' ? '👑 Heads' : '★ Tails') + ' — you lose!', 'error');
+        }
+        updateUI();
+        setTimeout(() => { btn.disabled = false; if(coin) coin.style.transform = ''; }, 1500);
+    }
+
+    // ====================================================
+    // ROULETTE GAME
+    // ====================================================
+    const R_RED = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+    let lastRouletteBets = {};
+    function initRouletteBoard() {
+        const board = document.getElementById('r-board');
+        if(!board || board.children.length > 0) return;
+        // 0 cell spanning full height
+        const zero = document.createElement('div');
+        zero.className = 'r-cell r-green'; zero.textContent = '0'; zero.dataset.bet = 'n0';
+        zero.style.cssText = 'grid-row:1/4; grid-column:1; display:flex; align-items:center; justify-content:center; background:#1a5c30; border:1px solid #0fd68a; border-radius:4px; font-weight:900; cursor:pointer; font-size:16px; color:#0fd68a; padding:8px 6px;';
+        zero.onclick = () => placeRouletteBet('n0', zero);
+        board.appendChild(zero);
+        // Numbers 1-36 in roulette layout (rows 3,2,1 top→bottom, cols 1-12)
+        for(let row = 3; row >= 1; row--) {
+            for(let col = 1; col <= 12; col++) {
+                const num = (col - 1) * 3 + row;
+                const cell = document.createElement('div');
+                const isRed = R_RED.includes(num);
+                cell.className = 'r-cell ' + (isRed ? 'r-red' : 'r-black');
+                cell.textContent = num; cell.dataset.bet = 'n' + num;
+                cell.style.cssText = 'display:flex;align-items:center;justify-content:center;background:' + (isRed ? '#8b1a1a' : '#111') + ';border:1px solid ' + (isRed ? '#c0392b' : '#444') + ';border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;color:#fff;padding:8px 4px;position:relative;';
+                cell.onclick = () => placeRouletteBet('n' + num, cell);
+                board.appendChild(cell);
+            }
+        }
+        board.style.cssText = 'display:grid;grid-template-columns:40px repeat(12,1fr);grid-template-rows:repeat(3,1fr);gap:3px;';
+    }
+    function placeRouletteBet(key, el) {
+        if(isRSpinning) return;
+        const chipVal = parseFloat(document.getElementById('r-bet').value || 10);
+        if(!chipVal || chipVal < 0.1) return;
+        currentBets[key] = (currentBets[key] || 0) + chipVal;
+        el.style.outline = '2px solid #0fd68a';
+        // Show amount badge
+        let badge = el.querySelector('.r-badge');
+        if(!badge) { badge = document.createElement('span'); badge.className = 'r-badge'; badge.style.cssText = 'position:absolute;bottom:2px;right:3px;font-size:9px;background:#0fd68a;color:#000;border-radius:3px;padding:1px 3px;font-weight:900;'; el.appendChild(badge); }
+        badge.textContent = currentBets[key] % 1 === 0 ? currentBets[key] : currentBets[key].toFixed(1);
+        saveGameState();
+    }
+    function setExtraBet(key, btn) {
+        if(isRSpinning) return;
+        const chipVal = parseFloat(document.getElementById('r-bet').value || 10);
+        if(!chipVal) return;
+        currentBets[key] = (currentBets[key] || 0) + chipVal;
+        btn.style.outline = '2px solid #0fd68a';
+        let badge = btn.querySelector('.r-badge');
+        if(!badge) { badge = document.createElement('span'); badge.className = 'r-badge'; badge.style.cssText = 'font-size:9px;background:#0fd68a;color:#000;border-radius:3px;padding:1px 4px;font-weight:900;margin-left:4px;'; btn.appendChild(badge); }
+        badge.textContent = currentBets[key] % 1 === 0 ? currentBets[key] : currentBets[key].toFixed(1);
+    }
+    function clearRouletteBets() {
+        if(isRSpinning) return;
+        currentBets = {};
+        document.querySelectorAll('.r-badge').forEach(b => b.remove());
+        document.querySelectorAll('.r-cell, .btn-extra').forEach(el => el.style.outline = '');
+        document.getElementById('r-status').textContent = 'PLACE YOUR BETS';
+        saveGameState();
+    }
+    function rebetRoulette() {
+        if(isRSpinning || Object.keys(lastRouletteBets).length === 0) return;
+        clearRouletteBets();
+        currentBets = {...lastRouletteBets};
+        // Re-highlight cells
+        for(const key of Object.keys(currentBets)) {
+            const el = document.querySelector('[data-bet="' + key + '"]') || Array.from(document.querySelectorAll('.btn-extra')).find(b => b.onclick?.toString().includes("'" + key + "'"));
+            if(el) { el.style.outline = '2px solid #0fd68a'; }
+        }
+    }
+    async function spinRoulette() {
+        if(isRSpinning) return;
+        if(!acquireBetLock()) return;
+        const total = Object.values(currentBets).reduce((a,b)=>a+b,0);
+        if(total < 0.1) { toast('Place a bet first!','warn'); releaseBetLock(); return; }
+        if(!userData || total > userData.chips) { toast('Not enough ★!','error'); releaseBetLock(); return; }
+        isRSpinning = true;
+        const btn = document.getElementById('r-spin');
+        if(btn) btn.disabled = true;
+        userData.chips -= total; addProfit('roulette', -total); updateUI();
+        lastRouletteBets = {...currentBets};
+        let result;
+        try {
+            result = await apiCall('bet', { game:'roulette', bet: total, params:{ bets: currentBets } });
+        } catch(err) {
+            userData.chips += total; addProfit('roulette', total); updateUI();
+            isRSpinning = false; if(btn) btn.disabled = false; releaseBetLock(); return;
+        }
+        releaseBetLock();
+        // Animate wheel strip
+        const slider = document.getElementById('r-slider');
+        const rOrder = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
+        if(slider) {
+            slider.innerHTML = '';
+            const strip = [...rOrder,...rOrder,...rOrder].map(n => {
+                const isRed = R_RED.includes(n);
+                return `<div style="display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:44px;background:${n===0?'#1a5c30':isRed?'#8b1a1a':'#111'};border:1px solid #333;border-radius:4px;font-weight:700;font-size:14px;color:#fff;margin:0 2px;">${n}</div>`;
+            }).join('');
+            slider.innerHTML = strip;
+            const winIdx = rOrder.indexOf(result.winNum) + rOrder.length;
+            const targetOffset = winIdx * 48 - 200;
+            slider.style.transition = 'none'; slider.style.transform = 'translateX(0)';
+            requestAnimationFrame(() => {
+                slider.style.transition = 'transform 3s cubic-bezier(0.17,0.67,0.12,0.99)';
+                slider.style.transform = 'translateX(-' + targetOffset + 'px)';
+            });
+        }
+        document.getElementById('r-status').textContent = '🎡 Spinning...';
+        await new Promise(r => setTimeout(r, 3200));
+        // Show result
+        const won = result.totalWin > 0;
+        document.getElementById('r-status').textContent = '🎯 Landed on ' + result.winNum + (won ? ' — WIN!' : ' — Better luck next time!');
+        if(won) {
+            applyServerBalance(result.chips); addProfit('roulette', result.totalWin);
+            addHistory('Roulette', total, result.totalWin/total, result.totalWin);
+            play('win'); showWinOverlay((result.totalWin/total).toFixed(2), result.totalWin);
+        } else {
+            applyServerBalance(result.chips); addHistory('Roulette', total, 0, -total); play('boom');
+        }
+        clearRouletteBets();
+        updateUI();
+        isRSpinning = false;
+        if(btn) btn.disabled = false;
+    }
+    // Init roulette board when game is selected
+    const _origSelectGame = selectGame;
+    // (board init handled in selectGame override below)
+
+    // ====================================================
+    // CRASH GAME
+    // ====================================================
+    async function startCrash() {
+        if(!acquireBetLock()) return;
+        if(isAtCoinCap()) { releaseBetLock(); return; }
+        const bet = clampBet(document.getElementById('c-bet').value);
+        document.getElementById('c-bet').value = bet;
+        const target = Math.max(1.01, Math.min(100, parseFloat(document.getElementById('c-target').value || 2)));
+        document.getElementById('c-target').value = target.toFixed(2);
+        if(!userData || bet > userData.chips) { toast('Not enough ★!','error'); releaseBetLock(); return; }
+        const btn = document.getElementById('c-start');
+        btn.disabled = true; crashActive = true;
+        userData.chips -= bet; addProfit('crash', -bet); updateUI();
+        const display = document.getElementById('crash-display');
+        let mult = 1.00;
+        if(display) { display.textContent = mult.toFixed(2) + 'x'; display.style.color = '#2ecc71'; }
+        // Animate multiplier going up
+        crashInterval = setInterval(() => {
+            mult += mult * 0.03;
+            if(display) display.textContent = mult.toFixed(2) + 'x';
+        }, 100);
+        let result;
+        try {
+            result = await apiCall('bet', { game:'crash', bet, params:{ target } });
+        } catch(err) {
+            clearInterval(crashInterval); crashInterval = null;
+            userData.chips += bet; addProfit('crash', bet); updateUI();
+            crashActive = false; btn.disabled = false; releaseBetLock();
+            toast('Error: ' + err.message, 'error'); return;
+        }
+        releaseBetLock();
+        clearInterval(crashInterval); crashInterval = null;
+        crashActive = false;
+        if(display) {
+            display.textContent = result.crashPoint.toFixed(2) + 'x';
+            display.style.color = result.win ? '#0fd68a' : '#e74c3c';
+        }
+        // Add to crash history
+        const hist = document.getElementById('crash-history');
+        if(hist) {
+            const tag = document.createElement('span');
+            tag.style.cssText = 'padding:4px 8px;border-radius:4px;font-weight:700;font-size:13px;background:' + (result.win ? '#0a3a2a' : '#3a1a1a') + ';color:' + (result.win ? '#0fd68a' : '#e74c3c') + ';border:1px solid ' + (result.win ? '#0fd68a' : '#e74c3c') + ';';
+            tag.textContent = result.crashPoint.toFixed(2) + 'x';
+            hist.prepend(tag);
+            while(hist.children.length > 8) hist.removeChild(hist.lastChild);
+        }
+        if(result.win) {
+            applyServerBalance(result.chips); addProfit('crash', result.payout);
+            addHistory('Crash', bet, target, result.payout); play('win'); showWinOverlay(target, result.payout);
+        } else {
+            applyServerBalance(result.chips); addHistory('Crash', bet, 0, -bet); play('boom');
+            toast('💥 Crashed at ' + result.crashPoint.toFixed(2) + 'x!', 'error');
+        }
+        updateUI();
+        setTimeout(() => { btn.disabled = false; }, 1000);
+    }
+
+    // ====================================================
+    // KENO GAME
+    // ====================================================
+    let kenoSelected = [];
+    let kenoMode = 'easy';
+    function setKenoMode(mode) {
+        kenoMode = mode;
+        ['easy','medium','hard'].forEach(m => {
+            const btn = document.getElementById('keno-mode-' + m);
+            if(btn) btn.classList.toggle('active', m === mode);
+        });
+    }
+    function clearKeno() {
+        kenoSelected = [];
+        document.querySelectorAll('.keno-num').forEach(el => {
+            el.classList.remove('keno-selected','keno-hit','keno-miss','keno-drawn');
+        });
+    }
+    function initKenoBoard() {
+        const grid = document.getElementById('keno-grid');
+        if(!grid) return;
+        if(grid.children.length > 0) { kenoSelected = []; return; }
+        for(let i = 1; i <= 20; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'keno-num'; cell.textContent = i; cell.dataset.num = i;
+            cell.onclick = () => {
+                if(cell.classList.contains('keno-drawn')) return;
+                const idx = kenoSelected.indexOf(i);
+                if(idx >= 0) { kenoSelected.splice(idx,1); cell.classList.remove('keno-selected'); }
+                else if(kenoSelected.length < 5) { kenoSelected.push(i); cell.classList.add('keno-selected'); }
+                else { toast('Max 5 picks!','warn'); }
+            };
+            grid.appendChild(cell);
+        }
+    }
+    async function startKeno() {
+        if(!acquireBetLock()) return;
+        if(isAtCoinCap()) { releaseBetLock(); return; }
+        if(kenoSelected.length < 3) { toast('Pick 3–5 numbers!','warn'); releaseBetLock(); return; }
+        const bet = clampBet(document.getElementById('keno-bet').value);
+        document.getElementById('keno-bet').value = bet;
+        if(!userData || bet > userData.chips) { toast('Not enough ★!','error'); releaseBetLock(); return; }
+        const btn = document.getElementById('keno-bet-btn');
+        if(btn) btn.disabled = true;
+        userData.chips -= bet; addProfit('keno', -bet); updateUI();
+        // Reset cell states
+        document.querySelectorAll('.keno-num').forEach(el => el.classList.remove('keno-hit','keno-miss','keno-drawn'));
+        let result;
+        try {
+            result = await apiCall('bet', { game:'keno', bet, params:{ selected: kenoSelected, mode: kenoMode } });
+        } catch(err) {
+            userData.chips += bet; addProfit('keno', bet); updateUI();
+            if(btn) btn.disabled = false; releaseBetLock();
+            toast('Error: ' + err.message, 'error'); return;
+        }
+        releaseBetLock();
+        // Animate reveal
+        for(let i = 0; i < result.drawn.length; i++) {
+            await new Promise(r => setTimeout(r, 200));
+            const n = result.drawn[i];
+            const cell = document.querySelector('.keno-num[data-num="' + n + '"]');
+            if(cell) {
+                cell.classList.add('keno-drawn');
+                if(kenoSelected.includes(n)) cell.classList.add('keno-hit');
+                else cell.classList.add('keno-miss');
+            }
+        }
+        // Mark selected-but-not-drawn as miss
+        kenoSelected.forEach(n => {
+            if(!result.drawn.includes(n)) {
+                const cell = document.querySelector('.keno-num[data-num="' + n + '"]');
+                if(cell) cell.classList.add('keno-miss');
+            }
+        });
+        if(result.payout > 0) {
+            applyServerBalance(result.chips); addProfit('keno', result.payout);
+            addHistory('Keno', bet, result.mult, result.payout); play('win'); showWinOverlay(result.mult, result.payout);
+        } else {
+            applyServerBalance(result.chips); addHistory('Keno', bet, 0, -bet); play('boom');
+            toast('😞 ' + result.matches + '/' + kenoSelected.length + ' matches — no win', 'error');
+        }
+        updateUI();
+        setTimeout(() => { if(btn) btn.disabled = false; }, 1500);
     }
 
     // ====================================================
