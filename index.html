@@ -5531,6 +5531,31 @@ function spRenderHistory() {
 spUpdatePotential();
 spUpdateStats();
 
+// ===== BOT DEPOSIT POLLING =====
+setInterval(async () => {
+    if (!currentUser || !currentUser.startsWith('discord_')) return;
+    try {
+        const fresh = await dbGet('users', currentUser);
+        if (!fresh || !fresh._bot_updated) return;
+        // Bot updated balance — apply it
+        const newChips = fresh.chips ?? 0;
+        if (typeof acLegitChange === 'function') acLegitChange(newChips);
+        const raw = (userData && userData[Symbol.for('bss_raw')]) ? userData[Symbol.for('bss_raw')] : userData;
+        if (raw) raw.chips = newChips;
+        updateUI();
+        toast('💰 Balance updated by admin!', 'success');
+        // Clear the flag via save-user (chips not included so flag gets dropped)
+        const token = getToken();
+        if (token) {
+            fetch(`${EDGE_BASE}/save-user`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_KEY}` },
+                body: JSON.stringify({ discord_token: token, data: { displayName: fresh.displayName, avatarUrl: fresh.avatarUrl, discord: true } })
+            }).catch(() => {});
+        }
+    } catch(e) {}
+}, 10000);
+
 // ===== DISCORD OAUTH CALLBACK & AUTO LOGIN =====
 (async function() {
     const hash = window.location.hash.substring(1);
