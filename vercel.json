@@ -1,8 +1,9 @@
 {
   "rewrites": [
-    { "source": "/api/bet", "destination": "/api/bet" },
-    { "source": "/api/mines", "destination": "/api/mines" },
-    { "source": "/api/tower", "destination": "/api/tower" },
-    { "source": "/api/blackjack", "destination": "/api/blackjack" }
+    { "source": "/api/bet",      "destination": "/api/bet" },
+    { "source": "/api/mines",    "destination": "/api/mines" },
+    { "source": "/api/tower",    "destination": "/api/tower" },
+    { "source": "/api/blackjack","destination": "/api/blackjack" },
+    { "source": "/api/admin",    "destination": "/api/admin" }
   ]
 }
