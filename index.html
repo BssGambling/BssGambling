@@ -6563,7 +6563,21 @@
             }
         }
 
-        // visibilitychange removed — was resetting coins on tab switch.
+        // Poll server every 10s — ONLY apply balance if bot set _bot_updated flag.
+        // Tab switching never triggers this, so coins won't reset.
+        setInterval(async () => {
+            if(!currentUser || !userData) return;
+            const fresh = await dbGet('users', currentUser);
+            if(fresh && fresh._bot_updated) {
+                const _SYM_RAW = Symbol.for('bss_raw');
+                const raw = (userData && userData[_SYM_RAW]) ? userData[_SYM_RAW] : userData;
+                raw.chips = fresh.chips;
+                delete raw._bot_updated;
+                localStorage.setItem('swarm_userdata_' + currentUser, JSON.stringify(raw));
+                dbSet('users', currentUser, raw);
+                updateUI();
+            }
+        }, 10000);
     };
 
     // ── Pull-to-refresh guard ──────────────────────────────────────────────────
