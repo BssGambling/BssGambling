@@ -5542,7 +5542,7 @@ spUpdateStats();
         const params = new URLSearchParams(hash);
         freshToken = params.get('access_token');
         // Clear hash from URL immediately so token isn't visible
-        history.replaceState(null, '', window.location.pathname);
+        window.history.replaceState(null, '', window.location.pathname);
         if (freshToken) {
             sessionStorage.setItem('dc_token_live', freshToken);
             localStorage.setItem('dc_token_live', freshToken);
