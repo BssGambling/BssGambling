@@ -3342,7 +3342,7 @@
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${SUPABASE_KEY}`
                         },
-                        body: JSON.stringify({ discord_token: token, data: rawVal })
+                        body: JSON.stringify({ discord_token: token, data: (function(){ const s=Object.assign({},rawVal); delete s.chips; return s; })() })
                     });
                     if(response.ok) return; // Success, exit here
                     console.warn('Edge Function failed, falling back to direct write');
@@ -3552,43 +3552,10 @@
     }
 
     // --- AUTH & CORE ---
+    // Username/password login removed — balance was stored in localStorage only with
+    // no server enforcement, making it trivially manipulable. Discord login only.
     async function auth(type) {
-        const u = document.getElementById('user').value.trim(), p = document.getElementById('pass').value;
-        if(!u || !p) return alert('Please enter username and password!');
-        try {
-            const users = await dbGetAll('users');
-            if(type === 'reg') {
-                if(users[u]) return alert("Username taken!");
-                userData = { password: p, chips: 1000 };
-                await dbSet('users', u, userData);
-                currentUser = u; localStorage.setItem('swarm_user', u);
-                await loginSuccess();
-            } else {
-                if(users[u] && users[u].password === p) {
-                    currentUser = u;
-                    // localStorage is ALWAYS the source of truth for username/password users
-                    // because Supabase RLS blocks chip writes — the server value never updates
-                    // during gameplay, so it's always stale. Use local chips if they exist.
-                    const _loginCached = localStorage.getItem('swarm_userdata_' + u);
-                    let _loginCachedData = null;
-                    try { _loginCachedData = _loginCached ? JSON.parse(_loginCached) : null; } catch(e) {}
-                    if(_loginCachedData && typeof _loginCachedData.chips === 'number') {
-                        // Use local chips; merge other fields (password etc.) from server
-                        userData = Object.assign({}, users[u], { chips: _loginCachedData.chips });
-                    } else {
-                        // No local cache (new device) — use server value
-                        userData = users[u];
-                    }
-                    localStorage.setItem('swarm_user', u);
-                    await loginSuccess();
-                } else {
-                    alert("Login failed! Wrong username or password.");
-                }
-            }
-        } catch(e) {
-            alert('Database error: ' + e.message + '\nCheck browser console (F12) for details.');
-            console.error('Auth error:', e);
-        }
+        alert('Username/password login is disabled. Please use Discord login.');
     }
 
     async function loginSuccess() {
@@ -4287,26 +4254,27 @@
 
     // --- PROMO & ADMIN ---
     async function createPromo() {
-        const code = document.getElementById('new-code').value.toUpperCase().trim(), val = parseInt(document.getElementById('code-val').value);
-        if(!code || isNaN(val)) return;
-        await dbSet('promos', code, {val});
-        alert("Promo created!");
+        // Promo creation is disabled client-side — codes must be created server-side
+        // to prevent anyone using the anon Supabase key to manufacture their own codes.
+        alert('Promo creation is admin-only and must be done via the server dashboard.');
     }
 
     async function redeemCode() {
         const code = document.getElementById('promo-input').value.toUpperCase().trim();
         if(!code) return toast('Enter a code!', 'warn');
-        // Check if this user already redeemed this code
-        const usedData = await dbGet('promos', `used_${currentUser}_${code}`);
-        if(usedData) return toast('You already redeemed this code!', 'error');
-        const data = await dbGet('promos', code);
-        if(data && data.val) {
-            // Mark as used
-            await dbSet('promos', `used_${currentUser}_${code}`, { by: currentUser, at: Date.now() });
-            userData.chips += data.val; updateUI();
-            toast('✅ Code redeemed! +' + data.val + ' ★', 'success');
-        } else {
-            toast('Invalid or expired code!', 'error');
+        // Redemption goes through the server API — the client never reads or applies
+        // promo values directly. The server validates the code, checks it hasn't been
+        // used, marks it used, and returns the authoritative new balance.
+        try {
+            const result = await apiCall('redeem', { code });
+            if(result && typeof result.chips === 'number') {
+                applyServerBalance(result.chips);
+                toast('✅ Code redeemed! +' + (result.awarded || '?') + ' ★', 'success');
+            } else {
+                toast('Invalid or expired code!', 'error');
+            }
+        } catch(e) {
+            toast(e.message || 'Invalid or expired code!', 'error');
         }
     }
 
