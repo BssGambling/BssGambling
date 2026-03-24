@@ -3491,6 +3491,9 @@
                 user.avatarUrl = avatarUrl;
                 user.discord = true;
             }
+            // chips comes from the server API — never trust the stored value alone.
+            // Default to 0 so the UI never shows NaN while the balance loads.
+            if(typeof user.chips !== 'number' || isNaN(user.chips)) user.chips = 0;
             await dbSet('users', id, user);
             localStorage.setItem('swarm_user', id);
             sessionStorage.setItem('dc_token_live', token);
@@ -3498,6 +3501,14 @@
             currentUser = id;
             userData = user;
             await loginSuccess();
+            // Fetch authoritative balance from server and apply it
+            try {
+                const bal = await apiCall('balance', {});
+                if(bal && typeof bal.chips === 'number' && !isNaN(bal.chips)) {
+                    applyServerBalance(bal.chips);
+                    updateUI();
+                }
+            } catch(e) { /* server may not have /balance yet — local chips used as fallback */ }
             injectDiscordAvatar(displayName, avatarUrl);
         } catch(e) {
             console.error('Discord login error:', e);
@@ -3832,7 +3843,7 @@
         const nameEl = document.getElementById('home-display-name');
         const chipsEl = document.getElementById('home-display-chips');
         if(nameEl) nameEl.innerText = (userData && userData.displayName) ? userData.displayName : currentUser || '---';
-        if(chipsEl) chipsEl.innerText = userData ? Math.floor(userData.chips) : 0;
+        if(chipsEl) chipsEl.innerText = userData ? (Math.floor(userData.chips || 0) || 0) : 0;
 
         // Only calculate biggest win from bet history
         const biggest = betHistory.reduce((max, b) => b.win > max ? b.win : max, 0);
@@ -3991,7 +4002,7 @@
 
     function updateUI() {
         if(!userData) return;
-        const chips = fpEnabled ? Math.floor(fpChips) : Math.floor(userData.chips);
+        const chips = fpEnabled ? Math.floor(fpChips || 0) : Math.floor(userData.chips || 0);
         const el = document.getElementById('display-chips');
         if(el && el.innerText !== String(chips)) {
             el.innerText = chips;
@@ -5583,9 +5594,17 @@ setInterval(async () => {
     try {
         let user = await dbGet('users', savedUser);
         if (!user) { console.warn('[login] No user data found'); return; }
+        if(typeof user.chips !== 'number' || isNaN(user.chips)) user.chips = 0;
         currentUser = savedUser;
         userData = user;
         await loginSuccess();
+        // Fetch authoritative balance from server
+        try {
+            const bal = await apiCall('balance', {});
+            if(bal && typeof bal.chips === 'number' && !isNaN(bal.chips)) {
+                applyServerBalance(bal.chips); updateUI();
+            }
+        } catch(e) { /* /balance endpoint not yet available — using cached chips */ }
         const res = await fetch('https://discord.com/api/users/@me', { headers: { Authorization: 'Bearer ' + tokenToUse } });
         if (res.ok) {
             const dc = await res.json();
