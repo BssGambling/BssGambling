@@ -3940,6 +3940,7 @@
     const MAX_COINS = 10000;
     function clampBet(v) { return Math.max(MIN_BET, Math.min(MAX_BET, parseInt(v) || MIN_BET)); }
     function isAtCoinCap() { return !fpEnabled && Math.floor(getChips()) >= MAX_COINS; }
+    function checkCoinCap() { if(isAtCoinCap()) { toast('You\'ve reached the 10,000 ★ cap — enable Free Play or spend some coins first!', 'error'); return true; } return false; }
 
     // ── Bet Lock (prevents double-spending during async API calls) ──────────
     let _betLocked = false;
@@ -4344,7 +4345,7 @@
 
 
     async function startMines() {
-        if(isAtCoinCap()) return;
+        if(checkCoinCap()) return;
         if(!acquireBetLock()) return;
         if(mActive) { releaseBetLock(); return; }
         if(mRevealTimeout) { clearTimeout(mRevealTimeout); mRevealTimeout=null; }
@@ -4744,7 +4745,7 @@
     }
     async function playDice() {
         if(!acquireBetLock()) return;
-        if(isAtCoinCap()) { releaseBetLock(); return; }
+        if(checkCoinCap()) { releaseBetLock(); return; }
         const bet = clampBet(document.getElementById('d-bet').value);
         document.getElementById('d-bet').value = bet;
         if(!userData || bet > userData.chips) { toast('Not enough ★!','error'); releaseBetLock(); return; }
@@ -4807,7 +4808,7 @@
     // ====================================================
     async function playCoinFlip() {
         if(!acquireBetLock()) return;
-        if(isAtCoinCap()) { releaseBetLock(); return; }
+        if(checkCoinCap()) { releaseBetLock(); return; }
         const bet = clampBet(document.getElementById('cf-bet').value);
         document.getElementById('cf-bet').value = bet;
         if(!userData || bet > userData.chips) { toast('Not enough ★!','error'); releaseBetLock(); return; }
@@ -4976,7 +4977,7 @@
     // ====================================================
     async function startCrash() {
         if(!acquireBetLock()) return;
-        if(isAtCoinCap()) { releaseBetLock(); return; }
+        if(checkCoinCap()) { releaseBetLock(); return; }
         const bet = clampBet(document.getElementById('c-bet').value);
         document.getElementById('c-bet').value = bet;
         const target = Math.max(1.01, Math.min(100, parseFloat(document.getElementById('c-target').value || 2)));
@@ -5066,7 +5067,7 @@
     }
     async function startKeno() {
         if(!acquireBetLock()) return;
-        if(isAtCoinCap()) { releaseBetLock(); return; }
+        if(checkCoinCap()) { releaseBetLock(); return; }
         if(kenoSelected.length < 3) { toast('Pick 3–5 numbers!','warn'); releaseBetLock(); return; }
         const bet = clampBet(document.getElementById('keno-bet').value);
         document.getElementById('keno-bet').value = bet;
@@ -5343,7 +5344,7 @@ function spResetSlot(slotId, panelId, rarityId, nameId, placeholder) {
 async function spPrintSticker() {
   if (mActive) { toast('⛏️ Finish your Mines game first!', 'error'); return; }
   if (isRolling) return;
-  if (isAtCoinCap()) return;
+  if (checkCoinCap()) return;
   const bet = parseInt(document.getElementById('bet-input').value) || 50;
   if (bet < 50 || bet > 1000) { alert('Bet must be between 50 and 1000 coins!'); return; }
   if (bet > getChips()) { alert('Not enough coins!'); return; }
